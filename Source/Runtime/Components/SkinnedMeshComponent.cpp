@@ -29,7 +29,7 @@ void USkinnedMeshComponent::ResetPoseToBindPose()
 		const TArray<FSkeletalBone>& Bones = SkeletalMesh->MeshData.Bones;
 		CurrentLocalTransforms.Reserve(Bones.Num());
 		for (const FSkeletalBone& Bone : Bones)
-			CurrentLocalTransforms.Add(Bone.RefPoseTransform);
+			CurrentLocalTransforms.Add(FAnimBoneTransform::FromTransform(Bone.RefPoseTransform));
 	}
 	UpdateSkinning();
 }
@@ -64,16 +64,28 @@ bool USkinnedMeshComponent::LineTraceComponentLocal(const FRay& LocalRay, float&
 	return true;
 }
 
-const FTransform* USkinnedMeshComponent::GetBoneLocalTransform(int32 BoneIndex) const
+bool USkinnedMeshComponent::ApplyPose(const FAnimationPose& Pose)
 {
-	return CurrentLocalTransforms.IsValidIndex(BoneIndex) ? &CurrentLocalTransforms[BoneIndex] : nullptr;
+	// TODO: 구현 예정. 본문이 비어 있으면 반환값이 없어 컴파일 오류(C4716)가 나므로 임시로 false를 돌려준다.
+	(void)Pose;
+	return false;
+}
+
+bool USkinnedMeshComponent::GetBoneLocalTransform(int32 BoneIndex, FTransform& OutTransform) const
+{
+	if (!CurrentLocalTransforms.IsValidIndex(BoneIndex))
+	{
+		return false;
+	}
+	OutTransform = CurrentLocalTransforms[BoneIndex].ToTransform();
+	return true;
 }
 
 bool USkinnedMeshComponent::SetBoneLocalTransform(int32 BoneIndex, const FTransform& InTransform)
 {
 	if (!SkeletalMesh || !CurrentLocalTransforms.IsValidIndex(BoneIndex)) return false;
 
-	CurrentLocalTransforms[BoneIndex] = InTransform;
+	CurrentLocalTransforms[BoneIndex] = FAnimBoneTransform::FromTransform(InTransform);
 	UpdateSkinning();
 	return true;
 }
@@ -119,7 +131,7 @@ void USkinnedMeshComponent::UpdateSkinning()
 	CurrentGlobalMatrices.Reserve(BoneArray.Num());
 	for (int32 BoneIndex = 0; BoneIndex < BoneArray.Num(); ++BoneIndex)
 	{
-		FMatrix CurrentMatrix = CurrentLocalTransforms[BoneIndex].GetLocalMatrix();
+		FMatrix CurrentMatrix = CurrentLocalTransforms[BoneIndex].ToMatrix();
 		const int32 ParentIndex = BoneArray[BoneIndex].ParentIndex;
 		if (ParentIndex != -1)
 		{

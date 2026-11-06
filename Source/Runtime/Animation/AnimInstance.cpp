@@ -124,7 +124,7 @@ void UAnimSingleNodeInstance::NativeInitializeAnimation()
 	RootNode = &SequencePlayer;
 
 	// 재초기화 시 클립과 재생 설정은 유지하고 시간은 처음으로 돌린다.
-	SequencePlayer.CurrentTime = 0.0f;
+	SequencePlayer.SetNormalizedTime(0.0f);
 }
 
 void UAnimSingleNodeInstance::SetAnimationAsset(
@@ -134,7 +134,7 @@ void UAnimSingleNodeInstance::SetAnimationAsset(
 		return;
 
 	SequencePlayer.Sequence = InSequence;
-	SequencePlayer.CurrentTime = 0.0f;
+	SequencePlayer.SetNormalizedTime(0.0f);
 
 	// 클립 교체와 재생/일시정지는 별도 제어로 둔다.
 	// bPlyaing, bLoop, PlayRate는 유지한다.
@@ -188,12 +188,12 @@ void UAnimSingleNodeInstance::SetPosition(float InPosition)
 		InPosition = Length;
 	}
 
-	SequencePlayer.CurrentTime = InPosition;
+	SequencePlayer.SetNormalizedTime(InPosition / Length);
 }
 
 float UAnimSingleNodeInstance::GetPosition() const
 {
-	return SequencePlayer.CurrentTime;
+	return SequencePlayer.GetNormalizedTime() * GetLength();
 }
 
 float UAnimSingleNodeInstance::GetLength() const

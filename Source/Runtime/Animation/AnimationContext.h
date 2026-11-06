@@ -15,7 +15,7 @@ struct FAnimationUpdateContext
 
 struct FAnimationCurve
 {
-	TMap<FName, float> Values;
+	TMap<FName, float, FNameHash> Values;
 	
 	void Reset();
 };
@@ -25,6 +25,8 @@ struct FPoseContext
 	UAnimInstance* AnimInstance = nullptr;
 	FAnimationPose Pose;
 	FAnimationCurve Curve;
+
+	FPoseContext() = default;
 
 	explicit FPoseContext(UAnimInstance& InInstance);
 

@@ -15,6 +15,8 @@ class USkinnedMeshComponent : public UMeshComponent
 public:
 	USkinnedMeshComponent();
 	virtual void TickComponent(float DeltaTime) override;
+	void InitializeComponent() override;
+
 	USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh; }
 	virtual void SetSkeletalMesh(USkeletalMesh* InSkeletalMesh);
 	// 부모 본 기준의 현재 자세. 원본 RefPoseTransform은 수정하지 않는다.

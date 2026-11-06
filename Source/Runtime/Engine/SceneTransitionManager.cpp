@@ -3,17 +3,31 @@
 
 #include "Engine/World.h"
 #include "Serialization/JsonArchive.h"
+#include "Core/Misc/FileHelper.h"
+#include <system_error>
+
 
 void FSceneTransitionManager::RequestLoadScene(UWorld* TargetWorld, const FString& ScenePath)
 {
-	if (!TargetWorld || TargetWorld->GetWorldType() == EWorldType::Editor || ScenePath.empty())
+	if (!TargetWorld || TargetWorld->GetWorldType() == EWorldType::Editor || ScenePath.empty()
+		|| ScenePath.find('\0') != FString::npos)
 	{
 		HTR_LOG(Warning, "[Scene] Ignored invalid scene transition request");
 		return;
 	}
+	try
+	{
+		const std::filesystem::path NativePath = FFileHelper::ToNativePath(ScenePath).lexically_normal();
+		const FString NormalizedPath = FFileHelper::ToUtf8Path(NativePath);
 
-	PendingTransition.TargetWorld = TargetWorld;
-	PendingTransition.ScenePath = std::filesystem::path(ScenePath).lexically_normal().string();
+		// 변환 완료 이후의 대기 요청 교체
+		PendingTransition.ScenePath = NormalizedPath;
+		PendingTransition.TargetWorld = TargetWorld;
+	}
+	catch (const std::system_error&)
+	{
+		HTR_LOG(Warning, "[Scene] Ignored scene transition request: path conversion failed");
+	}
 }
 
 void FSceneTransitionManager::RequestRestartScene(UWorld* TargetWorld)
@@ -40,8 +54,9 @@ bool FSceneTransitionManager::ProcessPendingTransition()
 	if (!World || World->GetWorldType() == EWorldType::Editor)
 		return false;
 
+	const std::filesystem::path NativePath = FFileHelper::ToNativePath(Request.ScenePath);
 	std::error_code ErrorCode;
-	if (!std::filesystem::is_regular_file(Request.ScenePath, ErrorCode) || ErrorCode)
+	if (!std::filesystem::is_regular_file(NativePath, ErrorCode) || ErrorCode)
 	{
 		HTR_LOG(Error, "[Scene] Scene file does not exist: {}", Request.ScenePath);
 		return false;

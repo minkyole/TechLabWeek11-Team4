@@ -453,3 +453,4 @@ editor.ini
 
 # vcpkg generated dependencies
 /vcpkg_installed/
+AGENTS.md

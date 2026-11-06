@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <limits>
+#include <system_error>
 #include <utility>
 
 // char8_t 문자열을 통한 UTF-8 입력 명시
@@ -31,7 +32,7 @@ bool FFileHelper::TryGetNativePath(const FString& Filename, std::filesystem::pat
 		Result = ToNativePath(Filename);
 		return true;
 	}
-	catch (const std::filesystem::filesystem_error&)
+	catch (const std::system_error&)
 	{
 		return false;
 	}

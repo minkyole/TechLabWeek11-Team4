@@ -4,7 +4,7 @@
 #include "Engine/Engine.h"
 
 #include "Core/EngineStatics.h"
-#include "Engine/Engine.h"
+#include "Core/Misc/FileHelper.h"
 #include "GameFramework/Actor/StaticMeshActor.h"
 
 #include "Camera/CameraActor.h"
@@ -1528,7 +1528,6 @@ FString UWorld::GetSceneName() const
 		return "Untitled";
 	}
 
-	return std::filesystem::path(ScenePath)
-	    .stem()
-	    .string();
+	const std::filesystem::path NativePath = FFileHelper::ToNativePath(ScenePath);
+	return FFileHelper::ToUtf8Path(NativePath.stem());
 }

@@ -209,17 +209,6 @@ void UDecalComponent::DestroyRenderState()
 	Super::DestroyRenderState();
 }
 
-void UDecalComponent::Serialize(json& Handle, bool bIsLoading)
-{
-	Super::Serialize(Handle, bIsLoading);
-
-	if (bIsLoading)
-	{
-		OnTransformDirty();
-		MarkRenderStateDirty();
-	}
-}
-
 // Reflection 편집은 Setter를 거치지 않으므로 프록시 갱신을 직접 예약한다.
 void UDecalComponent::PostEditChangeProperty(const FProperty& Property)
 {

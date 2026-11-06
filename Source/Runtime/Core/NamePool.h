@@ -18,7 +18,6 @@ namespace UE::Core::Private
 		FNameEntryId Store(FStringView Name);
 		const FNameEntry& Resolve(FNameEntryId Id) const;
 
-	private:
 		static FString MakeComparisonKey(FStringView Name);
 
 	private:

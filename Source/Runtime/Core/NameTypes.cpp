@@ -54,14 +54,23 @@ int32 FName::Compare(const FName& Other) const
 		return 0;
 	}
 
-	FString ThisString = GetPlainNameString();
-	FString OtherString = Other.GetPlainNameString();
+	// 언리얼의 String과 다른 비교 연산자에 의한 오류를 바로잡는 코드.
+	// 언리얼의 FString은 string과 다르게 대소문자를 구분하지않음.
+	using UE::Core::Private::FNamePool;
+	const FNamePool& NamePool = UE::Core::Private::GetNamePool();
+	const FString ThisString = FNamePool::MakeComparisonKey(NamePool.Resolve(ComparisonIndex).Name);
+	const FString OtherString = FNamePool::MakeComparisonKey(NamePool.Resolve(Other.ComparisonIndex).Name);
 
+	// 대소문자를 정규화한 기본 이름의 사전식 비교
 	if (ThisString < OtherString)
+	{
 		return -1;
+	}
 
 	if (ThisString > OtherString)
+	{
 		return 1;
+	}
 
 	return 0;
 }

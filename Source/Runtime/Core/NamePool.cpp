@@ -1,5 +1,7 @@
 #include "EnginePCH.h"
 #include "NamePool.h"
+#include <charconv>
+#include <limits>
 
 namespace UE::Core::Private
 {
@@ -20,35 +22,40 @@ namespace UE::Core::Private
 
 	void ParseNumberFromName(FString& Name, int32& OutInternalNumber)
 	{
+		// 번호 없는 이름의 기본 결과
+		OutInternalNumber = 0;
+
 		// 1. '_' 위치를 특정.
 		size_t UnderscorePosition = Name.find_last_of('_');
 
-		if (UnderscorePosition == FString::npos)
-			return;
-
-		if (UnderscorePosition + 1 >= Name.length())
+		if (UnderscorePosition == FString::npos || UnderscorePosition == 0 || 
+			UnderscorePosition + 1 == Name.size())
 			return;
 
 		// 2. '_' 뒤쪽 숫자를 파싱.
+		
+		const char* NumberBegin = Name.data() + UnderscorePosition + 1;
+		const char* NumberEnd = Name.data() + Name.size();
 
-		OutInternalNumber = 0;
-
-		FString NumberString = Name.substr(UnderscorePosition + 1);
-
-		// 3. 숫자인지 확인.
-		for (char& Char : NumberString)
+		// 숫자 변환으로 소실되는 선행 0 보존
+		if (*NumberBegin == '0' && NumberEnd - NumberBegin > 1)
 		{
-			if (!std::isdigit(static_cast<unsigned char>(Char)))
-				return;
+			return;
 		}
 
-		// 4. 숫자로 변환한 뒤 1 크게 저장.
-		int32 ExternalNumber = std::stoi(NumberString);
+		 // 내부 번호의 증가분을 제외한 외부 번호 상한
+		constexpr uint32 MaxExternalNumber = static_cast<uint32>(std::numeric_limits<int32>::max()) - 1;
+		uint32 ExternalNumber = 0;
+		const auto Result = std::from_chars(NumberBegin, NumberEnd, ExternalNumber);
+		if (Result.ec != std::errc{} || Result.ptr != NumberEnd || ExternalNumber > MaxExternalNumber)
+		{
+			return;
+		}
 
-		OutInternalNumber = ExternalNumber + 1;
+		// 전체 검사 성공 후 이름과 내부 번호 확정
+		Name.resize(UnderscorePosition);
+		OutInternalNumber = static_cast<int32>(ExternalNumber) + 1;
 
-		// 5. '_'앞 부분 이름 파싱.
-		Name = Name.substr(0, UnderscorePosition);
 	}
 
 	FString FNamePool::MakeComparisonKey(FStringView Name)

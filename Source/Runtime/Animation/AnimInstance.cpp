@@ -20,6 +20,8 @@ void UAnimInstance::InitializeAnimation(
 	OwningComponent = InComponent;
 
 	bIsInitialized = true;
+
+	NativeInitializeAnimation();
 }
 
 void UAnimInstance::UnInitializeAnimation()

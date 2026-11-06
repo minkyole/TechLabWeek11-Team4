@@ -16,7 +16,7 @@ public:
 	USkinnedMeshComponent();
 	virtual void TickComponent(float DeltaTime) override;
 	USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh; }
-	void SetSkeletalMesh(USkeletalMesh* InSkeletalMesh);
+	virtual void SetSkeletalMesh(USkeletalMesh* InSkeletalMesh);
 	// 부모 본 기준의 현재 자세. 원본 RefPoseTransform은 수정하지 않는다.
 	bool GetBoneLocalTransform(int32 BoneIndex, FTransform& OutTransform) const;
 	bool SetBoneLocalTransform(int32 BoneIndex, const FTransform& InTransform);

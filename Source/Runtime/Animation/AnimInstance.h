@@ -31,7 +31,7 @@ protected:
 
 
 	// 파생 클래스가 소유한 노드를 참조한다. 여기서 delete하지 않는다.
-	FAnimNode_Base* RootNode; // 그래프의 시작 노드 (StateMachine 등)
+	FAnimNode_Base* RootNode = nullptr; // 그래프의 시작 노드 (StateMachine 등)
 
 private:
 	// 비소유 참조. 컴포넌트가 인스턴스의 수명을 관리한다.

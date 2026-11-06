@@ -90,6 +90,7 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 		HashObject(Object, Class);
 		Object->SetOuter(Params.Outer);
 		Object->SetName(Name);
+		Object->SetObjectLabel(Name.ToString());
 		if (Params.SetFlags != EObjectFlags::RF_NoFlags)
 			Object->SetFlags(Params.SetFlags);
 	}

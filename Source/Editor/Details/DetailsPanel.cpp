@@ -1101,9 +1101,9 @@ namespace
 			if (ImGui::BeginTable("ViewTargetDetails", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg)) {
 				ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 110.0f);
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-				DrawCameraDetailRow("Actor", ViewTarget ? ViewTarget->GetName() : "None");
+				DrawCameraDetailRow("Actor", ViewTarget ? ViewTarget->GetObjectLabel() : "None");
 				DrawCameraDetailRow("Class", ViewTarget ? ViewTarget->GetClass()->GetName() : "None");
-				DrawCameraDetailRow("Camera", Camera ? Camera->GetName() : "None");
+				DrawCameraDetailRow("Camera", Camera ? Camera->GetObjectLabel() : "None");
 				DrawCameraDetailRow("Valid View", CameraManager.HasValidCameraView() ? "Yes" : "No");
 				ImGui::EndTable();
 			}
@@ -1121,7 +1121,8 @@ namespace
 			return Left->GetPriority() < Right->GetPriority();
 		});
 		for (UCameraModifier* Modifier : Modifiers) {
-			if (!ImGui::TreeNodeEx(Modifier, ImGuiTreeNodeFlags_DefaultOpen, "%s", Modifier->GetName().c_str())) {
+			if (!ImGui::TreeNodeEx(Modifier, ImGuiTreeNodeFlags_DefaultOpen, "%s", Modifier->GetObjectLabel().c_str()))
+			{
 				continue;
 			}
 			if (ImGui::BeginTable("ModifierDetails", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg)) {
@@ -1147,9 +1148,9 @@ namespace
 	{
 		if (!Actor) { return; }
 
-		static char ComponentNameInputBuf[256] = {};
+		static char ComponentLabelInputBuffer[256] = {};
 
-		ImGui::Text("Actor: %s", Actor->GetName().c_str());
+		ImGui::Text("Actor: %s", Actor->GetObjectLabel().c_str());
 		ImGui::Text("UUID: %u", Actor->GetUUID());
 
 		if (ImGui::Button("Add Component"))
@@ -1159,21 +1160,26 @@ namespace
 
 		if (ImGui::BeginPopup("AddComponentPopup"))
 		{
-			ImGui::Text("Component Name:");
+			ImGui::Text("Component Label:");
 			ImGui::SameLine();
-			ImGui::InputText("##Component Name", ComponentNameInputBuf, sizeof(ComponentNameInputBuf));
+			ImGui::InputText("##Component Label", ComponentLabelInputBuffer, sizeof(ComponentLabelInputBuffer));
 			TArray<UClass*> Classes;
 			GetDerivedClasses(UActorComponent::StaticClass(), Classes);
 			std::sort(Classes.begin(), Classes.end(), [](const UClass* A, const UClass* B) { return A->GetName() < B->GetName(); });
 			for (UClass* Class : Classes)
 			{
-				//if (!IsSpawnableComponent(Class)) continue;
 				if (ImGui::MenuItem(Class->GetName().c_str()))
 				{
-					OutAddedComponent = Actor->AddComponent(Class, FString(ComponentNameInputBuf));
+					OutAddedComponent = Actor->AddComponent(Class, NAME_None);
 					if (OutAddedComponent)
+					{
+						if (ComponentLabelInputBuffer[0] != '\0')
+						{
+							OutAddedComponent->SetObjectLabel(FString(ComponentLabelInputBuffer));
+						}
 						OutSelectedComponent = OutAddedComponent;
-					ComponentNameInputBuf[0] = '\0';
+					}
+					ComponentLabelInputBuffer[0] = '\0';
 					ImGui::CloseCurrentPopup();
 				}
 			}
@@ -1451,6 +1457,7 @@ void FDetailsPanel::OnRender()
 
 		// 액터 -> 컴포넌트 순으로, 클래스별 프로퍼티 표시
 		ImGui::PushID(TargetActor);
+		DrawObjectLabel(TargetActor);
 		DrawProperties(TargetActor, CustomFont);
 		if (const APlayerCameraManager* CameraManager{ Cast<APlayerCameraManager>(TargetActor) }) {
 			DrawPlayerCameraManagerDetails(*CameraManager);
@@ -1461,6 +1468,7 @@ void FDetailsPanel::OnRender()
 		{
 			ImGui::PushID(TargetComponent);
 			ImGui::SeparatorText("Component Properties");
+			DrawObjectLabel(TargetComponent);
 			DrawProperties(TargetComponent, CustomFont);
 			if (USkeletalMeshComponent* SkeletalComponent = Cast<USkeletalMeshComponent>(TargetComponent))
 			{
@@ -1569,7 +1577,7 @@ void FDetailsPanel::DrawCompoenetList(AActor* SelectedActor, UActorComponent*& O
 			Flags |= ImGuiTreeNodeFlags_Selected;
 		}
 		
-		FString Label = ActorComp->GetName();
+		FString Label = ActorComp->GetObjectLabel();
 		const ImVec2 RowStart = ImGui::GetCursorScreenPos();
 		const float RowWidth = ImGui::GetContentRegionAvail().x;
 
@@ -1592,6 +1600,30 @@ void FDetailsPanel::DrawCompoenetList(AActor* SelectedActor, UActorComponent*& O
 		ImGui::GetWindowDrawList()->AddText(ImVec2(TextX, RowStart.y), IM_COL32(200, 200, 200, 255), ClassName.c_str());		
 
 		ImGui::PopID();
+	}
+}
+
+void FDetailsPanel::DrawObjectLabel(UObject* Object)
+{
+	// 현재 표시 라벨을 입력 버퍼로 복사
+	char LabelBuffer[256] = {};
+	const FString Label = Object->GetObjectLabel();
+	strncpy_s(LabelBuffer, sizeof(LabelBuffer), Label.c_str(), _TRUNCATE);
+
+	if (CustomFont)
+	{
+		ImGui::PushFont(CustomFont);
+	}
+
+	// 입력 변경을 해당 객체의 라벨에 반영
+	if (ImGui::InputText("Label", LabelBuffer, sizeof(LabelBuffer)))
+	{
+		Object->SetObjectLabel(FString(LabelBuffer));
+	}
+
+	if (CustomFont)
+	{
+		ImGui::PopFont();
 	}
 }
 
@@ -1624,7 +1656,7 @@ void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneCom
 		Flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 	}
 
-	FString Label = Component->GetName();
+	FString Label = Component->GetObjectLabel();
 	if (Component == Root)
 		Label += " (Root)";
 
@@ -1661,7 +1693,7 @@ void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneCom
 		if (Component != Root && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
 		{
 			EditingNameComponent = Component;
-			strncpy_s(ComponentNameEditBuffer, sizeof(ComponentNameEditBuffer), Component->GetName().c_str(), _TRUNCATE);
+			strncpy_s(ComponentNameEditBuffer, sizeof(ComponentNameEditBuffer), Component->GetObjectLabel().c_str(), _TRUNCATE);
 			bFocusNameEdit = true;
 		}
 
@@ -1695,20 +1727,9 @@ void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneCom
 		const bool bFinished = bConfirmed || ImGui::IsItemDeactivatedAfterEdit();
 		if (bCancelled || bFinished)
 		{
-			if (!bCancelled && ComponentNameEditBuffer[0] != '\0')
+			if (!bCancelled)
 			{
-				FName NewName(ComponentNameEditBuffer);
-				AActor* Owner = Component->GetOwner();
-
-				UActorComponent* Existing = Owner->FindComponentByName(NewName);
-				if (!Existing)
-				{
-					Component->SetName(FName(ComponentNameEditBuffer));
-				}
-				else
-				{
-					HTR_LOG(Warning, "A component with this name already exists in this Actor.");
-				}
+				Component->SetObjectLabel(FString(ComponentNameEditBuffer));
 			}
 			EditingNameComponent = nullptr;
 		}

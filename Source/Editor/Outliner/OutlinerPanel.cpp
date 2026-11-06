@@ -139,7 +139,7 @@ void FOutlinerPanel::DrawActorNode(const FOutlinerRow& Row)
     if (!Actor)
         return;
 
-    const FString& ActorName = Actor->GetName();
+    const FString& ActorName = Actor->GetObjectLabel();
 
     ImGuiTreeNodeFlags Flags =
         ImGuiTreeNodeFlags_NoTreePushOnOpen |

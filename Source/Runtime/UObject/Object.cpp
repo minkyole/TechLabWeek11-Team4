@@ -78,6 +78,21 @@ void UObject::Serialize(FArchive& Ar)
 
 void UObject::Serialize(FStructuredArchive::FRecord Record)
 {
+	// TODO : 기존 씬 전부 저장 후 버전 올리고 삭제
+	// 라벨 필드가 없는 데이터의 기본값 준비
+	if (Record.GetUnderlyingArchive().IsLoading())
+	{
+		ObjectLabel = GetName();
+	}
+
+	// 인스턴스 라벨의 선택 필드 직렬화
+	TOptional<FStructuredArchive::FSlot> LabelSlot =
+	    Record.TryEnterField("ObjectLabel", true);
+
+	if (LabelSlot.IsSet())
+	{
+		LabelSlot.GetValue() << ObjectLabel;
+	}
 	SerializeScriptProperties(Record.EnterField("Properties"));
 }
 

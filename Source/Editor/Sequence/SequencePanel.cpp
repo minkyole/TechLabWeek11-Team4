@@ -121,7 +121,7 @@ void FSequencePanel::OnRender()
 	ImGui::SetNextWindowSize(ImVec2(900.0f, 300.0f), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin(GetPanelName(), &bOpen))
 	{
-		ImGui::Text("Sequence: %s", Actor->GetName().c_str());
+		ImGui::Text("Sequence: %s", Actor->GetObjectLabel().c_str());
 		if (ImGui::Button(PreviewPlayer.IsPlaying() ? "Pause" : "Play"))	//	Play, Pause를 통해 타임라인 재생
 		{
 			if (PreviewPlayer.IsPlaying())

@@ -94,6 +94,9 @@ public:
 
 	const FName& GetFName() const { return Name; }         // FName 비교용
 	FString GetName() const { return Name.ToString(); }    // Name 출력용
+	
+	FString GetObjectLabel() const { return ObjectLabel.empty() ? GetName() : ObjectLabel; }
+	void SetObjectLabel(const FString& InLabel) { ObjectLabel = InLabel; }
 
 	UObject* GetOuter() const { return Outer; }
 	void SetOuter(UObject* InOuter) { Outer = InOuter; }
@@ -155,6 +158,7 @@ private:
 	void SerializeScriptProperties(FStructuredArchive::FSlot Slot);
 
 	FName Name = FName("None");
+	FString ObjectLabel;
 	uint32 ObjectUUID;
 	uint32 InternalIndex;
 

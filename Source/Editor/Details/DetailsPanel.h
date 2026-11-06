@@ -56,6 +56,7 @@ public:
 	ImFont* GetCustomFont() { return CustomFont; }
 
 private:
+	void DrawObjectLabel(UObject* Object);
 	void DrawSceneComponentNode(USceneComponent* Component, USceneComponent* Root, UActorComponent*& OutSelectedComponent);
 	void TryReparent(USceneComponent* DroppedComponent, USceneComponent* DragComponent);
 	// 선택한 라이트에 대응하는 현재 프레임의 Depth Map을 표시한다.

@@ -66,7 +66,7 @@ bool USkinnedMeshComponent::LineTraceComponentLocal(const FRay& LocalRay, float&
 
 bool USkinnedMeshComponent::ApplyPose(const FAnimationPose& Pose)
 {
-	// TODO: 구현 예정. 본문이 비어 있으면 반환값이 없어 컴파일 오류(C4716)가 나므로 임시로 false를 돌려준다.
+	// TODO: 구현 예정
 	(void)Pose;
 	return false;
 }

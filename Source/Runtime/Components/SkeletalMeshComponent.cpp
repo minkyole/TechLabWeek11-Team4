@@ -30,18 +30,33 @@ void USkeletalMeshComponent::BeginPlay()
 	if (!TestInstance)
 		return;
 
-	const bool bChanged = TestInstance->SetTestBoneTranslation(
+	const bool bConfigured = TestInstance->SetTestBoneTranslation(
 	    258,
 	    FVector(0.3f, 0.0f, 0.0f));
 
-	if (!bChanged)
+	if (!bConfigured)
 		return;
+
+	TestInstance->SetBlendAlpha(0.5f);
 
 	// BeginPlay 안에서 스키닝 결과까지 바로 반영.
 	if (RefreshAnimationPose())
 	{
 		FlushPendingPose();
 	}
+}
+
+void USkeletalMeshComponent::TickComponent(float DeltaTime)
+{
+	Super::TickComponent(DeltaTime);
+
+	UTestAnimInstance* TestInstance =
+	    Cast<UTestAnimInstance>(GetAnimInstance());
+
+	if (!TestInstance)
+		return;
+
+	TestInstance->SetBlendAlpha(DebugAlpha);
 }
 
 void USkeletalMeshComponent::InitializeComponent()
@@ -60,8 +75,8 @@ void USkeletalMeshComponent::InitializeAnimInstance()
 	if (!AnimInstance)
 	{
 		AnimInstance.reset(
-		//    NewObject<UAnimSingleNodeInstance>(this));
-			NewObject<UTestAnimInstance>(this)); // Debug
+		    //    NewObject<UAnimSingleNodeInstance>(this));
+		    NewObject<UTestAnimInstance>(this)); // Debug
 	}
 
 	if (AnimInstance && !AnimInstance->IsInitialized())
@@ -122,7 +137,7 @@ void USkeletalMeshComponent::ClearAnimInstance()
 }
 
 void USkeletalMeshComponent::SetSkeletalMesh(
-	USkeletalMesh* InMesh)
+    USkeletalMesh* InMesh)
 {
 	if (GetSkeletalMesh() == InMesh)
 	{
@@ -143,7 +158,7 @@ void USkeletalMeshComponent::SetSkeletalMesh(
 
 void USkeletalMeshComponent::TickPose(float DeltaTime)
 {
-	if (!AnimInstance || !AnimInstance->IsInitialized()) 
+	if (!AnimInstance || !AnimInstance->IsInitialized())
 		return;
 
 	SCOPE_CYCLE_COUNTER(SkinningStats::STAT_AnimEvaluate);
@@ -154,8 +169,8 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 bool USkeletalMeshComponent::RefreshAnimationPose()
 {
 	if (!GetSkeletalMesh() ||
-		!AnimInstance ||
-		!AnimInstance->IsInitialized())
+	    !AnimInstance ||
+	    !AnimInstance->IsInitialized())
 	{
 		return false;
 	}
@@ -186,8 +201,7 @@ void USkeletalMeshComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue)
 	const uint32 TotalIndices = IndexBuffer->GetIndexCount();
 	for (const FSkeletalMeshSection& Section : SkeletalMesh->Sections)
 	{
-		if (Section.IndexCount == 0 || Section.StartIndex > TotalIndices
-			|| Section.IndexCount > TotalIndices - Section.StartIndex) continue;
+		if (Section.IndexCount == 0 || Section.StartIndex > TotalIndices || Section.IndexCount > TotalIndices - Section.StartIndex) continue;
 		if (Section.MaterialSlotIndex >= static_cast<uint32>(GetNumMaterials())) continue;
 		UMaterial* Material = GetMaterial(static_cast<int32>(Section.MaterialSlotIndex));
 		if (!Material) continue;
@@ -206,4 +220,3 @@ void USkeletalMeshComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue)
 		Packet.IndexCount = Section.IndexCount;
 	}
 }
-

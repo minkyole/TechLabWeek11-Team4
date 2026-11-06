@@ -2,7 +2,8 @@
 
 #include "Math/Vector.h"
 #include "Math/Quat.h"
-#include "Render/Mesh.h"
+
+class USkeletalMesh;
 
 struct FAnimBoneTransform
 {

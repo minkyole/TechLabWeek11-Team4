@@ -56,8 +56,6 @@ public:
 	// 지정 행렬로 기본 카메라 경로의 렌더 패킷을 구성한다.
 	void SubmitToRenderQueue(FRenderQueue& RenderQueue, const FMatrix& BillboardWorldMatrix);
 
-	virtual void Serialize(json& Handle, bool bIsLoading) override;
-
 	using Super::Serialize;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 

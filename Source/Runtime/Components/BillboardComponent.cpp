@@ -120,27 +120,6 @@ void UBillboardComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue, const F
 	RenderQueue.Add(Packet);
 }
 
-void UBillboardComponent::Serialize(json& Handle, bool bIsLoading)
-{
-	Super::Serialize(Handle, bIsLoading);
-
-	if (bIsLoading)
-	{
-		// 예전 파일은 "Material"이 문자열(경로)이라 형식을 확인하고 읽는다
-		if (Handle.contains("Material") && Handle["Material"].is_object())
-		{
-			if (UMaterial* Loaded = UMaterial::LoadMaterial(Handle["Material"]))
-			{
-				Material = Loaded;   // 못 만들었으면 생성자 기본값 유지
-			}
-		}
-	}
-	else
-	{
-		Handle["Material"] = Material ? UMaterial::SaveMaterial(Material) : json(nullptr);
-	}
-}
-
 // 카메라를 향하는 기저와 위치·크기로 Billboard 행렬을 구성한다.
 void UBillboardComponent::GetWorldTransformedMatrix(FMatrix* OutWorldMatrix) const
 {

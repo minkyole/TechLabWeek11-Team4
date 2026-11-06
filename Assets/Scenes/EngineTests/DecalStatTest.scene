@@ -1,12 +1,16 @@
 {
-    "Version": 4,
+    "Version": 5,
     "World": {
+        "ObjectLabel": "",
         "PersistentLevel": {
+            "ObjectLabel": "",
             "Actors": [
                 {
+                    "ObjectLabel": "",
                     "Class": "ASkyLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "USkyLightComponent",
                             "Class": "USkyLightComponent",
                             "Name": "USkyLightComponent",
                             "Parent": "",
@@ -43,9 +47,11 @@
                     "RootComponent": "USkyLightComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADirectionalLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDirectionalLightComponent",
                             "Class": "UDirectionalLightComponent",
                             "Name": "UDirectionalLightComponent",
                             "Parent": "",
@@ -88,9 +94,11 @@
                     "RootComponent": "UDirectionalLightComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -126,18 +134,20 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.9,
-                                    "Y": 0.2,
-                                    "Z": 0.2
+                                    "A": 1.0,
+                                    "R": 0.9,
+                                    "G": 0.2,
+                                    "B": 0.2
                                 },
                                 "DecalSize": {
                                     "X": 1.0,
@@ -177,18 +187,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.2,
-                                    "Y": 0.8,
-                                    "Z": 0.3
+                                    "A": 1.0,
+                                    "R": 0.2,
+                                    "G": 0.8,
+                                    "B": 0.3
                                 },
                                 "DecalSize": {
                                     "X": 1.0,
@@ -228,18 +240,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.2,
-                                    "Y": 0.4,
-                                    "Z": 0.9
+                                    "A": 1.0,
+                                    "R": 0.2,
+                                    "G": 0.4,
+                                    "B": 0.9
                                 },
                                 "DecalSize": {
                                     "X": 1.0,
@@ -279,18 +293,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.9,
-                                    "Y": 0.8,
-                                    "Z": 0.2
+                                    "A": 1.0,
+                                    "R": 0.9,
+                                    "G": 0.8,
+                                    "B": 0.2
                                 },
                                 "DecalSize": {
                                     "X": 1.0,
@@ -330,18 +346,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AFakeSpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.6,
-                                    "Y": 0.52,
-                                    "Z": 0.4
+                                    "A": 1.0,
+                                    "R": 0.6,
+                                    "G": 0.52,
+                                    "B": 0.4
                                 },
                                 "DecalSize": {
                                     "X": 3.0,
@@ -381,18 +399,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AFakeSpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.6,
-                                    "Y": 0.52,
-                                    "Z": 0.4
+                                    "A": 1.0,
+                                    "R": 0.6,
+                                    "G": 0.52,
+                                    "B": 0.4
                                 },
                                 "DecalSize": {
                                     "X": 3.0,
@@ -432,18 +452,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AFakeSpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.6,
-                                    "Y": 0.52,
-                                    "Z": 0.4
+                                    "A": 1.0,
+                                    "R": 0.6,
+                                    "G": 0.52,
+                                    "B": 0.4
                                 },
                                 "DecalSize": {
                                     "X": 3.0,
@@ -483,18 +505,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.9,
-                                    "Y": 0.4,
-                                    "Z": 0.8
+                                    "A": 1.0,
+                                    "R": 0.9,
+                                    "G": 0.4,
+                                    "B": 0.8
                                 },
                                 "DecalSize": {
                                     "X": 1.0,
@@ -534,18 +558,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.9,
-                                    "Y": 0.4,
-                                    "Z": 0.8
+                                    "A": 1.0,
+                                    "R": 0.9,
+                                    "G": 0.4,
+                                    "B": 0.8
                                 },
                                 "DecalSize": {
                                     "X": 1.0,
@@ -585,18 +611,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.9,
-                                    "Y": 0.4,
-                                    "Z": 0.8
+                                    "A": 1.0,
+                                    "R": 0.9,
+                                    "G": 0.4,
+                                    "B": 0.8
                                 },
                                 "DecalSize": {
                                     "X": 1.0,
@@ -636,18 +664,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.3,
-                                    "Y": 0.9,
-                                    "Z": 0.9
+                                    "A": 1.0,
+                                    "R": 0.3,
+                                    "G": 0.9,
+                                    "B": 0.9
                                 },
                                 "DecalSize": {
                                     "X": 1.0,
@@ -687,18 +717,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 0.6,
-                                    "Z": 0.2
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 0.6,
+                                    "B": 0.2
                                 },
                                 "DecalSize": {
                                     "X": 1.0,

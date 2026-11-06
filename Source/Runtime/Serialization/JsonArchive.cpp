@@ -22,7 +22,7 @@
 
 namespace
 {
-	constexpr int32 SceneVersion = 4;   // 포맷이 바뀌었으므로 올린다
+	constexpr int32 SceneVersion = 5;   // 필수 라벨과 RGBA 색상 데이터
 }
 
 bool FJsonArchive::SaveWorldToBytes(UWorld* World, TArray<uint8>& OutBytes)

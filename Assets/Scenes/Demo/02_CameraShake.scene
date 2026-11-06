@@ -1,13 +1,17 @@
 {
-  "Version": 4,
+  "Version": 5,
   "World": {
+    "ObjectLabel": "",
     "PersistentLevel": {
+      "ObjectLabel": "",
       "Actors": [
         {
+          "ObjectLabel": "CameraShakeSampleCamera",
           "Class": "ACameraActor",
           "Name": "CameraShakeSampleCamera",
           "Components": [
             {
+              "ObjectLabel": "CameraComponent",
               "Class": "UCameraComponent",
               "Name": "CameraComponent",
               "Parent": "",
@@ -35,6 +39,7 @@
               }
             },
             {
+              "ObjectLabel": "CameraShakeSampleScript",
               "Class": "UScriptComponent",
               "Name": "CameraShakeSampleScript",
               "Parent": "",
@@ -47,10 +52,12 @@
           "RootComponent": "CameraComponent"
         },
         {
+          "ObjectLabel": "SampleFillLight",
           "Class": "ASkyLightActor",
           "Name": "SampleFillLight",
           "Components": [
             {
+              "ObjectLabel": "USkyLightComponent",
               "Class": "USkyLightComponent",
               "Name": "USkyLightComponent",
               "Parent": "",
@@ -82,10 +89,12 @@
           "RootComponent": "USkyLightComponent"
         },
         {
+          "ObjectLabel": "SampleKeyLight",
           "Class": "ADirectionalLightActor",
           "Name": "SampleKeyLight",
           "Components": [
             {
+              "ObjectLabel": "UDirectionalLightComponent",
               "Class": "UDirectionalLightComponent",
               "Name": "UDirectionalLightComponent",
               "Parent": "",
@@ -118,10 +127,12 @@
           "RootComponent": "UDirectionalLightComponent"
         },
         {
+          "ObjectLabel": "ShakeReferenceGeometry",
           "Class": "AActor",
           "Name": "ShakeReferenceGeometry",
           "Components": [
             {
+              "ObjectLabel": "DefaultSceneRoot",
               "Class": "USceneComponent",
               "Name": "DefaultSceneRoot",
               "Parent": "",
@@ -146,6 +157,7 @@
               }
             },
             {
+              "ObjectLabel": "Floor",
               "Class": "UStaticMeshComponent",
               "Name": "Floor",
               "Parent": "DefaultSceneRoot",
@@ -176,6 +188,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -196,6 +209,7 @@
               ]
             },
             {
+              "ObjectLabel": "ReferenceWall",
               "Class": "UStaticMeshComponent",
               "Name": "ReferenceWall",
               "Parent": "DefaultSceneRoot",
@@ -226,6 +240,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -246,6 +261,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorDepthLine0",
               "Class": "UStaticMeshComponent",
               "Name": "FloorDepthLine0",
               "Parent": "DefaultSceneRoot",
@@ -276,6 +292,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -296,6 +313,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallVerticalLine0",
               "Class": "UStaticMeshComponent",
               "Name": "WallVerticalLine0",
               "Parent": "DefaultSceneRoot",
@@ -326,6 +344,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -346,6 +365,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorDepthLine1",
               "Class": "UStaticMeshComponent",
               "Name": "FloorDepthLine1",
               "Parent": "DefaultSceneRoot",
@@ -376,6 +396,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -396,6 +417,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallVerticalLine1",
               "Class": "UStaticMeshComponent",
               "Name": "WallVerticalLine1",
               "Parent": "DefaultSceneRoot",
@@ -426,6 +448,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -446,6 +469,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorDepthLine2",
               "Class": "UStaticMeshComponent",
               "Name": "FloorDepthLine2",
               "Parent": "DefaultSceneRoot",
@@ -476,6 +500,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -496,6 +521,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallVerticalLine2",
               "Class": "UStaticMeshComponent",
               "Name": "WallVerticalLine2",
               "Parent": "DefaultSceneRoot",
@@ -526,6 +552,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -546,6 +573,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorDepthLine3",
               "Class": "UStaticMeshComponent",
               "Name": "FloorDepthLine3",
               "Parent": "DefaultSceneRoot",
@@ -576,6 +604,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -596,6 +625,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallVerticalLine3",
               "Class": "UStaticMeshComponent",
               "Name": "WallVerticalLine3",
               "Parent": "DefaultSceneRoot",
@@ -626,6 +656,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -646,6 +677,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorDepthLine4",
               "Class": "UStaticMeshComponent",
               "Name": "FloorDepthLine4",
               "Parent": "DefaultSceneRoot",
@@ -676,6 +708,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -696,6 +729,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallVerticalLine4",
               "Class": "UStaticMeshComponent",
               "Name": "WallVerticalLine4",
               "Parent": "DefaultSceneRoot",
@@ -726,6 +760,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -746,6 +781,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorDepthLine5",
               "Class": "UStaticMeshComponent",
               "Name": "FloorDepthLine5",
               "Parent": "DefaultSceneRoot",
@@ -776,6 +812,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -796,6 +833,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallVerticalLine5",
               "Class": "UStaticMeshComponent",
               "Name": "WallVerticalLine5",
               "Parent": "DefaultSceneRoot",
@@ -826,6 +864,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -846,6 +885,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorDepthLine6",
               "Class": "UStaticMeshComponent",
               "Name": "FloorDepthLine6",
               "Parent": "DefaultSceneRoot",
@@ -876,6 +916,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -896,6 +937,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallVerticalLine6",
               "Class": "UStaticMeshComponent",
               "Name": "WallVerticalLine6",
               "Parent": "DefaultSceneRoot",
@@ -926,6 +968,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -946,6 +989,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorDepthLine7",
               "Class": "UStaticMeshComponent",
               "Name": "FloorDepthLine7",
               "Parent": "DefaultSceneRoot",
@@ -976,6 +1020,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -996,6 +1041,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallVerticalLine7",
               "Class": "UStaticMeshComponent",
               "Name": "WallVerticalLine7",
               "Parent": "DefaultSceneRoot",
@@ -1026,6 +1072,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1046,6 +1093,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorDepthLine8",
               "Class": "UStaticMeshComponent",
               "Name": "FloorDepthLine8",
               "Parent": "DefaultSceneRoot",
@@ -1076,6 +1124,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1096,6 +1145,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallVerticalLine8",
               "Class": "UStaticMeshComponent",
               "Name": "WallVerticalLine8",
               "Parent": "DefaultSceneRoot",
@@ -1126,6 +1176,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1146,6 +1197,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorCrossLine0",
               "Class": "UStaticMeshComponent",
               "Name": "FloorCrossLine0",
               "Parent": "DefaultSceneRoot",
@@ -1176,6 +1228,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1196,6 +1249,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorCrossLine1",
               "Class": "UStaticMeshComponent",
               "Name": "FloorCrossLine1",
               "Parent": "DefaultSceneRoot",
@@ -1226,6 +1280,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1246,6 +1301,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorCrossLine2",
               "Class": "UStaticMeshComponent",
               "Name": "FloorCrossLine2",
               "Parent": "DefaultSceneRoot",
@@ -1276,6 +1332,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1296,6 +1353,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorCrossLine3",
               "Class": "UStaticMeshComponent",
               "Name": "FloorCrossLine3",
               "Parent": "DefaultSceneRoot",
@@ -1326,6 +1384,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1346,6 +1405,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorCrossLine4",
               "Class": "UStaticMeshComponent",
               "Name": "FloorCrossLine4",
               "Parent": "DefaultSceneRoot",
@@ -1376,6 +1436,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1396,6 +1457,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorCrossLine5",
               "Class": "UStaticMeshComponent",
               "Name": "FloorCrossLine5",
               "Parent": "DefaultSceneRoot",
@@ -1426,6 +1488,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1446,6 +1509,7 @@
               ]
             },
             {
+              "ObjectLabel": "FloorCrossLine6",
               "Class": "UStaticMeshComponent",
               "Name": "FloorCrossLine6",
               "Parent": "DefaultSceneRoot",
@@ -1476,6 +1540,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1496,6 +1561,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallHorizontalLine0",
               "Class": "UStaticMeshComponent",
               "Name": "WallHorizontalLine0",
               "Parent": "DefaultSceneRoot",
@@ -1526,6 +1592,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1546,6 +1613,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallHorizontalLine1",
               "Class": "UStaticMeshComponent",
               "Name": "WallHorizontalLine1",
               "Parent": "DefaultSceneRoot",
@@ -1576,6 +1644,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1596,6 +1665,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallHorizontalLine2",
               "Class": "UStaticMeshComponent",
               "Name": "WallHorizontalLine2",
               "Parent": "DefaultSceneRoot",
@@ -1626,6 +1696,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1646,6 +1717,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallHorizontalLine3",
               "Class": "UStaticMeshComponent",
               "Name": "WallHorizontalLine3",
               "Parent": "DefaultSceneRoot",
@@ -1676,6 +1748,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1696,6 +1769,7 @@
               ]
             },
             {
+              "ObjectLabel": "WallHorizontalLine4",
               "Class": "UStaticMeshComponent",
               "Name": "WallHorizontalLine4",
               "Parent": "DefaultSceneRoot",
@@ -1726,6 +1800,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1746,6 +1821,7 @@
               ]
             },
             {
+              "ObjectLabel": "LeftOrangePillar",
               "Class": "UStaticMeshComponent",
               "Name": "LeftOrangePillar",
               "Parent": "DefaultSceneRoot",
@@ -1776,6 +1852,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1796,6 +1873,7 @@
               ]
             },
             {
+              "ObjectLabel": "RightBluePillar",
               "Class": "UStaticMeshComponent",
               "Name": "RightBluePillar",
               "Parent": "DefaultSceneRoot",
@@ -1826,6 +1904,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1846,6 +1925,7 @@
               ]
             },
             {
+              "ObjectLabel": "CenterTarget",
               "Class": "UStaticMeshComponent",
               "Name": "CenterTarget",
               "Parent": "DefaultSceneRoot",
@@ -1876,6 +1956,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1896,6 +1977,7 @@
               ]
             },
             {
+              "ObjectLabel": "CenterPedestal",
               "Class": "UStaticMeshComponent",
               "Name": "CenterPedestal",
               "Parent": "DefaultSceneRoot",
@@ -1926,6 +2008,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0
@@ -1946,6 +2029,7 @@
               ]
             },
             {
+              "ObjectLabel": "ReferenceBar",
               "Class": "UStaticMeshComponent",
               "Name": "ReferenceBar",
               "Parent": "DefaultSceneRoot",
@@ -1976,6 +2060,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [
                       0.0,
                       0.0

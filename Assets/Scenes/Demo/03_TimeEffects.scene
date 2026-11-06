@@ -1,13 +1,17 @@
 {
-  "Version": 4,
+  "Version": 5,
   "World": {
+    "ObjectLabel": "",
     "PersistentLevel": {
+      "ObjectLabel": "",
       "Actors": [
         {
+          "ObjectLabel": "TimeEffectsPresentationCamera",
           "Class": "ACameraActor",
           "Name": "TimeEffectsPresentationCamera",
           "Components": [
             {
+              "ObjectLabel": "CameraComponent",
               "Class": "UCameraComponent",
               "Name": "CameraComponent",
               "Parent": "",
@@ -35,6 +39,7 @@
               }
             },
             {
+              "ObjectLabel": "TimeEffectsPresentationController",
               "Class": "UScriptComponent",
               "Name": "TimeEffectsPresentationController",
               "Parent": "",
@@ -47,10 +52,12 @@
           "RootComponent": "CameraComponent"
         },
         {
+          "ObjectLabel": "TimeDemoFillLight",
           "Class": "ASkyLightActor",
           "Name": "TimeDemoFillLight",
           "Components": [
             {
+              "ObjectLabel": "USkyLightComponent",
               "Class": "USkyLightComponent",
               "Name": "USkyLightComponent",
               "Parent": "",
@@ -82,10 +89,12 @@
           "RootComponent": "USkyLightComponent"
         },
         {
+          "ObjectLabel": "TimeDemoKeyLight",
           "Class": "ADirectionalLightActor",
           "Name": "TimeDemoKeyLight",
           "Components": [
             {
+              "ObjectLabel": "UDirectionalLightComponent",
               "Class": "UDirectionalLightComponent",
               "Name": "UDirectionalLightComponent",
               "Parent": "",
@@ -118,10 +127,12 @@
           "RootComponent": "UDirectionalLightComponent"
         },
         {
+          "ObjectLabel": "TimeDemoStage",
           "Class": "AActor",
           "Name": "TimeDemoStage",
           "Components": [
             {
+              "ObjectLabel": "DefaultSceneRoot",
               "Class": "USceneComponent",
               "Name": "DefaultSceneRoot",
               "Parent": "",
@@ -146,6 +157,7 @@
               }
             },
             {
+              "ObjectLabel": "StageFloor",
               "Class": "UStaticMeshComponent",
               "Name": "StageFloor",
               "Parent": "DefaultSceneRoot",
@@ -176,6 +188,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 0.035,
@@ -193,6 +206,7 @@
               ]
             },
             {
+              "ObjectLabel": "Backdrop",
               "Class": "UStaticMeshComponent",
               "Name": "Backdrop",
               "Parent": "DefaultSceneRoot",
@@ -223,6 +237,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 0.055,
@@ -240,6 +255,7 @@
               ]
             },
             {
+              "ObjectLabel": "TopAccent",
               "Class": "UStaticMeshComponent",
               "Name": "TopAccent",
               "Parent": "DefaultSceneRoot",
@@ -270,6 +286,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 0.12,
@@ -287,6 +304,7 @@
               ]
             },
             {
+              "ObjectLabel": "LeftPedestal",
               "Class": "UStaticMeshComponent",
               "Name": "LeftPedestal",
               "Parent": "DefaultSceneRoot",
@@ -317,6 +335,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 0.06,
@@ -334,6 +353,7 @@
               ]
             },
             {
+              "ObjectLabel": "CenterPedestal",
               "Class": "UStaticMeshComponent",
               "Name": "CenterPedestal",
               "Parent": "DefaultSceneRoot",
@@ -364,6 +384,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 0.48,
@@ -381,6 +402,7 @@
               ]
             },
             {
+              "ObjectLabel": "RightPedestal",
               "Class": "UStaticMeshComponent",
               "Name": "RightPedestal",
               "Parent": "DefaultSceneRoot",
@@ -411,6 +433,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 0.4,
@@ -432,10 +455,12 @@
           "RootComponent": "DefaultSceneRoot"
         },
         {
+          "ObjectLabel": "TimeDemoSpinnerLeft",
           "Class": "AActor",
           "Name": "TimeDemoSpinnerLeft",
           "Components": [
             {
+              "ObjectLabel": "DefaultSceneRoot",
               "Class": "USceneComponent",
               "Name": "DefaultSceneRoot",
               "Parent": "",
@@ -460,6 +485,7 @@
               }
             },
             {
+              "ObjectLabel": "HorizontalBlade",
               "Class": "UStaticMeshComponent",
               "Name": "HorizontalBlade",
               "Parent": "DefaultSceneRoot",
@@ -490,6 +516,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 0.05,
@@ -507,6 +534,7 @@
               ]
             },
             {
+              "ObjectLabel": "VerticalBlade",
               "Class": "UStaticMeshComponent",
               "Name": "VerticalBlade",
               "Parent": "DefaultSceneRoot",
@@ -537,6 +565,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 0.05,
@@ -554,6 +583,7 @@
               ]
             },
             {
+              "ObjectLabel": "TimeDemoMover",
               "Class": "UScriptComponent",
               "Name": "TimeDemoMover",
               "Parent": "",
@@ -566,10 +596,12 @@
           "RootComponent": "DefaultSceneRoot"
         },
         {
+          "ObjectLabel": "TimeDemoSpinnerCenter",
           "Class": "AActor",
           "Name": "TimeDemoSpinnerCenter",
           "Components": [
             {
+              "ObjectLabel": "DefaultSceneRoot",
               "Class": "USceneComponent",
               "Name": "DefaultSceneRoot",
               "Parent": "",
@@ -594,6 +626,7 @@
               }
             },
             {
+              "ObjectLabel": "HorizontalBlade",
               "Class": "UStaticMeshComponent",
               "Name": "HorizontalBlade",
               "Parent": "DefaultSceneRoot",
@@ -624,6 +657,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 1.0,
@@ -641,6 +675,7 @@
               ]
             },
             {
+              "ObjectLabel": "VerticalBlade",
               "Class": "UStaticMeshComponent",
               "Name": "VerticalBlade",
               "Parent": "DefaultSceneRoot",
@@ -671,6 +706,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 1.0,
@@ -688,6 +724,7 @@
               ]
             },
             {
+              "ObjectLabel": "TimeDemoMover",
               "Class": "UScriptComponent",
               "Name": "TimeDemoMover",
               "Parent": "",
@@ -700,10 +737,12 @@
           "RootComponent": "DefaultSceneRoot"
         },
         {
+          "ObjectLabel": "TimeDemoSpinnerRight",
           "Class": "AActor",
           "Name": "TimeDemoSpinnerRight",
           "Components": [
             {
+              "ObjectLabel": "DefaultSceneRoot",
               "Class": "USceneComponent",
               "Name": "DefaultSceneRoot",
               "Parent": "",
@@ -728,6 +767,7 @@
               }
             },
             {
+              "ObjectLabel": "HorizontalBlade",
               "Class": "UStaticMeshComponent",
               "Name": "HorizontalBlade",
               "Parent": "DefaultSceneRoot",
@@ -758,6 +798,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 0.92,
@@ -775,6 +816,7 @@
               ]
             },
             {
+              "ObjectLabel": "VerticalBlade",
               "Class": "UStaticMeshComponent",
               "Name": "VerticalBlade",
               "Parent": "DefaultSceneRoot",
@@ -805,6 +847,7 @@
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "UVScrollSpeed": [0.0, 0.0],
                     "BaseColor": {
                       "X": 0.92,
@@ -822,6 +865,7 @@
               ]
             },
             {
+              "ObjectLabel": "TimeDemoMover",
               "Class": "UScriptComponent",
               "Name": "TimeDemoMover",
               "Parent": "",

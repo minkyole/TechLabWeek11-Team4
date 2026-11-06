@@ -1,12 +1,16 @@
 {
-    "Version": 4,
+    "Version": 5,
     "World": {
+        "ObjectLabel": "",
         "PersistentLevel": {
+            "ObjectLabel": "",
             "Actors": [
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -31,6 +35,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -63,9 +68,11 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -90,6 +97,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -122,9 +130,11 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -149,6 +159,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -181,9 +192,11 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -208,6 +221,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -240,9 +254,11 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -267,6 +283,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -299,9 +316,11 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "APointLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -326,6 +345,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UPointLightComponent",
                             "Class": "UPointLightComponent",
                             "Name": "UPointLightComponent",
                             "Parent": "",
@@ -359,10 +379,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -411,9 +433,11 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -438,6 +462,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -470,9 +495,11 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -497,6 +524,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -529,9 +557,11 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -556,6 +586,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -588,9 +619,11 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -615,6 +648,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],

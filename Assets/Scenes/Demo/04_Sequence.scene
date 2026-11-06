@@ -1,12 +1,16 @@
 {
-    "Version": 4,
+    "Version": 5,
     "World": {
+        "ObjectLabel": "",
         "PersistentLevel": {
+            "ObjectLabel": "",
             "Actors": [
                 {
+                    "ObjectLabel": "AStaticMeshActor_0",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -43,9 +47,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_1",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -82,9 +88,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "ASpotLightActor_0",
                     "Class": "ASpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
                             "Parent": "",
@@ -122,10 +130,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -173,6 +183,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -213,9 +224,11 @@
                     "RootComponent": "USpotLightComponent"
                 },
                 {
+                    "ObjectLabel": "ASequenceActor_0",
                     "Class": "ASequenceActor",
                     "Components": [
                         {
+                            "ObjectLabel": "SequenceRoot",
                             "Class": "USceneComponent",
                             "Name": "SequenceRoot",
                             "Parent": "",

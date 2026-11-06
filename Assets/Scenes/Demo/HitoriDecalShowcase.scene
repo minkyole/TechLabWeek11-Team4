@@ -1,12 +1,16 @@
 {
-    "Version": 4,
+    "Version": 5,
     "World": {
+        "ObjectLabel": "",
         "PersistentLevel": {
+            "ObjectLabel": "",
             "Actors": [
                 {
+                    "ObjectLabel": "ASkyLightActor_0",
                     "Class": "ASkyLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "USkyLightComponent",
                             "Class": "USkyLightComponent",
                             "Name": "USkyLightComponent",
                             "Parent": "",
@@ -39,10 +43,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -96,9 +102,11 @@
                     "RootComponent": "USkyLightComponent"
                 },
                 {
+                    "ObjectLabel": "ADirectionalLightActor_0",
                     "Class": "ADirectionalLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDirectionalLightComponent",
                             "Class": "UDirectionalLightComponent",
                             "Name": "UDirectionalLightComponent",
                             "Parent": "",
@@ -137,10 +145,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -189,6 +199,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -230,9 +241,11 @@
                     "RootComponent": "UDirectionalLightComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_0",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -270,9 +283,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_1",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -310,9 +325,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_2",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -350,9 +367,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_3",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -390,9 +409,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_4",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -430,9 +451,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_5",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -470,9 +493,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_6",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -510,9 +535,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_7",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -550,9 +577,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_8",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -590,9 +619,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_9",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -630,9 +661,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "AStaticMeshActor_10",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -670,18 +703,20 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_0",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.5,
@@ -717,10 +752,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -769,6 +806,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -810,18 +848,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "AFakeSpotLightActor_0",
                     "Class": "AFakeSpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 0.44999998807907104,
-                                    "Z": 0.699999988079071
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 0.44999998807907104,
+                                    "B": 0.699999988079071
                                 },
                                 "DecalSize": {
                                     "X": 3.0,
@@ -857,10 +897,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -909,6 +951,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -950,18 +993,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "AFakeSpotLightActor_1",
                     "Class": "AFakeSpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 0.8500000238418579,
-                                    "Z": 0.3499999940395355
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 0.8500000238418579,
+                                    "B": 0.3499999940395355
                                 },
                                 "DecalSize": {
                                     "X": 3.0,
@@ -997,10 +1042,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -1049,6 +1096,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -1090,18 +1138,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "AFakeSpotLightActor_2",
                     "Class": "AFakeSpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.4000000059604645,
-                                    "Y": 0.699999988079071,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 0.4000000059604645,
+                                    "G": 0.699999988079071,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 3.0,
@@ -1137,10 +1187,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -1189,6 +1241,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -1230,18 +1283,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_1",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 1.5,
@@ -1277,10 +1332,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -1329,6 +1386,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -1370,18 +1428,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_2",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 1.5,
@@ -1417,10 +1477,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -1469,6 +1531,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -1510,18 +1573,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_3",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 1.5,
@@ -1557,10 +1622,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -1609,6 +1676,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -1650,18 +1718,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_4",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 1.5,
@@ -1697,10 +1767,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -1749,6 +1821,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -1790,18 +1863,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_5",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 1.5,
@@ -1837,10 +1912,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -1889,6 +1966,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -1930,18 +2008,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_6",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 1.5,
@@ -1977,10 +2057,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -2029,6 +2111,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -2070,18 +2153,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_7",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 3.0,
@@ -2117,10 +2202,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -2169,6 +2256,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -2210,18 +2298,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_8",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -2257,10 +2347,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -2309,6 +2401,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -2350,18 +2443,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_9",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -2397,10 +2492,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -2449,6 +2546,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -2490,18 +2588,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_10",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -2537,10 +2637,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -2589,6 +2691,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -2630,18 +2733,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_11",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -2677,10 +2782,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -2729,6 +2836,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -2770,18 +2878,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_12",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.5,
@@ -2817,10 +2927,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -2869,6 +2981,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -2910,18 +3023,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_13",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.5,
@@ -2957,10 +3072,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -3009,6 +3126,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -3050,18 +3168,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_14",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 0.699999988079071,
-                                    "Z": 0.8500000238418579
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 0.699999988079071,
+                                    "B": 0.8500000238418579
                                 },
                                 "DecalSize": {
                                     "X": 2.5,
@@ -3097,10 +3217,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -3149,6 +3271,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -3190,18 +3313,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_15",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 0.699999988079071,
-                                    "Y": 0.8500000238418579,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 0.699999988079071,
+                                    "G": 0.8500000238418579,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.5,
@@ -3237,10 +3362,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -3289,6 +3416,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -3330,18 +3458,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_16",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -3377,10 +3507,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -3429,6 +3561,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -3470,18 +3603,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_17",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -3517,10 +3652,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -3569,6 +3706,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -3610,18 +3748,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_18",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -3657,10 +3797,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -3709,6 +3851,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -3750,18 +3893,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_19",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -3797,10 +3942,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -3849,6 +3996,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -3890,18 +4038,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_20",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -3937,10 +4087,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -3989,6 +4141,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -4030,18 +4183,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_21",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -4077,10 +4232,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -4129,6 +4286,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -4170,18 +4328,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_22",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -4217,10 +4377,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -4269,6 +4431,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -4310,18 +4473,20 @@
                     "RootComponent": "UDecalComponent"
                 },
                 {
+                    "ObjectLabel": "ADecalActor_23",
                     "Class": "ADecalActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDecalComponent",
                             "Class": "UDecalComponent",
                             "Name": "UDecalComponent",
                             "Parent": "",
                             "Properties": {
                                 "DecalColor": {
-                                    "W": 1.0,
-                                    "X": 1.0,
-                                    "Y": 1.0,
-                                    "Z": 1.0
+                                    "A": 1.0,
+                                    "R": 1.0,
+                                    "G": 1.0,
+                                    "B": 1.0
                                 },
                                 "DecalSize": {
                                     "X": 2.0,
@@ -4357,10 +4522,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -4409,6 +4576,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [

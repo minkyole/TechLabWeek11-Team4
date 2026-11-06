@@ -11,6 +11,7 @@
 #include "Asset/AssetManager.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
+#include "Core/Misc/FileHelper.h"
 
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
@@ -84,30 +85,16 @@ bool FJsonArchive::SaveWorld(UWorld* World, const FString& Path)
 	if (!SaveWorldToBytes(World, Bytes))
 		return false;
 
-	std::ofstream File(Path, std::ios::binary);
-	if (!File.is_open())
-		return false;
-	File.write(reinterpret_cast<const char*>(Bytes.GetData()), Bytes.Num());
-	return !File.fail();
+    return FFileHelper::SaveArrayToFile(Bytes, Path);
 }
 
 bool FJsonArchive::LoadWorld(UWorld* World, const FString& Path)
 {
-	if (!std::filesystem::exists(Path))
+	TArray<uint8> Bytes{};
+	if (!FFileHelper::LoadFileToArray(Bytes, Path))
 	{
-		HTR_LOG(Warning, "{} is Not Exist!", Path);
 		return false;
 	}
-
-	std::ifstream File(Path, std::ios::binary);
-	if (!File.is_open())
-		return false;
-
-	TArray<uint8> Bytes;
-	Bytes.SetNum(static_cast<int32>(std::filesystem::file_size(Path)));
-	File.read(reinterpret_cast<char*>(Bytes.GetData()), Bytes.Num());
-	if (File.fail())
-		return false;
 
 	return LoadWorldFromBytes(World, Bytes);
 }

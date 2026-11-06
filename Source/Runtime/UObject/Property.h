@@ -4,7 +4,6 @@
 #include "Math/EngineMath.h"
 #include "Math/Color.h"
 #include "Math/Transform.h"
-#include "Math/Color.h"
 
 class UMaterial;
 class UFont;
@@ -57,8 +56,8 @@ enum EPropertyFlags : uint32
 
 struct FProperty
 {
-    // TODO : FName으로 변경해서 속도올리는 방안 필요.
-    FString Name;
+	FString DisplayName;    // 외부 표시용 이름
+    FName Name;             // 내부 식별용 이름
     EPropertyType Type;
     size_t Offset;
     size_t Size;

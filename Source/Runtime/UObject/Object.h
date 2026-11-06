@@ -109,7 +109,6 @@ public:
 	inline EObjectFlags GetFlags() const { return Flags; }
 	EObjectFlags GetMaskedFlags(EObjectFlags Mask = EObjectFlags::RF_AllFlags) const{return EObjectFlags(GetFlags() & Mask);}
 
-	virtual void Serialize(json& Handle, bool bIsLoading);
 	virtual void Serialize(FArchive& Ar);
 	virtual void Serialize(FStructuredArchive::FRecord Record);
 

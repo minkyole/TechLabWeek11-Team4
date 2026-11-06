@@ -176,8 +176,9 @@ FTransform FSkeletalMeshViewerPanel::GetBoneLocalTransform(int32 BoneIndex) cons
 {
 	if (PreviewComponent)
 	{
-		if (const FTransform* Transform = PreviewComponent->GetBoneLocalTransform(BoneIndex))
-			return *Transform;
+		FTransform Transform;
+		if (PreviewComponent->GetBoneLocalTransform(BoneIndex, Transform))
+			return Transform;
 	}
 	return FTransform{};
 }
@@ -231,9 +232,10 @@ bool FSkeletalMeshViewerPanel::SaveCurrentMesh()
 		const int32 NumBones = SelectedMesh->MeshData.Bones.Num();
 		for (int32 BoneIdx = 0; BoneIdx < NumBones; ++BoneIdx)
 		{
-			if (const FTransform* CurTf = PreviewComponent->GetBoneLocalTransform(BoneIdx))
+			FTransform CurTf;
+			if (PreviewComponent->GetBoneLocalTransform(BoneIdx, CurTf))
 			{
-				SelectedMesh->MeshData.Bones[BoneIdx].RefPoseTransform = *CurTf;
+				SelectedMesh->MeshData.Bones[BoneIdx].RefPoseTransform = CurTf;
 			}
 		}
 	}
@@ -327,9 +329,10 @@ bool FSkeletalMeshViewerPanel::SaveAsNewBin(const FString& NewAssetName)
 		const int32 NumBones = NewMeshData.Bones.Num();
 		for (int32 BoneIdx = 0; BoneIdx < NumBones; ++BoneIdx)
 		{
-			if (const FTransform* CurTf = PreviewComponent->GetBoneLocalTransform(BoneIdx))
+			FTransform CurTf;
+			if (PreviewComponent->GetBoneLocalTransform(BoneIdx, CurTf))
 			{
-				NewMeshData.Bones[BoneIdx].RefPoseTransform = *CurTf;
+				NewMeshData.Bones[BoneIdx].RefPoseTransform = CurTf;
 			}
 		}
 	}
@@ -1149,8 +1152,9 @@ void FSkeletalMeshViewerPanel::ComputeBoneWorldMatrices(TArray<FMatrix>& OutBone
 
 		State[Idx] = 1;
 
-		const FTransform* Current = PreviewComponent ? PreviewComponent->GetBoneLocalTransform(Idx) : nullptr;
-		const FTransform& LocalTf = Current ? *Current : Bones[Idx].RefPoseTransform;
+		FTransform LocalTf;
+		if (!PreviewComponent || !PreviewComponent->GetBoneLocalTransform(Idx, LocalTf))
+			LocalTf = Bones[Idx].RefPoseTransform;
 		const FMatrix LocalMat = LocalTf.GetLocalMatrix();
 
 		const int32 ParentIdx = Bones[Idx].ParentIndex;

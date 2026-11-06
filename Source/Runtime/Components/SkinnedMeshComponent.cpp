@@ -3,6 +3,23 @@
 #include "Render/RenderCommand.h"
 #include "Collision/Ray.h"
 
+USkinnedMeshComponent::USkinnedMeshComponent()
+{
+	PrimaryComponentTick.bCanEverTick = true;
+}
+
+void USkinnedMeshComponent::TickComponent(float DeltaTime)
+{
+	Super::TickComponent(DeltaTime);
+	TickPose(DeltaTime);
+	FlushPendingPose();
+}
+
+void USkinnedMeshComponent::TickPose(float DeltaTime)
+{
+	(void)DeltaTime;
+}
+
 void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 {
 	if (SkeletalMesh == InSkeletalMesh)
@@ -31,6 +48,7 @@ void USkinnedMeshComponent::ResetPoseToBindPose()
 		for (const FSkeletalBone& Bone : Bones)
 			CurrentLocalTransforms.Add(FAnimBoneTransform::FromTransform(Bone.RefPoseTransform));
 	}
+	bPoseDirty = false;
 	UpdateSkinning();
 }
 
@@ -64,11 +82,36 @@ bool USkinnedMeshComponent::LineTraceComponentLocal(const FRay& LocalRay, float&
 	return true;
 }
 
+//포즈를 저장만 하고 스키닝은 FlushPendingPose에서 한다.
+// 같은 프레임에 여러 번 부르면 마지막 포즈만 반영된다.
 bool USkinnedMeshComponent::ApplyPose(const FAnimationPose& Pose)
 {
-	// TODO: 구현 예정
-	(void)Pose;
-	return false;
+	if (!Pose.TargetMesh || !SkeletalMesh ||  
+		Pose.TargetMesh != SkeletalMesh ||
+		Pose.LocalTransforms.Num() != CurrentLocalTransforms.Num())
+	{
+		return false;
+	}
+
+	for (int Index = 0; Index < CurrentLocalTransforms.Num(); Index++)
+	{
+		CurrentLocalTransforms[Index] = Pose.LocalTransforms[Index];
+		CurrentLocalTransforms[Index].Rotation = CurrentLocalTransforms[Index].Rotation.Normalized();
+	}
+
+	bPoseDirty = true;
+
+	return true;
+}
+
+void USkinnedMeshComponent::FlushPendingPose()
+{
+	if (!bPoseDirty)
+	{
+		return;
+	}
+	bPoseDirty = false;
+	UpdateSkinning();
 }
 
 bool USkinnedMeshComponent::GetBoneLocalTransform(int32 BoneIndex, FTransform& OutTransform) const
@@ -86,6 +129,7 @@ bool USkinnedMeshComponent::SetBoneLocalTransform(int32 BoneIndex, const FTransf
 	if (!SkeletalMesh || !CurrentLocalTransforms.IsValidIndex(BoneIndex)) return false;
 
 	CurrentLocalTransforms[BoneIndex] = FAnimBoneTransform::FromTransform(InTransform);
+	bPoseDirty = false;
 	UpdateSkinning();
 	return true;
 }

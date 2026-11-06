@@ -64,6 +64,8 @@ void UAnimDataModel::Reset()
 	PlayLength = 0.f;
 	NumberOfFrames = 0;
 	NumberOfKeys = 0;
+	FrameRate.Numerator = 30;
+	FrameRate.Denominator = 1;
 }
 
 

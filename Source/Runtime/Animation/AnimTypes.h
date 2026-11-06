@@ -44,3 +44,11 @@ struct FBoneAnimationTrack
 	FName Name; // Bone 이름 
 	FRawAnimSequenceTrack InternalTrack; // 애니메이션 데이터
 };
+
+// 시간 하나를 두 키 사이의 위치(alpha)로 바꾼 결과
+struct FAnimKeyLookup
+{
+	int32 KeyIndex0 = 0;
+	int32 KeyIndex1 = 0;
+	float Alpha = 0.f;
+};

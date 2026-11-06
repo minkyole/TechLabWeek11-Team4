@@ -1,6 +1,7 @@
 #pragma once
 #include "AnimationAsset.h"
 #include "AnimDataModel.h"
+#include "AnimationPose.h" 
 
 class UAnimSequenceBase : public UAnimationAsset
 {
@@ -24,4 +25,9 @@ class UAnimSequence : public UAnimSequenceBase
 public:
 	UAnimSequence() = default;
 	~UAnimSequence() override = default;
+
+private:
+	FAnimKeyLookup FindKeyLookup(float Time) const;
+
+	static void SampleTrack(const FRawAnimSequenceTrack& Track, const FAnimKeyLookup& Lookup, FAnimBoneTransform& OutTransform);
 };

@@ -15,6 +15,19 @@ void USkinnedMeshComponent::TickComponent(float DeltaTime)
 	FlushPendingPose();
 }
 
+void USkinnedMeshComponent::InitializeComponent()
+{
+	Super::InitializeComponent();
+
+	// 복제, 로드로 메시 포인터만 복원된 경우에도
+	// 컴포넌트의 실행용 본 변환을 준비한다.
+	if (SkeletalMesh &&
+		CurrentLocalTransforms.Num() != SkeletalMesh->MeshData.Bones.Num())
+	{
+		ResetPoseToBindPose();
+	}
+}
+
 void USkinnedMeshComponent::TickPose(float DeltaTime)
 {
 	(void)DeltaTime;

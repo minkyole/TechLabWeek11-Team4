@@ -13,6 +13,8 @@ class USkinnedMeshComponent : public UMeshComponent
 	REFLECT_END()
 
 public:
+	USkinnedMeshComponent();
+	virtual void TickComponent(float DeltaTime) override;
 	USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh; }
 	void SetSkeletalMesh(USkeletalMesh* InSkeletalMesh);
 	// 부모 본 기준의 현재 자세. 원본 RefPoseTransform은 수정하지 않는다.
@@ -23,6 +25,7 @@ public:
 	void ResetPoseToBindPose();
 	bool LineTraceComponentLocal(const FRay& LocalRay, float& OutT) override;
 	bool ApplyPose(const FAnimationPose& Pose);
+	void FlushPendingPose();
 
 	FOutlineGeometry GetOutlineGeometry() const override;
 	FString GetMaterialSlotName(int32 SlotIndex) const override;
@@ -38,6 +41,9 @@ public:
 		if (bHasSkinnedBounds) return SkinnedBounds;
 		return SkeletalMesh ? SkeletalMesh->GetRenderBounds() : Super::CalcLocalBounds();
 	}
+
+protected:
+	virtual void TickPose(float DeltaTime);
 	
 private:
 	USkeletalMesh* SkeletalMesh = nullptr;
@@ -48,4 +54,5 @@ private:
 	TArray<uint32> SkinnedIndices;
 	FBox SkinnedBounds;
 	bool bHasSkinnedBounds = false;
+	bool bPoseDirty = false;
 };

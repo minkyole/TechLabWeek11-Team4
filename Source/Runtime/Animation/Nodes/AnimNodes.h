@@ -18,9 +18,16 @@ struct FAnimNode_Base
 // 클립 하나를 재생한다.
 struct FAnimNode_SequencePlayer : public FAnimNode_Base
 {
-	UAnimSequence* Sequence;
+	UAnimSequence* Sequence = nullptr;
+
 	float CurrentTime = 0.0f;
+	float PlayRate = 1.0f;
+
 	bool bLoop = true;
+	bool bPlaying = true;
+
+	void Update(const FAnimationUpdateContext& Context) override;
+	void Evaluate(FPoseContext& Output) override;
 };
 
 // 두 포즈를 Alpha 로 섞는다.

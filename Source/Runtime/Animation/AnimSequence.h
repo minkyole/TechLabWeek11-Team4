@@ -26,8 +26,15 @@ public:
 	UAnimSequence() = default;
 	~UAnimSequence() override = default;
 
+	void GetAnimationPose(float Time, FAnimationPose& OutPose) const;
+
 private:
 	FAnimKeyLookup FindKeyLookup(float Time) const;
 
 	static void SampleTrack(const FRawAnimSequenceTrack& Track, const FAnimKeyLookup& Lookup, FAnimBoneTransform& OutTransform);
+
+	void RebuildBoneTrackMap(const USkeletalMesh& Mesh) const;
+
+	mutable const USkeletalMesh* CachedMesh = nullptr;
+	mutable TArray<int32> BoneToTrackIndex;
 };

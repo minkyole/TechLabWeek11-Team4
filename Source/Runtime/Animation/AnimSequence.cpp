@@ -1,5 +1,6 @@
 #include "EnginePCH.h"
 #include "AnimSequence.h"
+#include "Render/Mesh.h"
 
 namespace
 {
@@ -12,6 +13,34 @@ namespace
 UAnimSequenceBase::UAnimSequenceBase()
 {
 	DataModel = CreateDefaultSubobject<UAnimDataModel>(FName("AnimDataModel"));
+}
+
+void UAnimSequence::GetAnimationPose(float Time, FAnimationPose& OutPose) const
+{
+	const USkeletalMesh* TargetMesh = OutPose.TargetMesh;
+	if (!TargetMesh)
+	{
+		return;
+	}
+
+	OutPose.ResetToRefPose();
+	if (CachedMesh != TargetMesh)
+	{
+		RebuildBoneTrackMap(*TargetMesh);
+	}
+
+	// 해당 Time의 Lookup을 구한다
+	FAnimKeyLookup Lookup = FindKeyLookup(Time);
+	const auto& Tracks = DataModel->GetBoneAnimationTracks();
+	for (int32 i = 0; i < TargetMesh->MeshData.Bones.Num(); ++i)
+	{
+		int32 TrackIndex = BoneToTrackIndex[i];
+		if (TrackIndex == -1)
+		{
+			continue;
+		}
+		SampleTrack(Tracks[TrackIndex].InternalTrack, Lookup, OutPose.LocalTransforms[i]);
+	}
 }
 
 FAnimKeyLookup UAnimSequence::FindKeyLookup(float Time) const
@@ -67,4 +96,19 @@ void UAnimSequence::SampleTrack(const FRawAnimSequenceTrack& Track, const FAnimK
 
 		OutTransform.Scale = Scale0 + (Scale1 - Scale0) * Lookup.Alpha;
 	}
+}
+
+// Mesh의 Bone을 시퀀스의 BoneAnimationTracks에 넣고 그때의 Index를 BoneToTrackIndex에 기록한다.
+void UAnimSequence::RebuildBoneTrackMap(const USkeletalMesh& Mesh) const
+{
+	int32 BonesNum = Mesh.MeshData.Bones.Num();
+	BoneToTrackIndex.SetNum(BonesNum);
+
+	for (int32 i = 0; i < BonesNum; ++i)
+	{
+		FName BoneName = FName(Mesh.MeshData.Bones[i].Name);
+		int32 FoundIndex = DataModel->FindBoneTrackIndex(BoneName);
+		BoneToTrackIndex[i] = FoundIndex;
+	}
+	CachedMesh = &Mesh;
 }

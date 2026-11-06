@@ -16,6 +16,8 @@ public:
 	USkeletalMeshComponent();
 	~USkeletalMeshComponent() override;
 
+	void BeginPlay() override;
+
 	void InitializeComponent() override;
 	//void TickComponent(float DeltaTime) override;
 

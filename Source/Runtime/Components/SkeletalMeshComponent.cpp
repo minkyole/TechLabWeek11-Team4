@@ -7,6 +7,9 @@
 #include "UObject/UObjectGlobals.h"
 #include "Animation/AnimSequence.h"
 
+// Debug
+#include "Animation/TestAnimInstance.h"
+
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -15,6 +18,30 @@ USkeletalMeshComponent::USkeletalMeshComponent()
 USkeletalMeshComponent::~USkeletalMeshComponent()
 {
 	ClearAnimInstance();
+}
+
+void USkeletalMeshComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	UTestAnimInstance* TestInstance =
+	    Cast<UTestAnimInstance>(GetAnimInstance());
+
+	if (!TestInstance)
+		return;
+
+	const bool bChanged = TestInstance->SetTestBoneTranslation(
+	    258,
+	    FVector(0.3f, 0.0f, 0.0f));
+
+	if (!bChanged)
+		return;
+
+	// BeginPlay 안에서 스키닝 결과까지 바로 반영.
+	if (RefreshAnimationPose())
+	{
+		FlushPendingPose();
+	}
 }
 
 void USkeletalMeshComponent::InitializeComponent()
@@ -33,7 +60,8 @@ void USkeletalMeshComponent::InitializeAnimInstance()
 	if (!AnimInstance)
 	{
 		AnimInstance.reset(
-		    NewObject<UAnimSingleNodeInstance>(this));
+		//    NewObject<UAnimSingleNodeInstance>(this));
+			NewObject<UTestAnimInstance>(this)); // Debug
 	}
 
 	if (AnimInstance && !AnimInstance->IsInitialized())

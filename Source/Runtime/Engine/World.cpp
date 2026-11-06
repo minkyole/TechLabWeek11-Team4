@@ -1333,7 +1333,7 @@ void UWorld::Serialize(FStructuredArchive::FRecord Record) {
 
 	if (TOptional<FStructuredArchive::FSlot> CameraManagerSlot{ Record.TryEnterField("PlayerCameraManager", Ar.IsSaving() && mPlayerCameraManager && mPlayerCameraManager->HasAnyFlags(EObjectFlags::RF_Transient)) }) {
 		FStructuredArchive::FRecord CameraManagerRecord{ CameraManagerSlot.GetValue().EnterRecord() };
-		FString ClassName{ mPlayerCameraManager ? mPlayerCameraManager->GetClass()->Name : FString{} };
+		FString ClassName{ mPlayerCameraManager ? mPlayerCameraManager->GetClass()->GetName() : FString{} };
 		FString ManagerName{ mPlayerCameraManager ? mPlayerCameraManager->GetName() : FString{} };
 		CameraManagerRecord << SA_VALUE("Class", ClassName) << SA_VALUE("Name", ManagerName);
 		if (Ar.IsLoading()) {

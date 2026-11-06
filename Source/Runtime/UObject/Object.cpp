@@ -50,7 +50,7 @@ UClass* UObject::StaticClass()
 	static bool bIsInit = false;
 	if (!bIsInit)
 	{
-		c.Name = "Object";
+		c.SetName(FName("Object"));
 		c.Super = nullptr;
 		c.ClassSize = sizeof(UObject);
 		c.Constructor = [](void* Memory) -> UObject*
@@ -119,7 +119,7 @@ void UObject::SerializeScriptProperties(FStructuredArchive::FSlot Slot)
 				// 불러온 객체가 프로퍼티가 기대하는 클래스가 아니면 되돌린다 (기존 Asset->IsA(Property.Class) 검사)
 				if (bIsLoading && Ref && Property.Class && !Ref->IsA(Property.Class))
 				{
-					HTR_LOG(Warning, "Load: '{}' is not a {}, keeping default", PropertyName, Property.Class->Name);
+					HTR_LOG(Warning, "Load: '{}' is not a {}, keeping default", PropertyName, Property.Class->GetName());
 					Ref = Previous;
 				}
 				break;

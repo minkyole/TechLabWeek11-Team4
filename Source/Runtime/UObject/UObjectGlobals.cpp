@@ -104,7 +104,7 @@ FName MakeUniqueObjectName(UObject* Outer, const UClass* Class, FName BaseName) 
 
 	// 이름을 따로 안 줬으면 Class 이름을 기본 이름으로 사용
 	if (BaseName == NAME_None) {
-		BaseName = FName{ Class->Name };
+		BaseName = FName{ Class->GetFName() };
 	}
 
 	const FString Base{ BaseName.ToString() };

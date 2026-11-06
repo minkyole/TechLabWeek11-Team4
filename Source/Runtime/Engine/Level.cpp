@@ -67,7 +67,7 @@ void ULevel::Serialize(FStructuredArchive::FRecord Record)
 		for (AActor* Actor : SavedActors)
 		{
 			FStructuredArchive::FRecord ActorRecord = ActorArray.EnterElement().EnterRecord();
-			FString ClassName = Actor->GetClass()->Name;
+			FString ClassName = Actor->GetClass()->GetName();
 			ActorRecord << SA_VALUE("Class", ClassName);
 			if (TOptional<FStructuredArchive::FSlot> NameSlot{ ActorRecord.TryEnterField("Name", true) }) {
 				FString ActorName{ Actor->GetName() };

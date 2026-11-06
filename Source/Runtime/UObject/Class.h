@@ -10,7 +10,6 @@ class UClass : public UObject
 public:
 	UClass();
 
-	FString Name;
 	UClass* Super = nullptr;
 	uint64 ClassSize = 0;
 	ClassConstructor Constructor = nullptr;

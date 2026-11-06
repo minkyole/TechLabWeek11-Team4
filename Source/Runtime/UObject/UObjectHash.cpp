@@ -10,15 +10,15 @@ static TMap<const UClass*, TSet<UObject*>>& GetClassToObjects() { static TMap<co
 //bIsIncludeDerivedClass가 켜졌을 때 자식 클래스 목록이 필요
 static TMap<const UClass*, TSet<UClass*>>& GetClassToChildren() { static TMap<const UClass*, TSet<UClass*>> M; return M; }
 
-static TMap<FString, UClass*>& GetClassMap()
+static TMap<FName, UClass*, FNameHash>& GetClassMap()
 {
-	static TMap<FString, UClass* > Map;
+	static TMap<FName, UClass*, FNameHash> Map;
 	return Map;
 }
 
 void RegisterClass(UClass* Class)
 {
-	GetClassMap()[Class->Name] = Class;
+	GetClassMap()[Class->GetFName()] = Class;
 	if (Class->Super)
 	{
 		GetClassToChildren()[Class->Super].Add(Class);
@@ -27,7 +27,7 @@ void RegisterClass(UClass* Class)
 
 UClass* FindClass(const FString& Name)
 {
-	UClass** Found = GetClassMap().Find(Name);
+	UClass** Found = GetClassMap().Find(FName(Name));
 	return Found ? *Found : nullptr;
 }
 

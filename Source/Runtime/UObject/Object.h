@@ -57,7 +57,7 @@ public:                                                                 \
         static bool bIsInit = false;                                    \
         if (!bIsInit)                                                   \
         {                                                               \
-            c.Name  = #ClassName;                                       \
+            c.SetName(FName(#ClassName));                               \
             c.Super = Super::StaticClass();								\
             c.ClassSize = sizeof(ClassName);							\
 			c.Constructor = std::is_abstract_v<ClassName> ? nullptr : &InternalConstructInstance<ClassName>;\
@@ -146,15 +146,18 @@ public:
 	}
 
 	virtual void PostDuplicate(bool bDuplicateForPIE) {}
+
 protected:
+
 	virtual void OnDefaultSubobjectCreated(UObject* Subobject) {}
+
 private:
 	void SerializeScriptProperties(FStructuredArchive::FSlot Slot);
 
+	FName Name = FName("None");
 	uint32 ObjectUUID;
 	uint32 InternalIndex;
 
-	FName Name = FName("None");
 	UObject* Outer = nullptr;
 	UClass* ClassPrivate = nullptr;
 

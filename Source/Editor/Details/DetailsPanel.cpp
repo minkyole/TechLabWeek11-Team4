@@ -1050,8 +1050,8 @@ namespace
 				continue;
 			}
 
-			ImGui::PushID(Class->Name.c_str());
-			if (ImGui::CollapsingHeader(Class->Name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+			ImGui::PushID(Class->GetName().c_str());
+			if (ImGui::CollapsingHeader(Class->GetName().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				for (const FProperty& Property : Class->GetProperties())
 				{
@@ -1102,7 +1102,7 @@ namespace
 				ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 110.0f);
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 				DrawCameraDetailRow("Actor", ViewTarget ? ViewTarget->GetName() : "None");
-				DrawCameraDetailRow("Class", ViewTarget ? ViewTarget->GetClass()->Name : "None");
+				DrawCameraDetailRow("Class", ViewTarget ? ViewTarget->GetClass()->GetName() : "None");
 				DrawCameraDetailRow("Camera", Camera ? Camera->GetName() : "None");
 				DrawCameraDetailRow("Valid View", CameraManager.HasValidCameraView() ? "Yes" : "No");
 				ImGui::EndTable();
@@ -1128,7 +1128,7 @@ namespace
 				ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 110.0f);
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 				const char* State{ Modifier->IsDisabled() ? "Disabled" : Modifier->IsPendingDisable() ? "Blending out" : "Enabled" };
-				DrawCameraDetailRow("Class", Modifier->GetClass()->Name);
+				DrawCameraDetailRow("Class", Modifier->GetClass()->GetName());
 				DrawCameraDetailRow("Priority", std::format("{}", Modifier->GetPriority()));
 				DrawCameraDetailRow("Alpha", std::format("{:.3f}", Modifier->GetAlpha()));
 				DrawCameraDetailRow("State", State);
@@ -1164,11 +1164,11 @@ namespace
 			ImGui::InputText("##Component Name", ComponentNameInputBuf, sizeof(ComponentNameInputBuf));
 			TArray<UClass*> Classes;
 			GetDerivedClasses(UActorComponent::StaticClass(), Classes);
-			std::sort(Classes.begin(), Classes.end(), [](const UClass* A, const UClass* B) { return A->Name < B->Name; });
+			std::sort(Classes.begin(), Classes.end(), [](const UClass* A, const UClass* B) { return A->GetName() < B->GetName(); });
 			for (UClass* Class : Classes)
 			{
 				//if (!IsSpawnableComponent(Class)) continue;
-				if (ImGui::MenuItem(Class->Name.c_str()))
+				if (ImGui::MenuItem(Class->GetName().c_str()))
 				{
 					OutAddedComponent = Actor->AddComponent(Class, FString(ComponentNameInputBuf));
 					if (OutAddedComponent)
@@ -1587,7 +1587,7 @@ void FDetailsPanel::DrawCompoenetList(AActor* SelectedActor, UActorComponent*& O
 			ImGui::EndPopup();
 		}
 
-		const FString ClassName = std::format("({})", ActorComp->GetClass()->Name);
+		const FString ClassName = std::format("({})", ActorComp->GetClass()->GetName());
 		const float TextX = RowStart.x + RowWidth - ImGui::CalcTextSize(ClassName.c_str()).x;
 		ImGui::GetWindowDrawList()->AddText(ImVec2(TextX, RowStart.y), IM_COL32(200, 200, 200, 255), ClassName.c_str());		
 
@@ -1676,7 +1676,7 @@ void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneCom
 			ImGui::EndPopup();
 		}
 
-		const FString ClassName = std::format("({})", Component->GetClass()->Name);
+		const FString ClassName = std::format("({})", Component->GetClass()->GetName());
 		const float TextX = RowStart.x + RowWidth - ImGui::CalcTextSize(ClassName.c_str()).x;
 		ImGui::GetWindowDrawList()->AddText(ImVec2(TextX, RowStart.y), IM_COL32(200, 200, 200, 255), ClassName.c_str());
 	}

@@ -42,7 +42,7 @@ void UActorComponent::RegisterComponent()
 
 void UActorComponent::RegisterComponentWithWorld(UWorld* InWorld)
 {
-	if (IsRegistered()) { HTR_LOG(Info, "RegisterComponentWithWorld: {} Already registered. Aborting.", GetClass()->Name); return; }
+	if (IsRegistered()) { HTR_LOG(Info, "RegisterComponentWithWorld: {} Already registered. Aborting.", GetClass()->GetName()); return; }
 	if (!IsValid(InWorld)) { return; }
 
 	WorldPrivate = InWorld;

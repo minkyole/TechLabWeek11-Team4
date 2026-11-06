@@ -150,7 +150,7 @@ void AActor::Serialize(FStructuredArchive::FRecord Record)
 		{
 			UActorComponent* Component = SavedComponents[i];
 			FString Name = Component->GetName();
-			FString ClassName = Component->GetClass()->Name;
+			FString ClassName = Component->GetClass()->GetName();
 			if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 			{
 				USceneComponent* Parent = SceneComponent->GetAttachParent();
@@ -178,7 +178,7 @@ void AActor::Serialize(FStructuredArchive::FRecord Record)
 			Component = AddComponent(ComponentClass, FName(Name));
 		}
 
-		if (!Component || Component->GetClass()->Name != ClassName)
+		if (!Component || Component->GetClass()->GetFName() != FName(ClassName))
 		{
 			HTR_LOG(Warning, "Load: component {} ({}) failed", Name, ClassName);
 			continue;

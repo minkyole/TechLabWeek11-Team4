@@ -2,6 +2,7 @@
 
 #include "Property.h"
 #include "Object.h"
+#include "Serialization/MathSerialization.h"
 
 using ClassConstructor = UObject * (*)(void* Memory);
 
@@ -46,6 +47,29 @@ public:
 		// 메타데이터 생성 후 실제 타입의 값 연산 연결
 		FProperty Property{ InName, InType, InOffset, sizeof(T), ObjectClass, InFlags };
 		Property.InitializeValueOperations<T>();
+
+		    // 실제 선언 타입에 맞는 슬롯 직렬화 연결
+		Property.SerializeFunction = [](FStructuredArchive::FSlot Slot, void* ValueAddress)
+		{
+			T& Value = *static_cast<T*>(ValueAddress);
+
+			if constexpr (std::is_pointer_v<T> && std::is_base_of_v<UObject, std::remove_pointer_t<T>>)
+			{
+				// 공통 객체 참조 직렬화 경로로 전달
+				UObject* Reference = Value;
+				Slot << Reference;
+
+				// 선언된 타입과 호환되는 참조만 반영
+				if (Slot.GetUnderlyingArchive().IsLoading() && (!Reference || Reference->IsA<std::remove_pointer_t<T>>()))
+				{
+					Value = static_cast<T>(Reference);
+				}
+			}
+			else
+			{
+				Slot << Value;
+			}
+		};
 
 		Properties.Add(Property);
 	}

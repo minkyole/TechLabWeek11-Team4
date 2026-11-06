@@ -6,6 +6,8 @@
 #include "Math/Color.h"
 #include "Math/Transform.h"
 #include <type_traits>
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveSlots.h"
 
 class UMaterial;
 class UFont;
@@ -64,7 +66,8 @@ struct FProperty
 	using FCopyValueFunction = void (*)(void* Destination, const void* Source);
 	// 비교함수
 	using FIdenticalValueFunction = bool (*)(const void* Left, const void* Right);
-
+	// 직렬화 함수
+	using FSerializeValueFunction = void (*)(FStructuredArchive::FSlot Slot, void* ValueAddress);
     FName Name;
     EPropertyType Type;
     size_t Offset;
@@ -76,6 +79,7 @@ struct FProperty
 
 	FCopyValueFunction CopyFunction = nullptr;
 	FIdenticalValueFunction IdenticalFunction = nullptr;
+	FSerializeValueFunction SerializeFunction = nullptr;
 
 	// 객체 내부의 프로퍼티 값 주소 조회
 	template <typename TValueType = void>
@@ -101,6 +105,12 @@ struct FProperty
 	bool Identical(const void* Left, const void* Right) const
 	{
 		return IdenticalFunction(Left, Right);
+	}
+
+	// 등록된 함수에 프로퍼티 값 직렬화 요청
+	void SerializeItem(FStructuredArchive::FSlot Slot, void* ValueAddress) const
+	{
+		SerializeFunction(Slot, ValueAddress);
 	}
 
 	// 실제 C++ 타입의 값 연산 연결

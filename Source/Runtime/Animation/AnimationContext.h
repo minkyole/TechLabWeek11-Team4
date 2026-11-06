@@ -15,7 +15,7 @@ struct FAnimationUpdateContext
 
 struct FAnimationCurve
 {
-	TMap<FName, float> Values;
+	TMap<FName, float, FNameHash> Values;
 	
 	void Reset();
 };
@@ -31,6 +31,7 @@ struct FPoseContext
 	// 같은 평가 환경과 본 구성을 갖는 독립된 출력 버퍼 생성.
 	// Pose 데이터는 RefPose, Curve는 빈 값으로 초기화한다.
 	FPoseContext(const FPoseContext& Other);
+	FPoseContext& operator=(const FPoseContext& Other) = delete;
 
 	void ResetToRefPose();
 };

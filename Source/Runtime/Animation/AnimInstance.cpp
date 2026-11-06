@@ -80,15 +80,23 @@ void UAnimInstance::EvaluateAnimation(FPoseContext& Output)
 
 		// 이번 프레임의 결과를 남기지 않는다.
 		Output.Pose = FAnimationPose();
-		return;	
+		return;
 	}
+
+	Output.Curve.Reset();
 
 	if (Output.Pose.TargetMesh != Mesh)
 	{
+		// Initialize에서 ResetToRefPose를 호출하므로,
+		// 여기서는 Pose를 초기화만 한다.
+
 		Output.Pose.Initialize(*Mesh);
 	}
+	else
+	{
+		Output.Pose.ResetToRefPose();
+	}
 
-	Output.ResetToRefPose();
 
 	if (RootNode)
 	{
@@ -118,7 +126,7 @@ void UAnimSingleNodeInstance::NativeInitializeAnimation()
 }
 
 void UAnimSingleNodeInstance::SetAnimationAsset(
-	UAnimSequence* InSequence)
+    UAnimSequence* InSequence)
 {
 	if (SequencePlayer.Sequence == InSequence)
 		return;

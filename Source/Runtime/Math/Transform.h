@@ -19,6 +19,11 @@ struct FTransform
 	FVector GetRight() const;
 	FQuat GetOrientation() const;	
 
+	bool operator==(const FTransform& Other) const
+	{
+		return Location == Other.Location && Rotation == Other.Rotation && Scale == Other.Scale;
+	}
+
 	FVector Location = FVector(0, 0, 0);
 	FVector Scale = FVector(1, 1, 1);
 	FRotator Rotation = FRotator(0, 0, 0);

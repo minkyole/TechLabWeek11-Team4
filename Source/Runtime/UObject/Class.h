@@ -31,30 +31,40 @@ public:
 	template <typename T>
 	void AddProperty(const FString& InName, uint64 InOffset, uint32 InFlags = CPF_Default)
 	{
-		UClass* ObjClass = nullptr;
-		if constexpr (std::is_pointer_v<T> &&
-			std::is_base_of_v<UObject, std::remove_pointer_t<T>>)
-		{
-			ObjClass = std::remove_pointer_t<T>::StaticClass();
-		}
-
-		Properties.Add({ InName, GetPropertyType<T>(), InOffset, sizeof(T), ObjClass, InFlags });
+		AddProperty<T>(InName, InOffset, GetPropertyType<T>(), InFlags);
 	}
 
 	template <typename T>
 	void AddProperty(const FString& InName, uint64 InOffset, EPropertyType InType, uint32 InFlags = CPF_Default)
 	{
-		Properties.Add({ InName, InType, InOffset, sizeof(T), nullptr, InFlags });
+		UClass* ObjectClass = nullptr;
+		if constexpr (std::is_pointer_v<T> && std::is_base_of_v<UObject, std::remove_pointer_t<T>>)
+		{
+			ObjectClass = std::remove_pointer_t<T>::StaticClass();
+		}
+
+		// 메타데이터 생성 후 실제 타입의 값 연산 연결
+		FProperty Property{ InName, InType, InOffset, sizeof(T), ObjectClass, InFlags };
+		Property.InitializeValueOperations<T>();
+
+		Properties.Add(Property);
 	}
+
 private:
 	mutable int32 ClassUnique = 0;
 	friend FName MakeUniqueObjectName(UObject*, const UClass*, FName);
 };
 
-//보류
+// 클래스 계층에 등록된 프로퍼티 값 복사
 inline void CopyProperties(UObject* Src, UObject* Dst, UClass* FromClass)
 {
-	for (UClass* c = FromClass; c; c = c->Super)
-		for (const FProperty& p : c->Properties)
-			memcpy((char*)Dst + p.Offset, (char*)Src + p.Offset, p.Size);
+	for (UClass* Class = FromClass; Class; Class = Class->Super)
+	{
+		for (const FProperty& Property : Class->GetProperties())
+		{
+			void* Destination = Property.ContainerPtrToValuePtr(Dst);
+			const void* Source = Property.ContainerPtrToValuePtr(Src);
+			Property.CopyCompleteValue(Destination, Source);
+		}
+	}
 }

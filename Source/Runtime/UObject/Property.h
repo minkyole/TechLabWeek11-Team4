@@ -5,9 +5,12 @@
 #include "Math/EngineMath.h"
 #include "Math/Color.h"
 #include "Math/Transform.h"
+#include <type_traits>
 
 class UMaterial;
 class UFont;
+class UObject;
+class UClass;
 
 enum class EPropertyType { Unknown, Float, Int, String, Bool, Vector, Vector4, Color, LinearColor, Rotator, Transform, Object};
 
@@ -57,6 +60,11 @@ enum EPropertyFlags : uint32
 
 struct FProperty
 {
+	// 복사함수
+	using FCopyValueFunction = void (*)(void* Destination, const void* Source);
+	// 비교함수
+	using FIdenticalValueFunction = bool (*)(const void* Left, const void* Right);
+
     FName Name;
     EPropertyType Type;
     size_t Offset;
@@ -65,4 +73,48 @@ struct FProperty
     uint32 Flags = CPF_Default;
 
     bool HasAnyFlags(uint32 InFlags) const { return (Flags & InFlags) != 0; }
+
+	FCopyValueFunction CopyFunction = nullptr;
+	FIdenticalValueFunction IdenticalFunction = nullptr;
+
+	// 객체 내부의 프로퍼티 값 주소 조회
+	template <typename TValueType = void>
+	TValueType* ContainerPtrToValuePtr(void* Container) const
+	{
+		return reinterpret_cast<TValueType*>(static_cast<uint8*>(Container) + Offset);
+	}
+
+	// 읽기 전용 객체 내부의 프로퍼티 값 주소 조회
+	template <typename TValueType = void>
+	const TValueType* ContainerPtrToValuePtr(const void* Container) const
+	{
+		return reinterpret_cast<const TValueType*>(static_cast<const uint8*>(Container) + Offset);
+	}
+
+	// 생성된 목적지 값에 프로퍼티 복사
+	void CopyCompleteValue(void* Destination, const void* Source) const
+	{
+		CopyFunction(Destination, Source);
+	}
+
+	// 두 프로퍼티 값의 동등 비교
+	bool Identical(const void* Left, const void* Right) const
+	{
+		return IdenticalFunction(Left, Right);
+	}
+
+	// 실제 C++ 타입의 값 연산 연결
+	template <typename T>
+	void InitializeValueOperations()
+	{
+		CopyFunction = [](void* Destination, const void* Source)
+		{
+			*static_cast<T*>(Destination) = *static_cast<const T*>(Source);
+		};
+
+		IdenticalFunction = [](const void* Left, const void* Right)
+		{
+			return *static_cast<const T*>(Left) == *static_cast<const T*>(Right);
+		};
+	}
 };

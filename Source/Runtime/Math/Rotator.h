@@ -22,6 +22,11 @@ struct FRotator
 
 	FQuat Quaternion() const;
 
+	bool operator==(const FRotator& Other) const
+	{
+		return Pitch == Other.Pitch && Yaw == Other.Yaw && Roll == Other.Roll;
+	}
+
 	float operator[] (int32 Index) const
 	{
 		return V[Index];

@@ -83,6 +83,12 @@ struct FLinearColor
 	constexpr inline FLinearColor(float InR, float InG, float InB, float InA = 1.0f) : R(InR), G(InG), B(InB), A(InA) {}
 	constexpr inline FLinearColor(const FColor& Color);
 
+	// 선형 색상 성분의 정확한 동등 비교
+	bool operator==(const FLinearColor& Other) const
+	{
+		return R == Other.R && G == Other.G && B == Other.B && A == Other.A;
+
+	}
 	friend FArchive& operator<<(FArchive& Ar, FLinearColor& Color)
 	{
 		return Ar << Color.R << Color.G << Color.B << Color.A;

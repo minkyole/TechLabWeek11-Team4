@@ -2,6 +2,7 @@
 
 #include "Math/Vector.h"
 #include "Math/Quat.h"
+#include "Math/Transform.h"
 
 class USkeletalMesh;
 

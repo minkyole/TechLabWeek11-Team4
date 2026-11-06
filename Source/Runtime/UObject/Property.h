@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/EngineString.h"
+#include "Core/NameTypes.h"
 #include "Math/EngineMath.h"
 #include "Math/Color.h"
 #include "Math/Transform.h"
@@ -56,8 +57,7 @@ enum EPropertyFlags : uint32
 
 struct FProperty
 {
-	FString DisplayName;    // 외부 표시용 이름
-    FName Name;             // 내부 식별용 이름
+    FName Name;
     EPropertyType Type;
     size_t Offset;
     size_t Size;

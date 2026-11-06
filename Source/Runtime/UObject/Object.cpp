@@ -91,7 +91,8 @@ void UObject::SerializeScriptProperties(FStructuredArchive::FSlot Slot)
 	{
 		for (const FProperty& Property : c->GetProperties())
 		{
-			TOptional<FStructuredArchive::FSlot> Slot = Properties.TryEnterField(Property.Name.c_str(), true);
+			const FString PropertyName = Property.Name.ToString();
+			TOptional<FStructuredArchive::FSlot> Slot = Properties.TryEnterField(PropertyName.c_str(), true);
 			if (!Slot.IsSet()) continue;
 
 			void* Ptr = reinterpret_cast<uint8*>(this) + Property.Offset;
@@ -118,14 +119,14 @@ void UObject::SerializeScriptProperties(FStructuredArchive::FSlot Slot)
 				// 불러온 객체가 프로퍼티가 기대하는 클래스가 아니면 되돌린다 (기존 Asset->IsA(Property.Class) 검사)
 				if (bIsLoading && Ref && Property.Class && !Ref->IsA(Property.Class))
 				{
-					HTR_LOG(Warning, "Load: '{}' is not a {}, keeping default", Property.Name, Property.Class->Name);
+					HTR_LOG(Warning, "Load: '{}' is not a {}, keeping default", PropertyName, Property.Class->Name);
 					Ref = Previous;
 				}
 				break;
 			}
 			default:
 				// 슬롯을 열었으면 반드시 값을 써야 한다. 모르는 타입은 저장 시 null로 둔다.
-				HTR_LOG(Warning, "Serialize: unsupported property type for '{}'", Property.Name);
+				HTR_LOG(Warning, "Serialize: unsupported property type for '{}'", PropertyName);
 				{ UObject* Null = nullptr; Value << Null; }
 				break;
 			}

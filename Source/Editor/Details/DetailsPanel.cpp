@@ -859,19 +859,18 @@ namespace
 	void DrawProperty(UObject* Object, const FProperty& Property, ImFont* CustomFont)
 	{
 		void* ValuePtr = reinterpret_cast<char*>(Object) + Property.Offset;
-		const FString Label = "##" + Property.Name;
-
-		const char* DisplayName = Property.Name.c_str();
+		const FString PropertyName = Property.Name.ToString();
+		const FString Label = "##" + PropertyName;
 
 		// 패널이 넓으면 라벨 | 값을 한 줄에, 좁거나 라벨이 길면 라벨 아래 줄에 값을 놓는다.
 		const float StartX = ImGui::GetCursorPosX();
 		const float AvailableWidth = ImGui::GetContentRegionAvail().x;
 		const float LabelWidth = AvailableWidth * 0.45f;
 
-		const bool bInline = Property.Type != EPropertyType::Transform && AvailableWidth >= 260.0f && ImGui::CalcTextSize(DisplayName).x < LabelWidth;
+		const bool bInline = Property.Type != EPropertyType::Transform && AvailableWidth >= 260.0f && ImGui::CalcTextSize(PropertyName.c_str()).x < LabelWidth;
 
 		ImGui::AlignTextToFramePadding();
-		ImGui::TextWrapped("%s", DisplayName);
+		ImGui::TextWrapped("%s", PropertyName.c_str());
 
 		if (bInline)
 			ImGui::SameLine(StartX + LabelWidth);

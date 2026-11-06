@@ -37,23 +37,15 @@ struct FAnimNode_TwoWayBlend : public FAnimNode_Base
 	FPoseLink B;
 	float Alpha = 0.0f; // 0 = A, 1 = B
 
-	virtual void Update(const FAnimationUpdateContext& Context) override
-	{
-		A.Update(Context); // 각 입력이 자기 재생 시간을 흘린다
-		B.Update(Context);
-	}
+	void Update(const FAnimationUpdateContext& Context) override;
+	void Evaluate(FPoseContext& Output) override;
+};
 
-	virtual void Evaluate(FPoseContext& Output) override
-	{
-		FPoseContext PoseA(Output);
-		FPoseContext PoseB(Output);
-		A.Evaluate(PoseA);
-		B.Evaluate(PoseB);
-
-		// 본마다 위치 / 스케일은 Lerp, 회전은 Quaternion Slerp
-		FAnimationRuntime::BlendTwoPosesTogether(
-		    PoseA.Pose, PoseB.Pose, PoseA.Curve, PoseB.Curve,
-		    1.0f - Alpha, // 첫 번째 포즈(A) 의 가중치
-		    Output.Pose, Output.Curve);
-	}
+// 단일 포즈를 그대로 출력한다. 디버깅용.
+struct FAnimNode_Constant : public FAnimNode_Base
+{
+	FPoseContext ConstantPose;
+	
+	void Update(const FAnimationUpdateContext& Context) override;
+	void Evaluate(FPoseContext& Output) override;
 };

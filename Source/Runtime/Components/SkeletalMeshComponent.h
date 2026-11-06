@@ -12,11 +12,16 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
 {
 	DECLARE_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
 
+	REFLECT_START(USkeletalMeshComponent)
+		PROPERTY(DebugAlpha)
+	REFLECT_END()
+
 public:
 	USkeletalMeshComponent();
 	~USkeletalMeshComponent() override;
 
 	void BeginPlay() override;
+	void TickComponent(float DeltaTime) override;
 
 	void InitializeComponent() override;
 	//void TickComponent(float DeltaTime) override;
@@ -47,4 +52,6 @@ private:
 
 	// 매 프레임 포즈 배열을 새로 만들지 않고 재사용.
 	FPoseContext EvaluatedPose;
+
+	float DebugAlpha = 0.0f;
 };

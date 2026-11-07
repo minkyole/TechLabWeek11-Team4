@@ -3,6 +3,7 @@
 #include "Render/RenderPacket.h"
 
 #include "Animation/AnimInstance.h"
+#include "Core/Stats/SkinningStats.h"
 #include "UObject/UObjectGlobals.h"
 
 USkeletalMeshComponent::USkeletalMeshComponent()
@@ -80,6 +81,7 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 	if (!AnimInstance || !AnimInstance->IsInitialized()) 
 		return;
 
+	SCOPE_CYCLE_COUNTER(SkinningStats::STAT_AnimEvaluate);
 	AnimInstance->UpdateAnimation(DeltaTime);
 	RefreshAnimationPose();
 }
@@ -108,7 +110,10 @@ void USkeletalMeshComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue)
 	USkeletalMesh* SkeletalMesh = GetSkeletalMesh();
 	const FPrimitiveSceneProxy* Proxy = GetSceneProxy();
 	if (!SkeletalMesh || !Proxy || !Proxy->IsVisible()) return;
-	FVertexBuffer* VertexBuffer = GetSkinnedVertexBuffer();
+	SyncSkinningMode();
+	// GPU 모드면 바인드 포즈 정점 버퍼와 본 행렬 버퍼를, CPU 모드면 CPU가 스키닝한 정점 버퍼를 넘긴다.
+	const bool bGPUSkinned = UsesGPUSkinning();
+	FVertexBuffer* VertexBuffer = bGPUSkinned ? SkeletalMesh->VertexBuffer.get() : GetSkinnedVertexBuffer();
 	FIndexBuffer* IndexBuffer = SkeletalMesh->IndexBuffer.get();
 	if (!VertexBuffer || !IndexBuffer || !VertexBuffer->GetBuffer() || !IndexBuffer->GetBuffer()) return;
 
@@ -126,6 +131,11 @@ void USkeletalMeshComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue)
 		Packet.Proxy = Proxy;
 		Packet.VertexBuffer = VertexBuffer;
 		Packet.IndexBuffer = IndexBuffer;
+		if (bGPUSkinned)
+		{
+			Packet.SkinMatrices = GetSkinMatrixBuffer();
+			Packet.NormalMatrices = GetNormalMatrixBuffer();
+		}
 		Packet.Material = Material;
 		Packet.StartIndex = Section.StartIndex;
 		Packet.IndexCount = Section.IndexCount;

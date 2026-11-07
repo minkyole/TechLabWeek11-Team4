@@ -28,6 +28,11 @@ struct FRenderPacket
     FVertexBuffer* VertexBuffer = nullptr;
     FIndexBuffer* IndexBuffer = nullptr;
 
+    // GPU 스키닝 패킷이면 본 행렬 버퍼(t30, t31)를 가리킨다. VertexBuffer는 바인드 포즈 FSkeletalVertex(96바이트)다.
+    FStructuredBuffer* SkinMatrices = nullptr;
+    FStructuredBuffer* NormalMatrices = nullptr;
+    bool IsGPUSkinned() const { return SkinMatrices != nullptr; }
+
     FVertexBuffer* GetVertexBuffer() const
     {
         return VertexBuffer ? VertexBuffer : Mesh ? Mesh->GetVertexBuffer(LODIndex) : nullptr;

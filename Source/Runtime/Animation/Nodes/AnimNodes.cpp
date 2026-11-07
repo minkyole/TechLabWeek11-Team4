@@ -6,12 +6,12 @@
 
 void FAnimNode_SequencePlayer::Update(const FAnimationUpdateContext& Context)
 {
-	throw std::logic_error("Not Implemented");
+	(void)Context; // TEMP(C): crash guard until B implements. Do not commit.
 }
 
 void FAnimNode_SequencePlayer::Evaluate(FPoseContext& Output)
 {
-	throw std::logic_error("Not Implemented");
+	Output.Pose = FAnimationPose(); // TEMP(C): empty pose so ApplyPose is skipped and Bone Editor edits stay. Do not commit.
 }
 
 void FAnimNode_TwoWayBlend::Update(const FAnimationUpdateContext& Context)

@@ -820,7 +820,9 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 	{
 		FRenderQueue RenderQueue;
 		const FMatrix PreviewWorld = PreviewComponent->GetWorldMatrix();
-		FVertexBuffer* VertexBuffer = PreviewComponent->GetSkinnedVertexBuffer();
+		PreviewComponent->SyncSkinningMode();
+		const bool bGPUSkinned = PreviewComponent->UsesGPUSkinning();
+		FVertexBuffer* VertexBuffer = bGPUSkinned ? SelectedMesh->VertexBuffer.get() : PreviewComponent->GetSkinnedVertexBuffer();
 		FIndexBuffer* IndexBuffer = SelectedMesh->IndexBuffer.get();
 		if (VertexBuffer && IndexBuffer)
 		{
@@ -848,6 +850,11 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 					Packet.Model = Model;
 					Packet.VertexBuffer = VertexBuffer;
 					Packet.IndexBuffer = IndexBuffer;
+					if (bGPUSkinned)
+					{
+						Packet.SkinMatrices = PreviewComponent->GetSkinMatrixBuffer();
+						Packet.NormalMatrices = PreviewComponent->GetNormalMatrixBuffer();
+					}
 					Packet.Material = Material;
 					Packet.StartIndex = PartStartIndex + Section.StartIndex;
 					Packet.IndexCount = Section.IndexCount;

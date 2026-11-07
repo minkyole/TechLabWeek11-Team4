@@ -7,9 +7,16 @@
 struct FSkeletalVertex
 {
 	FVertex Vertex;
-	uint32 BoneIndices[4] = {};	// 해당 배열 내부의 Index는 FSkeletalMeshData의 Bones 배열의 Index
+	uint32 BoneIndices[4] = {};
 	float BoneWeights[4] = {};
 };
+// GPU 스킨 셰이더의 정점 입력(BLENDINDICES / BLENDWEIGHT)과 바이트 단위로 같아야 한다.
+static_assert(sizeof(FSkeletalVertex) == 96, "FSkeletalVertex는 GPU 스킨 정점 입력과 크기가 같아야 한다");
+
+inline bool IsValidBoneInfluence(const FSkeletalVertex& Vertex, int32 Slot, uint32 NumBones)
+{
+	return Vertex.BoneWeights[Slot] > 0.0f && Vertex.BoneIndices[Slot] < NumBones;
+}
 
 struct FSkeletalBone
 {

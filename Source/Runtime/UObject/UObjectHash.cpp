@@ -1,6 +1,6 @@
 #include "EnginePCH.h"
 #include "UObjectHash.h"
-
+#include "Core/EngineLog.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 
@@ -18,17 +18,60 @@ static TMap<FName, UClass*, FNameHash>& GetClassMap()
 
 void RegisterClass(UClass* Class)
 {
-	GetClassMap()[Class->GetFName()] = Class;
+	if (!Class || Class->GetFName().IsNone())
+	{
+		HTR_LOG(Error, "RegisterClass: a class with a valid name is required.");
+		return;
+	}
+	TMap<FName, UClass*, FNameHash>& ClassMap = GetClassMap();
+	const FName Name = Class->GetFName();
+	if (UClass** Existing = ClassMap.Find(Name))
+	{
+		if (*Existing != Class)
+		{
+			HTR_LOG(Error, "RegisterClass: '{}' is already registered by another class.", Name.ToString());
+		}
+		return;
+	}
+
+	// 이름 검색과 상속 목록의 부모 식별자 일치 보장
+	if (Class->Super)
+	{
+		UClass** RegisteredSuper = ClassMap.Find(Class->Super->GetFName());
+		if (!RegisteredSuper || *RegisteredSuper != Class->Super)
+		{
+			HTR_LOG(Error, "RegisterClass: '{}' requires its superclass '{}' to be registered first.",
+			        Name.ToString(), Class->Super->GetName());
+			return;
+		}
+	}
+
+	// 검증을 통과한 클래스의 이름 맵과 상속 목록 등록
+	ClassMap.Add(Name, Class);
 	if (Class->Super)
 	{
 		GetClassToChildren()[Class->Super].Add(Class);
 	}
 }
 
+UClass* FindClass(const FName& Name)
+{
+	UClass** Found = GetClassMap().Find(Name);
+	return Found ? *Found : nullptr;
+}
+
 UClass* FindClass(const FString& Name)
 {
-	UClass** Found = GetClassMap().Find(FName(Name));
-	return Found ? *Found : nullptr;
+	return FindClass(FName(Name));
+}
+
+UClass* FindClass(const char* Name)
+{
+	if (!Name)
+	{
+		return nullptr;
+	}
+	return FindClass(FName(Name));
 }
 
 UObject* FindObjectWithOuter(const UObject* outer, const UClass* Class, FName Name)

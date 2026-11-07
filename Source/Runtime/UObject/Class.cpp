@@ -42,6 +42,22 @@ void UClass::EnsurePropertiesRegistered()
 	PropertyRegistrationState = EPropertyRegistrationState::Registered;
 }
 
+const FProperty* UClass::FindPropertyByName(const FName& InName) const
+{
+	// 프로퍼티 등록을 보장하는 현재 클래스 우선 조회
+	for (const UClass* Class = this; Class; Class = Class->Super)
+	{
+		for (const FProperty& Property : Class->GetProperties())
+		{
+			if (Property.Name == InName)
+			{
+				return &Property;
+			}
+		}
+	}
+	return nullptr;
+}
+
 bool UClass::IsChildOf(const UClass* BaseClass) const
 {
 	if (!BaseClass) return false;

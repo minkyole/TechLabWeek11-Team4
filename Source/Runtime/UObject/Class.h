@@ -3,6 +3,7 @@
 #include "Property.h"
 #include "Object.h"
 #include "Serialization/MathSerialization.h"
+#include "Core/EngineLog.h"
 
 using ClassConstructor = UObject * (*)(void* Memory);
 using FRegisterPropertiesFunction = void (*)(UClass* Class);
@@ -36,6 +37,8 @@ public:
 		return Properties;
 	}
 
+	const FProperty* FindPropertyByName(const FName& InName) const;
+
 	template<class T>
 	T* GetDefaultObject()
 	{
@@ -51,6 +54,13 @@ public:
 	template <typename T>
 	void AddProperty(const FString& InName, uint64 InOffset, EPropertyType InType, uint32 InFlags = CPF_Default)
 	{
+		const FName PropertyName(InName);
+		if (FindPropertyByName(PropertyName))
+		{
+			HTR_LOG(Error, "AddProperty: '{}' is already registered in '{}' or its superclass.",
+			        InName, GetName());
+			return;
+		}
 		UClass* ObjectClass = nullptr;
 		if constexpr (std::is_pointer_v<T> && std::is_base_of_v<UObject, std::remove_pointer_t<T>>)
 		{
@@ -58,7 +68,7 @@ public:
 		}
 
 		// 메타데이터 생성 후 실제 타입의 값 연산 연결
-		FProperty Property{ InName, InType, InOffset, sizeof(T), ObjectClass, InFlags };
+		FProperty Property{ PropertyName, InType, InOffset, sizeof(T), ObjectClass, InFlags };
 		Property.InitializeValueOperations<T>();
 
 		    // 실제 선언 타입에 맞는 슬롯 직렬화 연결

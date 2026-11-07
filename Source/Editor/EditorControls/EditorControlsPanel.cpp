@@ -31,13 +31,24 @@ void FEditorControlsPanel::Tick(float DeltaTime)
 	}
 }
 
+bool FEditorControlsPanel::CanPlaceActorClass(const UClass* Class) const
+{
+	return Class && Class->IsChildOf(AActor::StaticClass()) && Class->CanCreateInstance() 
+		&& !Class->HasAnyClassFlags(EClassFlags::CLASS_NotPlaceable);
+}
 // 선택한 클래스의 액터를 월드에 생성한다.
 void FEditorControlsPanel::AddActor(uint32 Index)
 {
-	if (IsPlayingQuery && IsPlayingQuery())
+	if (!World || Index >= static_cast<uint32>(Classes.Num()) || (IsPlayingQuery && IsPlayingQuery()))
+	{
 		return;
-
-	World->SpawnActor(Classes[Index]);
+	}
+	UClass* Class = Classes[Index];
+	if (!CanPlaceActorClass(Class))
+	{
+		return;
+	}
+	World->SpawnActor(Class);
 }
 
 // 액터 생성·카메라 속성·기즈모·경로 추적 UI를 그린다.
@@ -68,7 +79,7 @@ void FEditorControlsPanel::OnRender()
 		CountText,
 		sizeof(CountText),
 		"%d Actors",
-		World->GetActorNum()
+		World ? World->GetActorNum() : 0
 	);
 
 	const float CountWidth = ImGui::CalcTextSize(CountText).x;
@@ -79,8 +90,49 @@ void FEditorControlsPanel::OnRender()
 	const bool bInline = Available >= SpawnButtonWidth + CountWidth + Spacing * 2.0f + 120.0f;
 	const float ComboWidth = bInline ? Available - SpawnButtonWidth - CountWidth - Spacing * 2.0f : Available;
 
+	// 이름과 클래스 배열이 함께 제공하는 후보 범위
+	const int32 ClassCount = std::min<int32>(Classes.Num(), IM_ARRAYSIZE(Items));
+
+	// 표시할 수 없어진 선택의 첫 허용 원본 인덱스 보정
+	if (SelectedIndex < 0 || SelectedIndex >= ClassCount || !CanPlaceActorClass(Classes[SelectedIndex]))
+	{
+		SelectedIndex = -1;
+		for (int32 Index = 0; Index < ClassCount; ++Index)
+		{
+			if (CanPlaceActorClass(Classes[Index]))
+			{
+				SelectedIndex = Index;
+				break;
+			}
+		}
+	}
+
+	// 원본 인덱스를 유지하는 배치 가능 클래스 표시
+	const char* Preview = SelectedIndex >= 0 ? Items[SelectedIndex] : "No placeable actors";
 	ImGui::SetNextItemWidth(std::max(1.0f, ComboWidth));
-	ImGui::Combo("##ActorType", &SelectedIndex, Items, IM_ARRAYSIZE(Items));
+	ImGui::BeginDisabled(SelectedIndex < 0);
+	if (ImGui::BeginCombo("##ActorType", Preview))
+	{
+		for (int32 Index = 0; Index < ClassCount; ++Index)
+		{
+			if (!CanPlaceActorClass(Classes[Index]))
+			{
+				continue;
+			}
+
+			const bool bSelected = SelectedIndex == Index;
+			if (ImGui::Selectable(Items[Index], bSelected))
+			{
+				SelectedIndex = Index;
+			}
+			if (bSelected)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+	ImGui::EndDisabled();
 
 	if (bInline)
 		ImGui::SameLine();
@@ -88,7 +140,7 @@ void FEditorControlsPanel::OnRender()
 	// PIE 중에는 보이지 않는 에디터 월드에 스폰되므로 막는다.
 	const bool bPlaying = IsPlayingQuery && IsPlayingQuery();
 
-	ImGui::BeginDisabled(bPlaying);
+	ImGui::BeginDisabled(bPlaying || !World || SelectedIndex < 0);
 	if (ImGui::Button("Spawn", ImVec2(SpawnButtonWidth, 0)))
 	{
 		AddActor(SelectedIndex);

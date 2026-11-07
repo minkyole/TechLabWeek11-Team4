@@ -97,7 +97,7 @@ public:
 private:
 	static constexpr float SectionGap = 10.0f;
 	static constexpr float SubsectionGap = 4.0f;
-
+	bool CanPlaceActorClass(const UClass* Class) const;
     void DrawCameraProperties();
     FMultipleViewportsAdapter* ViewportAdapter = nullptr;
 	std::function<bool()> IsPlayingQuery;

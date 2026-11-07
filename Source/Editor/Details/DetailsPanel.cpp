@@ -1168,6 +1168,7 @@ namespace
 			std::sort(Classes.begin(), Classes.end(), [](const UClass* A, const UClass* B) { return A->GetName() < B->GetName(); });
 			for (UClass* Class : Classes)
 			{
+				if (!Class || !Class->CanCreateInstance()){	continue; }
 				if (ImGui::MenuItem(Class->GetName().c_str()))
 				{
 					OutAddedComponent = Actor->AddComponent(Class, NAME_None);

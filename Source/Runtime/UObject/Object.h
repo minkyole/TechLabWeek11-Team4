@@ -41,34 +41,51 @@ private:
 // 추상 클래스는 생성자를 등록하지 않는다.
 // 템플릿이어야 버려진 if constexpr 분기의 new T()가 컴파일되지 않고,
 // 멤버여야 private 생성자(싱글턴 등)에 접근할 수 있다.
-// TODO: GENERATED_BODY 전체 전환 완료 후 수동 클래스 선언 매크로 제거
-#define DECLARE_CLASS(ClassName, SuperClassName)                                             \
+// C++ 추상 타입의 생성자 제외와 선택적인 클래스 지정자 연결
+// TODO: GENERATED_BODY 전체 전환 완료 후 레거시 DECLARE_CLASS 제거
+#define DECLARE_CLASS(ClassName, SuperClassName, ...)                                        \
 public:                                                                                      \
 	using Super = SuperClassName;                                                            \
 	using ThisClass = ClassName;                                                             \
 	template <typename T = ClassName>                                                        \
-	static UObject* InternalConstructInstance(void* Memory)									 \
-	{																						 \
-		if constexpr (std::is_abstract_v<T>) { return nullptr; }							 \
-		else { return new (Memory) T(); }													 \
-	}																						 \
+	static UObject* InternalConstructInstance(void* Memory)                                  \
+	{                                                                                        \
+		if constexpr (std::is_abstract_v<T>)                                                 \
+		{                                                                                    \
+			return nullptr;                                                                  \
+		}                                                                                    \
+		else                                                                                 \
+		{                                                                                    \
+			return new (Memory) T();                                                         \
+		}                                                                                    \
+	}                                                                                        \
 	static UClass* GetPrivateStaticClass()                                                   \
 	{                                                                                        \
-		static UClass c(	                                                                \
+		constexpr EClassSpecifiers Specifiers{ __VA_ARGS__ };                                \
+		static_assert(!(HasFlag(Specifiers, EClassSpecifiers::Placeable) &&                  \
+		                HasFlag(Specifiers, EClassSpecifiers::NotPlaceable)),                \
+		              "Placeable and NotPlaceable cannot be combined.");                     \
+		static UClass c(                                                                     \
 		    FName(#ClassName), Super::GetPrivateStaticClass(), sizeof(ClassName),            \
 		    std::is_abstract_v<ClassName> ? nullptr : &InternalConstructInstance<ClassName>, \
 		    &ClassName::RegisterProperties != &Super::RegisterProperties                     \
 		        ? &ClassName::RegisterProperties                                             \
-		        : nullptr);                                                                  \
+		        : nullptr,                                                                   \
+		    Specifiers | (std::is_abstract_v<ClassName>                                      \
+		                      ? EClassSpecifiers::Abstract                                   \
+		                      : EClassSpecifiers::None));                                    \
 		return &c;                                                                           \
 	}                                                                                        \
 	static UClass* StaticClass()                                                             \
 	{                                                                                        \
-		UClass* c = GetPrivateStaticClass();					                             \
+		UClass* c = GetPrivateStaticClass();                                                 \
 		c->EnsurePropertiesRegistered();                                                     \
 		return c;                                                                            \
 	}                                                                                        \
-    struct FAutoRegister {FAutoRegister() { ThisClass::StaticClass();}};					 \
+	struct FAutoRegister                                                                     \
+	{                                                                                        \
+		FAutoRegister() { ThisClass::StaticClass(); }                                        \
+	};                                                                                       \
 	inline static FAutoRegister AutoRegister;                                                \
                                                                                              \
 private:

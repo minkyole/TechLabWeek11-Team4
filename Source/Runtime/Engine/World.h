@@ -77,7 +77,8 @@ public:
 	template <class T>
 	T* SpawnActor(FName InName = NAME_None, const FTransform* Transform = nullptr)
 	{
-		return CastChecked<T>(SpawnActor(T::StaticClass(), InName, Transform));
+		AActor* Actor = SpawnActor(T::StaticClass(), InName, Transform);
+		return Actor ? CastChecked<T>(Actor) : nullptr;
 	}
 
 	void Tick(float DeltaTime);

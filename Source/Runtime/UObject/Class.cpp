@@ -10,11 +10,17 @@ UClass::UClass()
 }
 
 UClass::UClass(const FName& InName, UClass* InSuper, uint64 InClassSize,
-               ClassConstructor InConstructor, FRegisterPropertiesFunction InRegisterProperties)
+               ClassConstructor InConstructor, FRegisterPropertiesFunction InRegisterProperties,
+               EClassSpecifiers InSpecifiers)
     : UObject(false), Super(InSuper), ClassSize(InClassSize), Constructor(InConstructor),
-	RegisterPropertiesFunction(InRegisterProperties)
+      RegisterPropertiesFunction(InRegisterProperties)
+
 {
 	SetName(InName);
+	ClassFlags = Super ? Super->GetClassFlags() & EClassFlags::CLASS_NotPlaceable : EClassFlags::CLASS_None;
+	if (HasFlag(InSpecifiers, EClassSpecifiers::Placeable)){ ClassFlags &= ~EClassFlags::CLASS_NotPlaceable; }
+	if (HasFlag(InSpecifiers, EClassSpecifiers::NotPlaceable)){ ClassFlags |= EClassFlags::CLASS_NotPlaceable; }
+	if (HasFlag(InSpecifiers, EClassSpecifiers::Abstract)){	ClassFlags |= EClassFlags::CLASS_Abstract; }
 }
 
 void UClass::EnsurePropertiesRegistered()
@@ -70,7 +76,7 @@ bool UClass::IsChildOf(const UClass* BaseClass) const
 
 UObject* UClass::GetDefaultObject() 
 {
-	if (!DefaultObject)
+	if (!DefaultObject && Constructor)
 	{
 		DefaultObject = Constructor(UObject::operator new(ClassSize));
 	}

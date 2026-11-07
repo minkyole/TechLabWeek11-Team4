@@ -15,11 +15,17 @@ public:
 
 	// 클래스 기본 정보와 등록 함수의 보관
 	UClass(const FName& InName, UClass* InSuper, uint64 InClassSize,
-	       ClassConstructor InConstructor, FRegisterPropertiesFunction InRegisterProperties);
+	       ClassConstructor InConstructor, FRegisterPropertiesFunction InRegisterProperties,
+	       EClassSpecifiers InSpecifiers = EClassSpecifiers::None);
 	
 	void EnsurePropertiesRegistered();
 
 	bool ArePropertiesRegistered() const { return PropertyRegistrationState == EPropertyRegistrationState::Registered; }
+
+	EClassFlags GetClassFlags() const { return ClassFlags; }
+	bool HasAnyClassFlags(EClassFlags InFlags) const { return HasFlag(ClassFlags, InFlags); }
+	bool HasAllClassFlags(EClassFlags InFlags) const { return (ClassFlags & InFlags) == InFlags; }
+	bool CanCreateInstance() const{ return Constructor != nullptr && !HasAnyClassFlags(EClassFlags::CLASS_Abstract); }
 
 	UClass* Super = nullptr;
 	uint64 ClassSize = 0;
@@ -98,6 +104,7 @@ public:
 	}
 
 private:
+	EClassFlags ClassFlags = EClassFlags::CLASS_None;
 	enum class EPropertyRegistrationState : uint8
 	{
 		Unregistered,

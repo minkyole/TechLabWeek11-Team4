@@ -34,10 +34,6 @@ namespace
 
 		Parameters.DestClass = DestClass ? DestClass : SourceObject->GetClass();
 		Parameters.FlagMask = FlagMask;
-		// do not allow duplication of the Mark flags nor the HasExternalPackage flag
-		//Parameters.FlagMask = FlagMask & ~(RF_MarkAsRootSet | RF_MarkAsNative | RF_HasExternalPackage);
-		//Parameters.InternalFlagMask = InternalFlagsMask;
-		//Parameters.DuplicateMode = DuplicateMode;
 
 		Parameters.PortFlags = EPropertyPortFlags::PPF_DuplicateForPIE;
 
@@ -45,34 +41,14 @@ namespace
 	}
 }
 
-//UObject* FObjectFactory::ConstructObject(UClass* Class, UObject* Outer, FName Name)
-//{
-//    if (!Class || !Class->Constructor)
-//        return nullptr;
-//
-//    UObject* Object = Class->Constructor();
-//    Object->ClassPrivate = Class;
-//    HashObject(Object, Class);
-//
-//    Object->SetOuter(Outer);
-//
-//    Name = MakeUniqueObjectName(Class, Outer, Name);
-//
-//    Object->SetName(Name);
-//
-//    //HTR_LOG(Info, "Create {}", Class->Name);
-//    //HTR_LOG(Info, "Total Allocation Bytes - {}", FEngineStatics::TotalAllocationBytes);
-//    //HTR_LOG(Info, "Total Allocation Count - {}", FEngineStatics::TotalAllocationCount);
-//
-//    return Object;
-//}
-
 UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& Params)
 {
 	bool bRecycled = false;
 	const UClass* Class = Params.Class;
-	if (!Class || !Class->Constructor)
+	if (!Class || !Class->CanCreateInstance())
+	{
 		return nullptr;
+	}
 
 	FName Name = Params.Name;
 	if (Name == NAME_None)
@@ -137,7 +113,7 @@ UObject* StaticDuplicateObjectEx(FObjectDuplicationParameters& Parameters)
 		Params.SetFlags = Parameters.ApplyFlags | Parameters.SourceObject->GetMaskedFlags(Parameters.FlagMask);
 		DupRootObject = StaticConstructObject_Internal(Params);
 	}
-
+	if (!DupRootObject) { return nullptr; }
 	FDuplicatedObjectAnnotation DuplicatedObjectAnnotation;
 	FLargeMemoryData ObjectData;
 	TArray<UObject*> SerializedObjects;   // Reader가 같은 순서로 읽도록 기록

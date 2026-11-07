@@ -2,16 +2,21 @@
 #include "AnimNodes.h"
 
 #include "Animation/AnimationContext.h"
+#include "Animation/AnimSequence.h"
 
 
 void FAnimNode_SequencePlayer::Update(const FAnimationUpdateContext& Context)
 {
-	throw std::logic_error("Not Implemented");
+	(void)Context;
 }
 
 void FAnimNode_SequencePlayer::Evaluate(FPoseContext& Output)
 {
-	throw std::logic_error("Not Implemented");
+	if (!Sequence)
+	{
+		return;
+	}
+	Sequence->GetAnimationPose(CurrentTime, Output.Pose);
 }
 
 void FAnimNode_TwoWayBlend::Update(const FAnimationUpdateContext& Context)

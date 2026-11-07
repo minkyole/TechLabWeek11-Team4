@@ -34,6 +34,7 @@ public:
 	void SetNumberOfFrames(int32 InNumberOfFrames);
 	int32 AddBoneTrack(const FName& BoneName);
 	FRawAnimSequenceTrack& GetBoneTrackChecked(int32 TrackIndex);
+	void SetBoneTrackKeys(int32 TrackIndex, const TArray<FVector>& PosKeys, const TArray<FQuat>& RotKeys, const TArray<FVector>& ScaleKeys);
 
 	void Reset();
 

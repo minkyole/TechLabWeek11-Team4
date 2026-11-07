@@ -3,6 +3,7 @@
 
 #include "Animation/Nodes/AnimNodes.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimSequence.h"
 
 void UAnimInstance::InitializeAnimation(
     USkeletalMeshComponent* InComponent)
@@ -198,6 +199,8 @@ float UAnimSingleNodeInstance::GetPosition() const
 
 float UAnimSingleNodeInstance::GetLength() const
 {
-	// TODO
-	throw std::logic_error("Not implemented");
+	if (SequencePlayer.Sequence)
+	{
+		SequencePlayer.Sequence->GetPlayLength();
+	}
 }

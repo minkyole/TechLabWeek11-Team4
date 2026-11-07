@@ -15,6 +15,7 @@ UAnimSequenceBase::UAnimSequenceBase()
 	DataModel = CreateDefaultSubobject<UAnimDataModel>(FName("AnimDataModel"));
 }
 
+// 
 void UAnimSequence::GetAnimationPose(float Time, FAnimationPose& OutPose) const
 {
 	const USkeletalMesh* TargetMesh = OutPose.TargetMesh;
@@ -39,10 +40,12 @@ void UAnimSequence::GetAnimationPose(float Time, FAnimationPose& OutPose) const
 		{
 			continue;
 		}
+		// 본 마다 Track대로 Transform을 업데이트한다 
 		SampleTrack(Tracks[TrackIndex].InternalTrack, Lookup, OutPose.LocalTransforms[i]);
 	}
 }
 
+// 시간을 입력받아 Lookup(키 2개, 비율 alpha)로 반환
 FAnimKeyLookup UAnimSequence::FindKeyLookup(float Time) const
 {
 	int32 NumKeys = DataModel->GetNumberOfKeys();
@@ -59,6 +62,7 @@ FAnimKeyLookup UAnimSequence::FindKeyLookup(float Time) const
 	return FAnimKeyLookup{KeyIndex0, KeyIndex1, Alpha};
 }
 
+// Lookup 대로 위치, 회전, 스케일을 두 키사이의 alpha대로 보간한다. 
 void UAnimSequence::SampleTrack(const FRawAnimSequenceTrack& Track, const FAnimKeyLookup& Lookup, FAnimBoneTransform& OutTransform)
 {
 	// Translation

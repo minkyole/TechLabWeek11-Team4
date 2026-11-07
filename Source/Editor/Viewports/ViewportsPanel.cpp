@@ -13,6 +13,8 @@
 #include "Core/Stats/EditorStats.h"
 #include "Core/Stats/ShadowStats.h"
 #include "Core/Stats/DecalStats.h"
+#include "Core/Stats/SkinningStats.h"
+#include "Render/SkinningSettings.h"
 #include "Render/ShadowSettings.h"
 
 namespace
@@ -444,6 +446,42 @@ void FViewportsPanel::DrawStatOverlay(ImDrawList* DrawList, const ImVec2& ViewMi
 			FStatRegistry::GetCurrentFrameMs(DecalStats::STAT_ProjectedBuildCPU),
 			FStatRegistry::GetCounter(DecalStats::STAT_ProjectedBuilds),
 			FStatRegistry::GetCounter(DecalStats::STAT_ProjectedVertices)), ValueColor });
+	}
+
+	// CPU / GPU 스키닝 비교. 시간은 이번 프레임 값과 최근 120프레임 평균을 같이 보여 준다.
+	if (FStatOverlay::IsEnabled(EStatFlags::Skinning))
+	{
+		auto AverageMs = [](TStatId Stat)
+			{
+				const FCycleStatData* Data = FStatRegistry::Find(Stat);
+				return Data ? Data->GetRecentAverageMs() : 0.0;
+			};
+		auto TimeLine = [&](const char* Label, TStatId Stat)
+			{
+				return std::format("  {:<14} {:7.3f} ms  (avg {:7.3f})", Label,
+					FStatRegistry::GetCurrentFrameMs(Stat), AverageMs(Stat));
+			};
+
+		Lines.Add({ std::format("Skinning / Mode: {}{}", FSkinningSettings::IsGPU() ? "GPU" : "CPU",
+			FSkinningSettings::IsForceEveryFrame() ? "  (force every frame)" : ""), TitleColor });
+		Lines.Add({ TimeLine("Anim Evaluate", SkinningStats::STAT_AnimEvaluate), ValueColor });
+		Lines.Add({ TimeLine("Skinning", SkinningStats::STAT_Skin), ValueColor });
+		Lines.Add({ TimeLine("Upload", SkinningStats::STAT_Upload), ValueColor });
+		Lines.Add({ TimeLine("CPU On-Demand", SkinningStats::STAT_OnDemand), ValueColor });
+		Lines.Add({ std::format("  {:<14} {:7.3f} ms  ({:.1f} fps)", "Frame",
+			FStatOverlay::GetFrameTimeMs(), FStatOverlay::GetFPS()), ValueColor });
+		Lines.Add({ std::format("  Components: {}  GPU: {}  CPU: {}  Fallback: {}",
+			FStatRegistry::GetCounter(SkinningStats::STAT_Components),
+			FStatRegistry::GetCounter(SkinningStats::STAT_GPUComponents),
+			FStatRegistry::GetCounter(SkinningStats::STAT_CPUComponents),
+			FStatRegistry::GetCounter(SkinningStats::STAT_Fallbacks)), ValueColor });
+		Lines.Add({ std::format("  Vertices: {}  Bones: {}  CPU-skinned vertices: {}",
+			FStatRegistry::GetCounter(SkinningStats::STAT_Vertices),
+			FStatRegistry::GetCounter(SkinningStats::STAT_Bones),
+			FStatRegistry::GetCounter(SkinningStats::STAT_CPUVertices)), ValueColor });
+		Lines.Add({ std::format("  Upload: {:.1f} KB  On-Demand: {}",
+			static_cast<double>(FStatRegistry::GetCounter(SkinningStats::STAT_UploadBytes)) / 1024.0,
+			FStatRegistry::GetCounter(SkinningStats::STAT_OnDemandCount)), ValueColor });
 	}
 
 	// 현재 프레임 전체 World의 그림자 통계를 기존 줄 목록에 추가한다.

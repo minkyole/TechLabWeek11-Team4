@@ -68,7 +68,8 @@ namespace
 
 		return (static_cast<uint64>(Packet.Material->SortID) << 47)
 			| (static_cast<uint64>(Packet.Mesh ? Packet.Mesh->SortID : 0) << 31)
-			| (static_cast<uint64>(Packet.LODIndex & 0x3) << 29);
+			| (static_cast<uint64>(Packet.LODIndex & 0x3) << 29)
+			| (static_cast<uint64>(Packet.IsGPUSkinned() ? 1 : 0) << 28);   // 같은 머티리얼 안에서 스킨 패킷끼리 붙여 셰이더 교체를 줄인다
 	}
 
 	// 불투명 패킷과 같은 규칙의 키 (묶음은 전부 불투명)
@@ -1029,6 +1030,8 @@ void FRenderer::DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProject
 	LastMaterial = nullptr;
 	FVertexBuffer* LastVertexBuffer = nullptr;
 	FIndexBuffer* LastIndexBuffer = nullptr;
+	bool bLastSkinned = false;
+	FStructuredBuffer* LastSkinMatrices = nullptr;
 
 	RenderCommand::BindConstantBuffer(0, ViewCB.get(), EShaderBindFlagBits::Vertex | EShaderBindFlagBits::Pixel);
 
@@ -1037,6 +1040,21 @@ void FRenderer::DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProject
 	{
 		const uint32 PacketIndex = SortEntries[k].PacketIndex;
 		const FRenderPacket& RenderPacket = RenderPackets[PacketIndex];
+		const bool bSkinned = RenderPacket.IsGPUSkinned();
+		// 같은 머티리얼이라도 GPU 스킨 여부가 바뀌면 셰이더 변형이 달라지므로 다시 바인딩한다.
+		if (RenderPacket.Material != LastMaterial || bSkinned != bLastSkinned) {
+			if (!BindMaterial(RenderPacket.Material, bSkinned)) {
+				// 스킨 변형을 쓸 수 없는 패킷은 그리지 않는다. 다음 패킷이 처음부터 다시 바인딩하게 기록을 지운다.
+				LastMaterial = nullptr;
+				continue;
+			}
+			bLastSkinned = bSkinned;
+		}
+		if (bSkinned && RenderPacket.SkinMatrices != LastSkinMatrices) {
+			RenderCommand::BindShaderResource(30, RenderPacket.SkinMatrices, EShaderBindFlagBits::Vertex);
+			RenderCommand::BindShaderResource(31, RenderPacket.NormalMatrices, EShaderBindFlagBits::Vertex);
+			LastSkinMatrices = RenderPacket.SkinMatrices;
+		}
 		FVertexBuffer* VertexBuffer = RenderPacket.GetVertexBuffer();
 		FIndexBuffer* IndexBuffer = RenderPacket.GetIndexBuffer();
 		if (VertexBuffer != LastVertexBuffer || IndexBuffer != LastIndexBuffer) {
@@ -1044,9 +1062,6 @@ void FRenderer::DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProject
 			RenderCommand::BindIndexBuffer(IndexBuffer);
 			LastVertexBuffer = VertexBuffer;
 			LastIndexBuffer = IndexBuffer;
-		}
-		if (RenderPacket.Material != LastMaterial) {
-			BindMaterial(RenderPacket.Material);
 		}
 		if (RenderPacket.Material != LastMaterial || RenderPacket.MaterialParamData)
 			UpdateMaterialParams(RenderPacket);
@@ -1253,12 +1268,18 @@ void FRenderer::EndObjectConstants()
 }
 
 // Material마다 Shader/Texture/Sampler/State 꽂기
-void FRenderer::BindMaterial(UMaterial* Material) {
+bool FRenderer::BindMaterial(UMaterial* Material, bool bSkinned) {
 	FShaderProgram* Program{ Material->Shader };
 	if (FRenderResourceManager::IsUberLitProgram(Program)) {
-		if (FShaderProgram* Variant{ FRenderResourceManager::GetUberLitProgram(CurrentViewMode) }) {
+		if (FShaderProgram* Variant{ FRenderResourceManager::GetUberLitProgram(CurrentViewMode, bSkinned) }) {
 			Program = Variant;
 		}
+		else if (bSkinned) {
+			return false;
+		}
+	}
+	else if (bSkinned) {
+		return false;   // 스킨 변형은 UberLit에만 있다.
 	}
 
 	RenderCommand::BindShaderProgram(Program);
@@ -1267,7 +1288,7 @@ void FRenderer::BindMaterial(UMaterial* Material) {
 		RenderCommand::GetContext()->PSSetShader(nullptr, nullptr, 0);   // 깊이만 쓰므로 조명 PS를 돌리지 않는다
 		RenderCommand::SetBlendState(EBlendState::Opaque);
 		RenderCommand::SetDepthStencilState(EDepthStencilState::Default);
-		return;
+		return true;
 	}
 	RenderCommand::SetBlendState(Material->BlendState);
 	// 반투명은 뒤에 그려지는 Grid·다른 반투명을 가리지 않도록 깊이를 쓰지 않는다.
@@ -1285,6 +1306,7 @@ void FRenderer::BindMaterial(UMaterial* Material) {
 		}
 	}
 	RenderCommand::BindSamplerState(0, Material->SamplerState, EShaderBindFlagBits::Pixel);
+	return true;
 }
 
 // b1 내용 채우고 꽂기

@@ -341,7 +341,8 @@ public:
 private:
 	void DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection);
 	void DrawStaticGroups();
-	void BindMaterial(UMaterial* Material);
+	// bSkinned면 UberLit의 GPU_SKINNING 변형을 쓴다. 스킨 변형을 쓸 수 없으면 false(그리면 바인드 포즈가 나온다).
+	bool BindMaterial(UMaterial* Material, bool bSkinned = false);
 	void UpdateMaterialParams(const FRenderPacket& RenderPacket);
 	void UpdatePerObjectConstants(const FRenderPacket& RenderPacket, const FMatrix& ViewProjection);
 	void UpdatePerObjectConstants(const FMatrix& World, bool bReceiveShadow, bool bReceiveDecal);

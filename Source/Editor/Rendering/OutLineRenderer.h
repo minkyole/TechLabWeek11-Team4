@@ -30,6 +30,9 @@ private:
 	FShaderProgram* Shader;
 	FPipelineState MaskPipelineState;
 	FPipelineState OutlinePipelineState;
+	// GPU 스키닝 메시용. 같은 두 패스를 스킨 변형 셰이더로 그린다.
+	FPipelineState SkinnedMaskPipelineState;
+	FPipelineState SkinnedOutlinePipelineState;
 	UStaticMesh* Mesh;
 
 	ComPtr<ID3D11RasterizerState> RasterizerState;

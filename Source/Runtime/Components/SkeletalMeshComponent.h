@@ -21,28 +21,28 @@ public:
 
 	void SetSkeletalMesh(USkeletalMesh* InMesh) override;
 
-	// ¸Ş½Ã°¡ ÁØºñµÇ¸é »ı¼º, ÃÊ±âÈ­. ÀÌ¹Ì ÃÊ±âÈ­µÆ´Ù¸é À¯Áö.
+	// ë©”ì‹œê°€ ì¤€ë¹„ë˜ë©´ ìƒì„±, ì´ˆê¸°í™”. ì´ë¯¸ ì´ˆê¸°í™”ëë‹¤ë©´ ìœ ì§€.
 	void InitializeAnimInstance();
 
-	// Á¾·á Ã³¸® ÈÄ ÀÎ½ºÅÏ½º »èÁ¦.
+	// ì¢…ë£Œ ì²˜ë¦¬ í›„ ì¸ìŠ¤í„´ìŠ¤ ì‚­ì œ.
 	void ClearAnimInstance();
 
-	// ½Ã°£ ÁøÇà ¾øÀÌ Æ÷Áî¸¸ Æò°¡, Àû¿ë. ºä¾î ½ÃÅ©¿¡ »ç¿ë.
+	// ì‹œê°„ ì§„í–‰ ì—†ì´ í¬ì¦ˆë§Œ í‰ê°€, ì ìš©. ë·°ì–´ ì‹œí¬ì— ì‚¬ìš©.
 	bool RefreshAnimationPose();
 
-	// ºñ¼ÒÀ¯ Æ÷ÀÎÅÍ. È£ÃâÀÚ´Â deleteÇÏÁö ¾Ê´Â´Ù.
+	// ë¹„ì†Œìœ  í¬ì¸í„°. í˜¸ì¶œìëŠ” deleteí•˜ì§€ ì•ŠëŠ”ë‹¤.
 	UAnimInstance* GetAnimInstance() const { return AnimInstance.get(); }
 
 	FPrimitiveSceneProxy* CreateSceneProxy() override;
 	void SubmitToRenderQueue(FRenderQueue& RenderQueue) override;
 
 protected:
-	// ½Ã°£ ÁøÇà + Æ÷Áî ¹Ş±â Æò°¡, Àû¿ë.
+	// ì‹œê°„ ì§„í–‰ + í¬ì¦ˆ ë°›ê¸° í‰ê°€, ì ìš©.
 	void TickPose(float DeltaTime) override final;
 
 private:
 	TUniquePtr<UAnimInstance> AnimInstance;
 
-	// ¸Å ÇÁ·¹ÀÓ Æ÷Áî ¹è¿­À» »õ·Î ¸¸µéÁö ¾Ê°í Àç»ç¿ë.
+	// ë§¤ í”„ë ˆì„ í¬ì¦ˆ ë°°ì—´ì„ ìƒˆë¡œ ë§Œë“¤ì§€ ì•Šê³  ì¬ì‚¬ìš©.
 	FPoseContext EvaluatedPose;
 };

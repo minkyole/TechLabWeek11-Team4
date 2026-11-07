@@ -201,6 +201,7 @@ float UAnimSingleNodeInstance::GetLength() const
 {
 	if (SequencePlayer.Sequence)
 	{
-		SequencePlayer.Sequence->GetPlayLength();
+		return SequencePlayer.Sequence->GetPlayLength();
 	}
+	return 0.f;
 }

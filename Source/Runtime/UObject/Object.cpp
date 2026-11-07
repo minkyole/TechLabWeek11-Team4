@@ -43,23 +43,23 @@ UObject::~UObject()
 		GUObjectArray.RemoveLast();
 	}
 }
+UClass* UObject::GetPrivateStaticClass()
+{
+	static UClass c(
+	    FName("Object"), nullptr, sizeof(UObject),
+	    [](void* Memory) -> UObject*
+	    {
+		    return ::new (Memory) UObject();
+	    },
+	    nullptr);
+	return &c;
+}
 
 UClass* UObject::StaticClass()
 {
-	static UClass c;
-	static bool bIsInit = false;
-	if (!bIsInit)
-	{
-		c.SetName(FName("Object"));
-		c.Super = nullptr;
-		c.ClassSize = sizeof(UObject);
-		c.Constructor = [](void* Memory) -> UObject*
-			{
-				return ::new (Memory) UObject();
-			};
-		bIsInit = true;
-	}
-	return &c;
+	UClass* c = GetPrivateStaticClass();
+	c->EnsurePropertiesRegistered();
+	return c;
 }
 
 bool UObject::IsA(const UClass* Class)

@@ -5,11 +5,20 @@
 #include "Serialization/MathSerialization.h"
 
 using ClassConstructor = UObject * (*)(void* Memory);
+using FRegisterPropertiesFunction = void (*)(UClass* Class);
 
 class UClass : public UObject
 {
 public:
 	UClass();
+
+	// 클래스 기본 정보와 등록 함수의 보관
+	UClass(const FName& InName, UClass* InSuper, uint64 InClassSize,
+	       ClassConstructor InConstructor, FRegisterPropertiesFunction InRegisterProperties);
+	
+	void EnsurePropertiesRegistered();
+
+	bool ArePropertiesRegistered() const { return PropertyRegistrationState == EPropertyRegistrationState::Registered; }
 
 	UClass* Super = nullptr;
 	uint64 ClassSize = 0;
@@ -21,7 +30,11 @@ public:
 	bool IsChildOf(const UClass* BaseClass) const;
 	UObject* GetDefaultObject();
 
-	inline const TArray<FProperty>& GetProperties() const { return Properties; }
+	const TArray<FProperty>& GetProperties() const
+	{
+		const_cast<UClass*>(this)->EnsurePropertiesRegistered();
+		return Properties;
+	}
 
 	template<class T>
 	T* GetDefaultObject()
@@ -41,7 +54,7 @@ public:
 		UClass* ObjectClass = nullptr;
 		if constexpr (std::is_pointer_v<T> && std::is_base_of_v<UObject, std::remove_pointer_t<T>>)
 		{
-			ObjectClass = std::remove_pointer_t<T>::StaticClass();
+			ObjectClass = std::remove_pointer_t<T>::GetPrivateStaticClass();
 		}
 
 		// 메타데이터 생성 후 실제 타입의 값 연산 연결
@@ -75,6 +88,15 @@ public:
 	}
 
 private:
+	enum class EPropertyRegistrationState : uint8
+	{
+		Unregistered,
+		Registering,
+		Registered
+	};
+	FRegisterPropertiesFunction RegisterPropertiesFunction = nullptr;
+	EPropertyRegistrationState PropertyRegistrationState = EPropertyRegistrationState::Unregistered;
+
 	mutable int32 ClassUnique = 0;
 	friend FName MakeUniqueObjectName(UObject*, const UClass*, FName);
 };

@@ -287,3 +287,12 @@ void USkinnedMeshComponent::UpdateSkinning()
 	bHasSkinnedBounds = true;
 	OnTransformDirty();
 }
+
+void USkinnedMeshComponent::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	USkeletalMesh* CopiedSkeletalMesh = SkeletalMesh;
+	SkeletalMesh = nullptr;
+	SetSkeletalMesh(CopiedSkeletalMesh);
+}

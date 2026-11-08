@@ -41,37 +41,102 @@ namespace
 	}
 }
 
+FObjectInitializer* FObjectInitializer::Current = nullptr;
+
+FObjectInitializer::FObjectInitializer(UObject* InObject, const FStaticConstructObjectParameters& InParameters)
+    : Previous(Current), Object(InObject), Parameters(InParameters)
+{ Current = this; }
+
+FObjectInitializer::~FObjectInitializer()
+{
+	// 생성 종료와 예외 종료의 부모 컨텍스트 복원
+	Current = Previous;
+
+	if (!bCompleted)
+	{
+		// 소유자 소멸자가 이미 삭제한 객체를 제외한 실패 생성 정리
+		for (int32 Index = CreatedSubobjects.Num() - 1; Index >= 0; --Index)
+		{
+			UObject* Child = CreatedSubobjects[Index];
+			if (GUObjectArray.Find(Child) != -1)
+			{
+				delete Child;
+			}
+		}
+	}
+}
+
+const FObjectInitializer* FObjectInitializer::GetForObject(const UObject* InObject)
+{
+	return Current && Current->Object == InObject ? Current : nullptr;
+}
+
+void FObjectInitializer::Complete()
+{
+	// 실패 복구를 위한 생성 중인 소유자들의 기본 서브오브젝트 기록
+	if (Object->HasAnyFlags(EObjectFlags::RF_DefaultSubObject))
+	{
+		const UObject* Child = Object;
+		for (FObjectInitializer* Owner = Previous;
+		     Owner && Child->GetOuter() == Owner->Object;
+		     Owner = Owner->Previous)
+		{
+			Owner->CreatedSubobjects.Add(Object);
+			Child = Owner->Object;
+		}
+	}
+	bCompleted = true;
+}
+
 UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& Params)
 {
-	bool bRecycled = false;
 	const UClass* Class = Params.Class;
-	if (!Class || !Class->CanCreateInstance())
+	if (!Class || !Class->Constructor || (!Params.bCreateClassDefaultObject && !Class->CanCreateInstance()))
 	{
 		return nullptr;
 	}
 
-	FName Name = Params.Name;
-	if (Name == NAME_None)
+	// CDO 역할과 일반 객체 플래그의 독립적인 결정
+	FStaticConstructObjectParameters Effective = Params;
+	Effective.SetFlags &= ~EObjectFlags::RF_ClassDefaultObject;
+	if (Effective.bCreateClassDefaultObject)
 	{
-		Name = MakeUniqueObjectName(Params.Outer, Params.Class, Params.Name);
+		Effective.SetFlags |= EObjectFlags::RF_ClassDefaultObject;
 	}
 
-	UObject* Object = StaticAllocateObject(Class, Params.Outer, Name, Params.SetFlags, true, &bRecycled);
-	if (!Object) return nullptr;
-
-	if (!bRecycled)
+	if (Effective.Name.IsNone())
 	{
+		Effective.Name = MakeUniqueObjectName(Effective.Outer, Class);
+	}
+
+	bool bRecycled = false;
+	UObject* Object = StaticAllocateObject(Class, Effective.Outer, Effective.Name, Effective.SetFlags, true, &bRecycled);
+	if (!Object || bRecycled)
+	{
+		return Object;
+	}
+
+	// 생성 완료 이후의 실패 정리를 위한 임시 소유권
+	TUniquePtr<UObject> CompletedObject;
+	try
+	{
+		FObjectInitializer Initializer(Object, Effective);
 		Class->Constructor(Object);
-		Object->ClassPrivate = const_cast<UClass*>(Class);
-		HashObject(Object, Class);
-		Object->SetOuter(Params.Outer);
-		Object->SetName(Name);
-		Object->SetObjectLabel(Name.ToString());
-		if (Params.SetFlags != EObjectFlags::RF_NoFlags)
-			Object->SetFlags(Params.SetFlags);
-	}
+		CompletedObject.reset(Object);
 
-	return Object;
+		HashObject(Object, Class);
+		Initializer.Complete();
+		return CompletedObject.release();
+	}
+	catch (...)
+	{
+		// 생성자가 완료되지 않은 원시 할당의 반환
+		if (!CompletedObject)
+		{
+			UObject::operator delete(Object, Class->ClassSize);
+		}
+		throw;
+	}
 }
 
 FName MakeUniqueObjectName(UObject* Outer, const UClass* Class, FName BaseName) {

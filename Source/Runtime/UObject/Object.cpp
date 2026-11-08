@@ -15,6 +15,15 @@ TArray<UObject*> GUObjectArray;
 
 UObject::UObject()
 {
+	if (const FObjectInitializer* Initializer = FObjectInitializer::GetForObject(this))
+	{
+		const FStaticConstructObjectParameters& Parameters = Initializer->GetParameters();
+		ClassPrivate = const_cast<UClass*>(Parameters.Class);
+		Outer = Parameters.Outer;
+		Name = Parameters.Name;
+		Flags = Parameters.SetFlags;
+		ObjectLabel = Name.ToString();
+	}
 	ObjectUUID = FEngineStatics::GetUUID();
 	InternalIndex = GUObjectArray.Num();
 	GUObjectArray.Add(this);

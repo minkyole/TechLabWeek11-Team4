@@ -5,6 +5,7 @@
 #include "UObject/FindObjectFlags.h"
 #include "Serialization/Archive.h"     // EPropertyPortFlags
 #include "Containers/Map.h"
+#include "Containers/Array.h"
 
 class UObject;
 class UClass;
@@ -15,8 +16,34 @@ struct FStaticConstructObjectParameters
 	UObject* Outer = nullptr;
 	FName Name;
 	EObjectFlags SetFlags = EObjectFlags::RF_NoFlags;
+	bool bCreateClassDefaultObject = false;
 
 	FStaticConstructObjectParameters(const UClass* InClass);
+};
+
+// 중첩 생성 문맥과 실패한 기본 서브오브젝트의 정리
+class FObjectInitializer
+{
+public:
+	FObjectInitializer(UObject* InObject, const FStaticConstructObjectParameters& InParameters);
+	~FObjectInitializer();
+
+	FObjectInitializer(const FObjectInitializer&) = delete;
+	FObjectInitializer& operator=(const FObjectInitializer&) = delete;
+
+	static const FObjectInitializer* GetForObject(const UObject* InObject);
+	const FStaticConstructObjectParameters& GetParameters() const { return Parameters; }
+	void Complete();
+
+private:
+	// 언리얼의 스레드별 생성 컨텍스트 스택을 경량화한 버전
+	// TODO : 오브젝트 생성을 멀티스레드로 전환시 thread_local로 바꾸면 된다.
+	static FObjectInitializer* Current;
+	FObjectInitializer* Previous;
+	UObject* Object;
+	const FStaticConstructObjectParameters& Parameters;
+	TArray<UObject*> CreatedSubobjects;
+	bool bCompleted = false;
 };
 
 struct FObjectDuplicationParameters

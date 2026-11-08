@@ -9,10 +9,10 @@ template <typename T>
 class TObjectIterator
 {
 public:
-	TObjectIterator(bool bIncludeDerivedClasses = true)
+	TObjectIterator(bool bIncludeDerivedClasses = true, bool bIncludeTemplates = false)
 		:Index(-1)
 	{
-		GetObjectsOfClass(T::StaticClass(), ObjectArray, bIncludeDerivedClasses);
+		GetObjectsOfClass(T::StaticClass(), ObjectArray, bIncludeDerivedClasses, bIncludeTemplates);
 		Advance();
 	}
 

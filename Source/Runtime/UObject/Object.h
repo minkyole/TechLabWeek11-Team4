@@ -164,7 +164,7 @@ public:
 		OnDefaultSubobjectCreated(Subobject);
 		return Subobject;
 	}
-
+	bool IsTemplate() const;
 	virtual void PostDuplicate(bool bDuplicateForPIE) {}
 
 protected:

@@ -86,28 +86,33 @@ UObject* FindObjectWithOuter(const UObject* outer, const UClass* Class, FName Na
 
 void GetObjectsOfClass(const UClass* ClassToLookFor, TArray<UObject*>& Results, bool bIsIncludeDerivedClass)
 {
+	GetObjectsOfClass(ClassToLookFor, Results, bIsIncludeDerivedClass, false);
+}
+
+void GetObjectsOfClass(const UClass* ClassToLookFor, TArray<UObject*>& Results, bool bIsIncludeDerivedClass, bool bIncludeTemplates)
+{
 	if (!ClassToLookFor) return;
 
 	Results.Reserve(Results.Num() + GUObjectArray.Num());
-	//Class에 해당하는 Objects 리스트를 가져온다.
+	// Class에 해당하는 Objects 리스트를 가져온다.
 	if (const TSet<UObject*>* Objects = GetClassToObjects().Find(ClassToLookFor))
 	{
-		for (UObject* Obj : *Objects)
+		for (UObject* Object : *Objects)
 		{
-			Results.Add(Obj);
+			if (bIncludeTemplates || !Object->IsTemplate()){ Results.Add(Object); }
 		}
 	}
 
 	if (!bIsIncludeDerivedClass) return;
 
-	//자식 클래스인 목록을 가져온다
-	if (const TSet<UClass*>* ChildClasses = GetClassToChildren().Find(ClassToLookFor))
+	// 자식 클래스인 목록을 가져온다
+	if (const TSet<UClass*>* Children = GetClassToChildren().Find(ClassToLookFor))
 	{
-		for (UClass* Child : *ChildClasses)
+		for (UClass* Child : *Children)
 		{
-			GetObjectsOfClass(Child, Results, bIsIncludeDerivedClass);
+			GetObjectsOfClass(Child, Results, true, bIncludeTemplates);
 		}
-	}
+	}	
 }
 
 void HashObject(UObject* Obj, const UClass* Class)

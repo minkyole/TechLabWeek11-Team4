@@ -43,6 +43,20 @@ UObject::~UObject()
 		GUObjectArray.RemoveLast();
 	}
 }
+
+bool UObject::IsTemplate() const
+{
+	// 기본 객체에 속한 전체 소유 경로의 판별
+	for (const UObject* Object = this; Object; Object = Object->GetOuter())
+	{
+		if (Object->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 UClass* UObject::GetPrivateStaticClass()
 {
 	static UClass c(
@@ -98,10 +112,7 @@ void UObject::SerializeScriptProperties(FStructuredArchive::FSlot Slot)
 			const FString PropertyName = Property.Name.ToString();
 			TOptional<FStructuredArchive::FSlot> ValueSlot = Properties.TryEnterField(PropertyName.c_str(), true);
 
-			if (!ValueSlot.IsSet())
-			{
-				continue;
-			}
+			if (!ValueSlot.IsSet())	{ continue; }
 
 			// 실제 멤버 주소를 등록된 타입 연산에 전달
 			void* ValueAddress = Property.ContainerPtrToValuePtr(this);

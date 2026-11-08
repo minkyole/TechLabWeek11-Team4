@@ -27,6 +27,13 @@ UObject::UObject()
 	ObjectUUID = FEngineStatics::GetUUID();
 	InternalIndex = GUObjectArray.Num();
 	GUObjectArray.Add(this);
+
+	// CDO와 등록을 마친 생성 중 기본 객체의 공개
+	if (ClassPrivate && HasAnyFlags(EObjectFlags::RF_ClassDefaultObject) 
+		&& ClassPrivate->IsCreatingDefaultObject() && !ClassPrivate->DefaultObject)
+	{
+		ClassPrivate->DefaultObject = this;
+	}
 }
 
 UObject::UObject(bool bRegister)
@@ -36,6 +43,11 @@ UObject::UObject(bool bRegister)
 
 UObject::~UObject()
 {
+	if (ClassPrivate && ClassPrivate->DefaultObject == this)
+	{
+		ClassPrivate->DefaultObject = nullptr;
+	}
+
 	if (bIsRegistered)
 	{
 		if (ClassPrivate)

@@ -36,6 +36,7 @@ public:
 
 	bool IsChildOf(const UClass* BaseClass) const;
 	UObject* GetDefaultObject();
+	bool IsCreatingDefaultObject() const { return bCreatingDefaultObject; }
 
 	const TArray<FProperty>& GetProperties() const
 	{
@@ -48,7 +49,8 @@ public:
 	template<class T>
 	T* GetDefaultObject()
 	{
-		return CastChecked<T>(GetDefaultObject());
+		UObject* Object = GetDefaultObject();
+		return Object ? CastChecked<T>(Object) : nullptr;
 	}
 
 	template <typename T>
@@ -104,6 +106,8 @@ public:
 	}
 
 private:
+	// 기본 객체 생성 중의 재진입 상태
+	bool bCreatingDefaultObject = false;
 	EClassFlags ClassFlags = EClassFlags::CLASS_None;
 	enum class EPropertyRegistrationState : uint8
 	{

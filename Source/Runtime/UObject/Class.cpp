@@ -76,10 +76,37 @@ bool UClass::IsChildOf(const UClass* BaseClass) const
 
 UObject* UClass::GetDefaultObject() 
 {
-	if (!DefaultObject && Constructor)
+	// 캐시된 주소 반환과 공개 이전 재진입 차단
+	if (DefaultObject || !Constructor || bCreatingDefaultObject)
 	{
-		DefaultObject = Constructor(UObject::operator new(ClassSize));
+		return DefaultObject;
 	}
+
+	EnsurePropertiesRegistered();
+	if (!ArePropertiesRegistered())
+	{
+		return nullptr;
+	}
+
+	FStaticConstructObjectParameters Parameters(this);
+	Parameters.Outer = GetOuter();
+	Parameters.Name = FName("Default__" + GetName());
+	Parameters.bCreateClassDefaultObject = true;
+
+	// 생성 완료와 실패 경로의 상태 복원
+	bCreatingDefaultObject = true;
+	try
+	{
+		DefaultObject = StaticConstructObject_Internal(Parameters);
+	}
+	catch (...)
+	{
+		DefaultObject = nullptr;
+		bCreatingDefaultObject = false;
+		throw;
+	}
+
+	bCreatingDefaultObject = false;
 	return DefaultObject;
 }
 

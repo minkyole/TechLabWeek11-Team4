@@ -265,6 +265,13 @@ UObject* StaticAllocateObject(const UClass* InClass, UObject* InOuter, FName InN
 	else
 	{
 		Obj = StaticFindObjectFast(nullptr, InOuter, InName, EFindObjectFlags::ExactClass);
+		if (Obj && (Obj->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject) 
+			|| HasFlag(InFlags, EObjectFlags::RF_ClassDefaultObject)))
+		{
+			HTR_LOG(Error, "Cannot replace class default object '{}'.", InName.ToString());
+			return nullptr;
+
+		}
 		if (Obj && !Obj->GetClass()->IsChildOf(InClass))
 		{
 			HTR_LOG(Error, "Cannot replace existing object {} of a different class", InName.ToString());

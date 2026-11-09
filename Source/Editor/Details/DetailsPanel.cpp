@@ -1026,50 +1026,58 @@ void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImF
 	}
 	case EPropertyType::Vector:
 	{
-		FVector* Value = static_cast<FVector*>(ValuePtr);
-		bChanged = ImGui::DragFloat3(Label.c_str(), Value->V, 0.1f);
+		FVector Value = *static_cast<const FVector*>(ValuePtr);
+		if (ImGui::DragFloat3(Label.c_str(), Value.V, 0.1f))
+		{
+			Object->ApplyPropertyValue(Property.Name, &Value);
+		}
 		break;
 	}
 	case EPropertyType::Rotator:
 	{
-		FRotator* Value = static_cast<FRotator*>(ValuePtr);
-		// Transform의 Rotation과 같은 X/Y/Z 축 순서로 보여준다.
-		float Euler[3] = { Value->Roll, Value->Pitch, Value->Yaw };
+		FRotator Value = *static_cast<const FRotator*>(ValuePtr);
+		float Euler[3] = { Value.Roll, Value.Pitch, Value.Yaw };
 		if (ImGui::DragFloat3(Label.c_str(), Euler, 0.1f))
 		{
-			Value->Roll = Euler[0];
-			Value->Pitch = Euler[1];
-			Value->Yaw = Euler[2];
+			Value.Roll = Euler[0];
+			Value.Pitch = Euler[1];
+			Value.Yaw = Euler[2];
+			Object->ApplyPropertyValue(Property.Name, &Value);
 		}
 		break;
 	}
-
-
 	case EPropertyType::Vector4:
 	{
-		FVector4* Value = static_cast<FVector4*>(ValuePtr);
-		bChanged = ImGui::DragFloat4(Label.c_str(), &Value->X, 0.1f);
-		break;
-	}
-
-	case EPropertyType::Color:
-	{
-		FColor* C = static_cast<FColor*>(ValuePtr);
-		float V[4] = { C->R / 255.f, C->G / 255.f, C->B / 255.f, C->A / 255.f };
-		if (ImGui::ColorEdit4(Label.c_str(), V))
+		FVector4 Value = *static_cast<const FVector4*>(ValuePtr);
+		if (ImGui::DragFloat4(Label.c_str(), Value.V, 0.1f))
 		{
-			*C = FColor(uint8(V[0] * 255.f + 0.5f), uint8(V[1] * 255.f + 0.5f),
-			            uint8(V[2] * 255.f + 0.5f), uint8(V[3] * 255.f + 0.5f));
-			bChanged = true;
+			Object->ApplyPropertyValue(Property.Name, &Value);
 		}
 		break;
 	}
-
+	case EPropertyType::Color:
+	{
+		FColor Value = *static_cast<const FColor*>(ValuePtr);
+		FVector4 ColorChannels = Value.ToVector4();
+		if (ImGui::ColorEdit4(Label.c_str(), ColorChannels.V))
+		{
+			// 채널 범위 제한과 반올림을 통한 바이트 색상 복원
+			Value = FColor(
+			    static_cast<uint8>(FMath::Clamp01(ColorChannels.X) * 255.0f + 0.5f),
+			    static_cast<uint8>(FMath::Clamp01(ColorChannels.Y) * 255.0f + 0.5f),
+			    static_cast<uint8>(FMath::Clamp01(ColorChannels.Z) * 255.0f + 0.5f),
+			    static_cast<uint8>(FMath::Clamp01(ColorChannels.W) * 255.0f + 0.5f));
+			Object->ApplyPropertyValue(Property.Name, &Value);
+		}
+		break;
+	}
 	case EPropertyType::LinearColor:
 	{
-		// 타입은 Vector4와 같고 위젯만 색상 선택기다
-		FLinearColor* Value = static_cast<FLinearColor*>(ValuePtr);
-		bChanged = ImGui::ColorEdit4(Label.c_str(), &Value->R);
+		FLinearColor Value = *static_cast<const FLinearColor*>(ValuePtr);
+		if (ImGui::ColorEdit4(Label.c_str(), Value.RGBA))
+		{
+			Object->ApplyPropertyValue(Property.Name, &Value);
+		}
 		break;
 	}
 	case EPropertyType::String:
@@ -1083,17 +1091,16 @@ void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImF
 	}
 	case EPropertyType::Transform:
 	{
-		FTransform* Value = static_cast<FTransform*>(ValuePtr);
-
+		FTransform Value = *static_cast<const FTransform*>(ValuePtr);
 		ImGui::NewLine();
 
-		FTransform Transform = *Value;
-		bool bChange = false;
-
-		bChanged |= DrawVector3Controller("Location", Value->Location.V, 0.0f, 55.0f);
-		bChanged |= DrawRotatorAsXYZ("Rotation", Value->Rotation);
-		bChanged |= DrawVector3Controller("Scale", Value->Scale.V, 1.0f, 55.0f);
-
+		bool bValueChanged = DrawVector3Controller("Location", Value.Location.V, 0.0f, 55.0f);
+		bValueChanged |= DrawRotatorAsXYZ("Rotation", Value.Rotation);
+		bValueChanged |= DrawVector3Controller("Scale", Value.Scale.V, 1.0f, 55.0f);
+		if (bValueChanged)
+		{
+			Object->ApplyPropertyValue(Property.Name, &Value);
+		}
 		break;
 	}
 	case EPropertyType::Object:

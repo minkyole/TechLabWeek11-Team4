@@ -8,10 +8,10 @@
 UPointLightComponent::UPointLightComponent() : LightFalloffExponent(1.0f) {}
 UPointLightComponent::~UPointLightComponent() {}
 
-void UPointLightComponent::PostEditChangeProperty(const FProperty& Property)
+void UPointLightComponent::NormalizeProperties(const FProperty* ChangedProperty)
 {
-    Super::PostEditChangeProperty(Property);
-    if (Property.Name == "SourceRadius")
+	Super::NormalizeProperties(ChangedProperty);
+	if (!ChangedProperty || ChangedProperty->Name == "SourceRadius")
         SourceRadius = GetSourceRadius();
 }
 

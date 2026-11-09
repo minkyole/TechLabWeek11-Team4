@@ -25,7 +25,7 @@ public:
 
 	FFogInfo GetFogInfo() const;
 
-	virtual void PostEditChangeProperty(const FProperty& Property) override;
+	virtual void PostApplyProperties(const FProperty* ChangedProperty = nullptr) override;
 	// 안개 높이는 액터 Z라서 이동만 해도 Scene의 복사본을 갱신해야 한다.
 	virtual void OnTransformDirty() override;
 protected:

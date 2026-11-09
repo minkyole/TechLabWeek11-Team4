@@ -98,8 +98,8 @@ public:
 		MarkRenderStateDirty();
 	}
 
-	// Details에서 직접 바꾼 가시성도 Proxy의 렌더 상태에 반영한다.
-	void PostEditChangeProperty(const FProperty& Property) override;
+	// 프로퍼티 적용 이후 가시성과 그림자 설정의 렌더 상태 갱신 예약
+	void PostApplyProperties(const FProperty* ChangedProperty = nullptr) override;
 
 	virtual bool LineTraceComponent(const FRay& WorldRay, FHitResult& OutHit);
 	virtual bool LineTraceComponentLocal(const FRay& LocalRay, float& OutT);

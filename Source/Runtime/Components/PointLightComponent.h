@@ -22,7 +22,7 @@ public:
 	void SetFalloff(float InFalloff) { LightFalloffExponent = InFalloff; }
 	float GetSourceRadius() const { return FMath::Max(SourceRadius, 0.0f); }
 	void SetSourceRadius(float InRadius) { SourceRadius = FMath::Max(InRadius, 0.0f); }
-	void PostEditChangeProperty(const FProperty& Property) override;
+	void NormalizeProperties(const FProperty* ChangedProperty = nullptr) override;
 
 
 protected:

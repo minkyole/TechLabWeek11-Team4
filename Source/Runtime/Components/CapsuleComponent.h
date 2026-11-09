@@ -13,8 +13,7 @@ class UCapsuleComponent : public UShapeComponent
 public:
 	virtual FCollisionShape GetCollisionShape() const override;
 	virtual FBox CalcLocalBounds() const override;
-	virtual void PostEditChangeProperty(const FProperty& Property) override;
-
+	void NormalizeProperties(const FProperty* ChangedProperty = nullptr) override;
 	void SetCapsuleSize(float InRadius, float InHalfHeight);
 	float GetScaledCapsuleRadius() const;
 	float GetScaledCapsuleHalfHeight() const;

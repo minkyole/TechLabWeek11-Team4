@@ -8,23 +8,20 @@ ULightComponent::ULightComponent() {}
 ULightComponent::~ULightComponent() {}
 void ULightComponent::DrawDebug(FLineBatcher* LineBatcher) const {}
 
-void ULightComponent::PostEditChangeProperty(const FProperty& Property)
+void ULightComponent::NormalizeProperties(const FProperty* ChangedProperty)
 {
-	Super::PostEditChangeProperty(Property);
+	Super::NormalizeProperties(ChangedProperty);
 
-	// 기존 Getter의 128~4096 범위를 재사용하여 편집값과 실제 해상도를 맞춘다.
-	if (Property.Name == "ShadowMapResolution")
+	if (!ChangedProperty || ChangedProperty->Name == "ShadowMapResolution")
 	{
 		ShadowMapResolution = GetShadowMapResolution();
 	}
-	else if (Property.Name == "ShadowPCFKernelSize")
+	if (!ChangedProperty || ChangedProperty->Name == "ShadowPCFKernelSize")
 	{
-		// 음수를 편집하면 표시값도 실제 사용값인 0으로 맞춘다.
 		ShadowPCFKernelSize = GetShadowPCFKernelSize();
 	}
-	else if (Property.Name == "ShadowBias")
+	if (!ChangedProperty || ChangedProperty->Name == "ShadowBias")
 	{
-		// 편집 화면에도 Getter가 보장하는 음수 없는 값을 반영한다.
 		ShadowBias = GetShadowBias();
 	}
 }

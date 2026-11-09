@@ -28,7 +28,7 @@ public:
 	float GetOuterConeAngle() const { return OuterConeAngle; }
 	void SetOuterConeAngle(float InAngle) { OuterConeAngle = InAngle; }
 
-	
+	void NormalizeProperties(const FProperty* ChangedProperty = nullptr) override;
 
 private:
 	// 원뿔 중심축 기준 반각(도). 

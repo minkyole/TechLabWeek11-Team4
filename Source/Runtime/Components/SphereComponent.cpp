@@ -13,10 +13,13 @@ FBox USphereComponent::CalcLocalBounds() const
 		         FVector{ SphereRadius, SphereRadius, SphereRadius } };
 }
 
-void USphereComponent::PostEditChangeProperty(const FProperty& Property)
+void USphereComponent::NormalizeProperties(const FProperty* ChangedProperty)
 {
-	Super::PostEditChangeProperty(Property);
-	SphereRadius = std::max(0.0f, SphereRadius);
+	Super::NormalizeProperties(ChangedProperty);
+	if (!ChangedProperty || ChangedProperty->Name == "SphereRadius")
+	{
+		SetSphereRadius(SphereRadius);
+	}
 }
 
 void USphereComponent::SetSphereRadius(float InRadius)

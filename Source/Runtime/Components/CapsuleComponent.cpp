@@ -13,16 +13,20 @@ FBox UCapsuleComponent::CalcLocalBounds() const
 		         FVector{ CapsuleRadius, CapsuleRadius, CapsuleHalfHeight } };
 }
 
-void UCapsuleComponent::PostEditChangeProperty(const FProperty& Property)
+void UCapsuleComponent::NormalizeProperties(const FProperty* ChangedProperty)
 {
-	Super::PostEditChangeProperty(Property);
-	if (Property.Name == "CapsuleRadius")
+	Super::NormalizeProperties(ChangedProperty);
+	if (!ChangedProperty)
 	{
-		CapsuleRadius = std::clamp(CapsuleRadius, 0.0f, CapsuleHalfHeight);
+		SetCapsuleSize(CapsuleRadius, CapsuleHalfHeight);
 	}
-	else if (Property.Name == "CapsuleHalfHeight")
+	else if (ChangedProperty->Name == "CapsuleRadius")
 	{
-		CapsuleHalfHeight = std::max(CapsuleHalfHeight, CapsuleRadius);
+		CapsuleRadius = std::clamp(CapsuleRadius, 0.0f, std::max(CapsuleHalfHeight, 0.0f));
+	}
+	else if (ChangedProperty->Name == "CapsuleHalfHeight")
+	{
+		CapsuleHalfHeight = std::max({ 0.0f, CapsuleHalfHeight, CapsuleRadius });
 	}
 }
 

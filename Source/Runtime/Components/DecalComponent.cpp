@@ -209,18 +209,20 @@ void UDecalComponent::DestroyRenderState()
 	Super::DestroyRenderState();
 }
 
-// Reflection 편집은 Setter를 거치지 않으므로 프록시 갱신을 직접 예약한다.
-void UDecalComponent::PostEditChangeProperty(const FProperty& Property)
+// 데칼 크기와 렌더 설정의 변경 또는 전체 복원에 따른 프록시 갱신 예약
+void UDecalComponent::PostApplyProperties(const FProperty* ChangedProperty)
 {
-	Super::PostEditChangeProperty(Property);
-
-	if (Property.Name == "DecalSize")
+	Super::PostApplyProperties(ChangedProperty);
+	// 데칼 크기 변경에 따른 자신의 투영 범위 갱신 예약
+	if (ChangedProperty && ChangedProperty->Name == "DecalSize")
 	{
 		OnTransformDirty();
 	}
-	else if (Property.Name == "DecalTexture" || Property.Name == "DecalNormalTexture" || Property.Name == "DecalColor"
-		|| Property.Name == "SortOrder" || Property.Name == "bAdditive" 
-		|| Property.Name == "FadeScreenSize")
+	// 전체 복원의 변환 갱신은 부모가 처리하고 렌더 상태는 별도 예약
+	if (!ChangedProperty || ChangedProperty->Name == "DecalTexture" || 
+		ChangedProperty->Name == "DecalNormalTexture" || ChangedProperty->Name == "DecalColor" 
+		|| ChangedProperty->Name == "SortOrder" || ChangedProperty->Name == "bAdditive" 
+		|| ChangedProperty->Name == "FadeScreenSize")
 	{
 		MarkRenderStateDirty();
 	}

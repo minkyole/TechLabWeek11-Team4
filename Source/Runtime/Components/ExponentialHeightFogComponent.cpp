@@ -17,10 +17,13 @@ FFogInfo UExponentialHeightFogComponent::GetFogInfo() const
 	return FogInfo;
 }
 
-void UExponentialHeightFogComponent::PostEditChangeProperty(const FProperty& Property)
+void UExponentialHeightFogComponent::PostApplyProperties(const FProperty* ChangedProperty)
 {
-	Super::PostEditChangeProperty(Property);
-	UpdateSceneFogInfo();
+	Super::PostApplyProperties(ChangedProperty);
+	if (ChangedProperty && ChangedProperty->Name != "Transform")
+	{
+		UpdateSceneFogInfo();
+	}
 }
 
 void UExponentialHeightFogComponent::OnTransformDirty()

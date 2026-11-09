@@ -24,7 +24,7 @@ public:
 	USceneComponent() = default;
 	virtual ~USceneComponent() override;
 
-	virtual void PostEditChangeProperty(const FProperty& Property) override;
+	virtual void PostApplyProperties(const FProperty* ChangedProperty = nullptr) override;
 	void PostInitProperties() override
 	{
 		Super::PostInitProperties();

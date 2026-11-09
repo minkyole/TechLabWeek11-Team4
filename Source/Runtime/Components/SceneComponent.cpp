@@ -29,10 +29,10 @@ void USceneComponent::SetRelativeLocationAndRotation(const FVector& NewLocation,
 	MarkTransformDirty();
 }
 
-void USceneComponent::PostEditChangeProperty(const FProperty& Property)
+void USceneComponent::PostApplyProperties(const FProperty* ChangedProperty)
 {
-	Super::PostEditChangeProperty(Property);
-	if (Property.Name == "Transform") 
+	Super::PostApplyProperties(ChangedProperty);
+	if (!ChangedProperty || ChangedProperty->Name == "Transform") 
 		MarkTransformDirty();
 }
 

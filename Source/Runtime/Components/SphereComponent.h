@@ -12,8 +12,7 @@ class USphereComponent : public UShapeComponent
 public:
 	virtual FCollisionShape GetCollisionShape() const override;
 	virtual FBox CalcLocalBounds() const override;
-	virtual void PostEditChangeProperty(const FProperty& Property) override;
-
+	void NormalizeProperties(const FProperty* ChangedProperty = nullptr) override;
 	void SetSphereRadius(float InRadius);
 	float GetScaledSphereRadius() const;
 

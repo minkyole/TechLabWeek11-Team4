@@ -83,11 +83,14 @@ void UPrimitiveComponent::MarkRenderStateDirty()
 }
 
 // Reflection 편집은 SetVisible을 거치지 않으므로 가시성 캐시 갱신을 직접 예약한다.
-void UPrimitiveComponent::PostEditChangeProperty(const FProperty& Property)
+void UPrimitiveComponent::PostApplyProperties(const FProperty* ChangedProperty)
 {
-	Super::PostEditChangeProperty(Property);
-	if (Property.Name == "bVisible"||Property.Name=="bCastShadow"||Property.Name=="bReceiveShadow"||Property.Name=="bReceiveDecal")
+	Super::PostApplyProperties(ChangedProperty);
+	if (!ChangedProperty || ChangedProperty->Name == "bVisible" || ChangedProperty->Name == "bCastShadow" 
+		|| ChangedProperty->Name == "bReceiveShadow" || ChangedProperty->Name == "bReceiveDecal")
+	{
 		MarkRenderStateDirty();
+	}
 }
 
 FOutlineGeometry UPrimitiveComponent::GetOutlineGeometry() const

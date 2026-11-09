@@ -34,8 +34,8 @@ public:
     bool ShouldCreateRenderState() const override;
     void CreateRenderState() override;
     void DestroyRenderState() override;
-    void PostEditChangeProperty(const FProperty& Property) override;
-    bool IsPropertyVisibleInDetails(const FProperty& Property) const override;
+	void PostApplyProperties(const FProperty* ChangedProperty = nullptr) override;
+	bool IsPropertyVisibleInDetails(const FProperty& Property) const override;
     void OnTransformDirty() override;
     void MarkRenderStateDirty();
     FDecalSceneProxy* CreateSceneProxy() const;

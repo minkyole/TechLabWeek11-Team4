@@ -110,3 +110,15 @@ void USpotLightComponent::DrawDebug(FLineBatcher* LineBatcher) const
 
 	AddWireCone(LineBatcher, Apex, Forward, Right, Up, SafeInnerAngle, SafeRadius, InnerColor);
 }
+
+// 기존 렌더링 계산 범위를 사용하는 스포트 각도 관계 보정
+void USpotLightComponent::NormalizeProperties(const FProperty* ChangedProperty)
+{
+	Super::NormalizeProperties(ChangedProperty);
+	if (!ChangedProperty || ChangedProperty->Name == "InnerConeAngle" || ChangedProperty->Name == "OuterConeAngle")
+	{
+		// 바깥 반각 확정 이후 안쪽 반각의 상한 적용
+		OuterConeAngle = FMath::Clamp(OuterConeAngle, 0.0f, 89.0f);
+		InnerConeAngle = FMath::Clamp(InnerConeAngle, 0.0f, OuterConeAngle);
+	}
+}

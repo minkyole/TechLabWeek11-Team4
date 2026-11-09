@@ -12,14 +12,13 @@ FBox UBoxComponent::CalcLocalBounds() const
 	return FBox{ -BoxExtent, BoxExtent };
 }
 
-void UBoxComponent::PostEditChangeProperty(const FProperty& Property)
+void UBoxComponent::NormalizeProperties(const FProperty* ChangedProperty)
 {
-	Super::PostEditChangeProperty(Property);
-	BoxExtent = FVector{
-		std::max(BoxExtent.X, 0.0f),
-		std::max(BoxExtent.Y, 0.0f),
-		std::max(BoxExtent.Z, 0.0f)
-	};
+	Super::NormalizeProperties(ChangedProperty);
+	if (!ChangedProperty || ChangedProperty->Name == "BoxExtent")
+	{
+		SetBoxExtent(BoxExtent);
+	}
 }
 
 void UBoxComponent::SetBoxExtent(const FVector& InExtent)

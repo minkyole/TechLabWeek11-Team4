@@ -49,7 +49,8 @@ public:
 		CascadeCount = FMath::Clamp(InCount, 1, MaxShadowCascades);
 	}
 	// 편집한 값도 실제 계산에 사용하는 범위로 맞춘다.
-	void PostEditChangeProperty(const FProperty& Property) override;
+	void NormalizeProperties(const FProperty* ChangedProperty = nullptr) override;
+
 private:
 	// 기존 각반경 0.01 rad의 외형을 유지하는 전체 각지름(도).
 	float SourceAngle = 1.1459156f;

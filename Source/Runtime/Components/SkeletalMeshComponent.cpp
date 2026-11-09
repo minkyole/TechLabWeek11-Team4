@@ -9,6 +9,7 @@
 
 // Debug
 #include "Animation/TestAnimInstance.h"
+#include "Animation/AnimTestClips.h"
 
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
@@ -19,15 +20,30 @@ USkeletalMeshComponent::USkeletalMeshComponent()
 
 USkeletalMeshComponent::~USkeletalMeshComponent()
 {
+	// 인스턴스의 SequencePlayer가 클립을 가리키고 있으므로 인스턴스를 먼저 지운다.
 	ClearAnimInstance();
+	AnimTestClips::DestroyClip(DebugTestClip);
 }
 
 void USkeletalMeshComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UTestAnimInstance* TestInstance =
-	    Cast<UTestAnimInstance>(GetAnimInstance());
+	// ---- Debug [3-4]: SingleNode 재생 경로 확인 ----
+	if (bDebugPlayTestClip && GetSkeletalMesh() && !DebugTestClip)
+	{
+		// 본 11을 1초 동안 로컬 Z축으로 90도. 루프면 1초마다 되돌아가고, 비루프면 90도에서 멈춘다.
+		DebugTestClip = AnimTestClips::CreateSwingClip(GetSkeletalMesh(), 11, FVector(0.0f, 0.0f, 1.0f), 90.0f, 1.0f);
+
+		if (DebugTestClip)
+		{
+			PlayAnimation(DebugTestClip, bDebugTestClipLoop);
+			return;
+		}
+	}
+	// ---- Debug [3-4] 끝 ----
+
+	UTestAnimInstance* TestInstance = Cast<UTestAnimInstance>(GetAnimInstance());
 
 	if (!TestInstance || !TestInstance->IsInitialized())
 		return;

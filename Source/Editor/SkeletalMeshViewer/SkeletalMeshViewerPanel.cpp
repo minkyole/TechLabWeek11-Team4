@@ -474,7 +474,21 @@ void FSkeletalMeshViewerPanel::ResetLighting()
 	BackgroundClearColor = FVector4(0.12f, 0.12f, 0.12f, 1.0f);
 	bShowGrid = true;
 	bWireframe = false;
-	ViewerMode = EViewMode::Lit_BlinnPhong;
+	DisplayMode = EViewerDisplayMode::LitBlinnPhong;
+}
+
+EViewMode FSkeletalMeshViewerPanel::GetRendererViewMode() const
+{
+	switch (DisplayMode)
+	{
+	case EViewerDisplayMode::LitLambert:        return EViewMode::Lit_Lambert;
+	case EViewerDisplayMode::Unlit:             return EViewMode::Unlit;
+	case EViewerDisplayMode::WorldNormal:       return EViewMode::WorldNormal;
+	// 히트맵은 PS 앞부분에서 바로 반환하므로 조명 계산이 가장 가벼운 Unlit 변형을 쓴다.
+	case EViewerDisplayMode::BoneWeightHeatmap: return EViewMode::Unlit;
+	case EViewerDisplayMode::LitBlinnPhong:
+	default:                                    return EViewMode::Lit_BlinnPhong;
+	}
 }
 
 void FSkeletalMeshViewerPanel::ResizeViewport(uint32 NewWidth, uint32 NewHeight)
@@ -797,7 +811,7 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 	if (!PreviewLighting) PreviewLighting = RenderCommand::CreateConstantBuffer(sizeof(FLightingConstants));
 	if (!PreviewLightGrid) PreviewLightGrid = RenderCommand::CreateConstantBuffer(sizeof(FLightGridConstants));
 	const EViewMode PreviousViewMode = Renderer->GetViewMode();
-	Renderer->SetViewMode(ViewerMode);
+	Renderer->SetViewMode(GetRendererViewMode());
 	RenderCommand::SetRasterizerState(bWireframe ? ERasterizerState::Wireframe : ERasterizerState::SolidBack);
 
 	if (bShowGrid && GridRenderer)
@@ -822,6 +836,13 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 		const FMatrix PreviewWorld = PreviewComponent->GetWorldMatrix();
 		PreviewComponent->SyncSkinningMode();
 		const bool bGPUSkinned = PreviewComponent->UsesGPUSkinning();
+		uint32 BoneWeightHeatmapStatus = FBoneWeightHeatmap::StatusOff;
+		if (IsBoneWeightHeatmapMode())
+		{
+			BoneWeightHeatmapStatus = BoneWeightHeatmap.Update(SelectedMesh, SelectedBoneIndex)
+				? FBoneWeightHeatmap::StatusOn : FBoneWeightHeatmap::StatusNoSelection;
+		}
+
 		FVertexBuffer* VertexBuffer = bGPUSkinned ? SelectedMesh->VertexBuffer.get() : PreviewComponent->GetSkinnedVertexBuffer();
 		FIndexBuffer* IndexBuffer = SelectedMesh->IndexBuffer.get();
 		if (VertexBuffer && IndexBuffer)
@@ -862,8 +883,11 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 				}
 			}
 		}
+		if (BoneWeightHeatmapStatus == FBoneWeightHeatmap::StatusOff)
+		{
+			AppendStaticPreviewPackets(RenderQueue, PreviewWorld);
+		}
 
-		AppendStaticPreviewPackets(RenderQueue, PreviewWorld);
 		if (!RenderQueue.IsEmpty() && PreviewLighting && PreviewLightGrid)
 		{
 			const FLightGridConstants LightGrid{};
@@ -873,7 +897,13 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 			ViewConstants.ViewProjection = ViewProj;
 			ViewConstants.CameraWorldPos = CachedCameraLocation;
 			ViewConstants.CameraForward = FRotator(CameraPitch, CameraYaw, 0.0f).Quaternion().GetForwardVector();
+			ViewConstants.BoneWeightHeatmapStatus = BoneWeightHeatmapStatus;
+			if (BoneWeightHeatmapStatus == FBoneWeightHeatmap::StatusOn)
+			{
+				BoneWeightHeatmap.Bind();
+			}
 			Renderer->RenderPreview(RenderQueue, ViewConstants, *PreviewLighting, *PreviewLightGrid);
+			BoneWeightHeatmap.Unbind();
 		}
 
 		// 본 3D 메시 및 관절 렌더링
@@ -1820,30 +1850,32 @@ void FSkeletalMeshViewerPanel::DrawToolbarUI()
 		// 2. 뷰 모드 메뉴
 		if (ImGui::BeginMenu("View Mode"))
 		{
-			if (ImGui::MenuItem("Lit (Blinn-Phong)", nullptr, ViewerMode == EViewMode::Lit_BlinnPhong && !bWireframe))
+			// 표시 모드: 라디오 그룹. 체크는 DisplayMode 하나로 계산하므로 항상 하나만 켜진다.
+			struct FDisplayModeItem
 			{
-				ViewerMode = EViewMode::Lit_BlinnPhong;
-				bWireframe = false;
-			}
-			if (ImGui::MenuItem("Lit (Lambert)", nullptr, ViewerMode == EViewMode::Lit_Lambert && !bWireframe))
+				const char* Label;
+				EViewerDisplayMode Mode;
+			};
+			static constexpr FDisplayModeItem DisplayModeItems[] =
 			{
-				ViewerMode = EViewMode::Lit_Lambert;
-				bWireframe = false;
-			}
-			if (ImGui::MenuItem("Unlit", nullptr, ViewerMode == EViewMode::Unlit && !bWireframe))
+				{ "Lit (Blinn-Phong)", EViewerDisplayMode::LitBlinnPhong },
+				{ "Lit (Lambert)",     EViewerDisplayMode::LitLambert },
+				{ "Unlit",             EViewerDisplayMode::Unlit },
+				{ "World Normal",      EViewerDisplayMode::WorldNormal },
+				{ "Bone Weight",       EViewerDisplayMode::BoneWeightHeatmap },
+			};
+			for (const FDisplayModeItem& Item : DisplayModeItems)
 			{
-				ViewerMode = EViewMode::Unlit;
-				bWireframe = false;
+				if (ImGui::MenuItem(Item.Label, nullptr, DisplayMode == Item.Mode))
+				{
+					DisplayMode = Item.Mode;
+				}
 			}
-			if (ImGui::MenuItem("World Normal", nullptr, ViewerMode == EViewMode::WorldNormal && !bWireframe))
-			{
-				ViewerMode = EViewMode::WorldNormal;
-				bWireframe = false;
-			}
-			if (ImGui::MenuItem("Wireframe", nullptr, bWireframe))
-			{
-				bWireframe = !bWireframe;
-			}
+
+			// 독립 토글: 표시 모드와 상관없이 켜고 끈다.
+			ImGui::Separator();
+			ImGui::MenuItem("Wireframe", nullptr, &bWireframe);
+
 			ImGui::EndMenu();
 		}
 

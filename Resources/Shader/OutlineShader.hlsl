@@ -40,8 +40,7 @@ PS_INPUT mainVS(VS_INPUT input)
 
 #if GPU_SKINNING
     // 바인드 포즈 정점을 현재 자세로 옮긴 뒤 기존 확장 계산을 그대로 쓴다.
-    float3 skinnedTangent = input.tangent.xyz;
-    SkinVertex(input.boneIndices, input.boneWeights, input.position, input.normal, skinnedTangent);
+    SkinVertex(input.boneIndices, input.boneWeights, input.position, input.normal, input.tangent.xyz);
 #endif
     
     const matrix worldViewProjection = mul(World, ViewProjection);

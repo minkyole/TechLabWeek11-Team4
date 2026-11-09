@@ -11,6 +11,7 @@
 #include "Core/EngineString.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "BoneWeightHeatmap.h"
 
 #include "Render/ViewMode.h"
 
@@ -152,10 +153,23 @@ private:
 	FVector GroundColor = FVector(0.25f, 0.25f, 0.28f);
 	float SkyLightIntensity = 1.0f;
 
+	// 뷰어 표시 모드. View Mode 메뉴의 라디오 그룹(하나만 선택)이며, 체크 표시는 이 값 하나로 계산한다.
+	// 렌더러의 EViewMode에는 히트맵이 없으므로 GetRendererViewMode()로 변환해 넘긴다.
+	enum class EViewerDisplayMode : uint8
+	{
+		LitBlinnPhong,
+		LitLambert,
+		Unlit,
+		WorldNormal,
+		BoneWeightHeatmap,
+	};
+	EViewMode GetRendererViewMode() const;
+	bool IsBoneWeightHeatmapMode() const { return DisplayMode == EViewerDisplayMode::BoneWeightHeatmap; }
+
 	// 뷰 모드 및 렌더 옵션
-	EViewMode ViewerMode = EViewMode::Lit_BlinnPhong;
+	EViewerDisplayMode DisplayMode = EViewerDisplayMode::LitBlinnPhong;
 	bool bShowGrid = true;
-	bool bWireframe = false;
+	bool bWireframe = false;   // 표시 모드와 독립 토글 (히트맵 위에도 겹쳐 그릴 수 있다)
 	FVector4 BackgroundClearColor = FVector4(0.12f, 0.12f, 0.12f, 1.0f); // 언리얼 기본 프리뷰 배경색
 
 	// 골격(Bone) 표시 및 하이라이트 옵션
@@ -188,4 +202,7 @@ private:
 	// Save As New .bin 모달 팝업 상태
 	bool bShowSaveAsModal = false;
 	char SaveAsNameBuffer[128] = "";
+
+	//BoneWeightHeatmap 관련 변수
+	FBoneWeightHeatmap BoneWeightHeatmap;
 };

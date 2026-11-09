@@ -1,6 +1,83 @@
 #include "EnginePCH.h"
 #include "TestAnimInstance.h"
 
+#include "Animation/AnimSequence.h"
+#include "Animation/BlendSpace.h"
+#include "Render/Mesh.h"
+#include "UObject/UObjectGlobals.h"
+
+#include <algorithm>
+#include <cmath>
+
+UTestAnimInstance::~UTestAnimInstance()
+{
+	ReleaseTestAssets();
+}
+
+UAnimSequence* UTestAnimInstance::CreateRotationClip(
+	int32 BoneIndex,
+	const FVector& LocalAxis,
+	float DurationSeconds,
+	bool bStationary)
+{
+	const USkeletalMesh* Mesh = GetSkeletalMesh();
+
+	if (!Mesh || !Mesh->MeshData.Bones.IsValidIndex(BoneIndex))
+	{
+		return nullptr;
+	}
+
+	UAnimSequence* Clip = NewObject<UAnimSequence>(this);
+	Clip->SetSkeletalMesh(Mesh);
+
+	UAnimDataModel* Model = Clip->GetDataModel();
+
+	constexpr int32 FPS = 30;
+	const int32 NumFrames = std::max(
+	    1,
+	    static_cast<int32>(std::round(DurationSeconds * FPS)));
+
+	Model->SetFrameRate(FFrameRate(FPS, 1));
+	Model->SetNumberOfFrames(NumFrames);
+
+	const FSkeletalBone& Bone = Mesh->MeshData.Bones[BoneIndex];
+
+	const int32 TrackIndex =
+	    Model->AddBoneTrack(FName(Bone.Name));
+
+	const FQuat RefRotation =
+	    FQuat(Bone.RefPoseTransform.Rotation).Normalized();
+
+	TArray<FQuat> RotationKeys;
+
+	const int32 NumKeys = Model->GetNumberOfKeys();
+	RotationKeys.Reserve(NumKeys);
+
+	constexpr float TwoPi = 6.28318530718f;
+
+	for (int32 Key = 0; Key < NumKeys; ++Key)
+	{
+		const float Phase =
+		    static_cast<float>(Key) / static_cast<float>(NumKeys - 1);
+
+		const float Angle = bStationary ? 0.0f : TwoPi * Phase;
+
+		const FQuat DeltaRotation =
+		    FQuat::MakeFromAxisAngle(LocalAxis, Angle);
+
+		RotationKeys.Add(
+		    (RefRotation * DeltaRotation).Normalized());
+	}
+
+	// 위치와 스케일은 키가 없으므로 기준 포즈를 유지한다.
+	Model->SetBoneTrackKeys(
+	    TrackIndex,
+	    {},
+	    RotationKeys,
+	    {});
+
+	return Clip;
+}
 void UTestAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
@@ -9,87 +86,145 @@ void UTestAnimInstance::NativeInitializeAnimation()
 
 	if (!Mesh)
 	{
-		assert(false);
 		return;
 	}
 
-	// Constant 노드가 출력할 포즈를 준비한다.
-	ConstantA.ConstantPose.AnimInstance = this;
-	ConstantA.ConstantPose.Pose.Initialize(*Mesh);
-	ConstantA.ConstantPose.Curve.Reset();
+	// 기존 샘플링 테스트와 동일한 본.
+	// 실제 메시에서 움직임이 잘 보이는 본 번호로 바꿔도 된다.
+	constexpr int32 TestBoneIndex = 1;
 
-	ConstantB.ConstantPose.AnimInstance = this;
-	ConstantB.ConstantPose.Pose.Initialize(*Mesh);
-	ConstantB.ConstantPose.Curve.Reset();
+	if (!Mesh->MeshData.Bones.IsValidIndex(TestBoneIndex))
+	{
+		return;
+	}
 
-	BlendNode.A.LinkedNode = &ConstantA;
-	BlendNode.B.LinkedNode = &ConstantB;
-	BlendNode.Alpha = 0.0f;
+	IdleClip = CreateRotationClip(
+	    TestBoneIndex,
+	    FVector(0.0f, 0.0f, 1.0f),
+	    4.0f,
+	    true);
 
-	// AnimInstance의 평가 시작점을 연결한다.
-	RootNode = &BlendNode;
+	SlowClip = CreateRotationClip(
+	    TestBoneIndex,
+	    FVector(0.0f, 0.0f, 1.0f),
+	    4.0f,
+	    false);
+
+	FastClip = CreateRotationClip(
+	    TestBoneIndex,
+	    FVector(0.0f, 1.0f, 0.0f),
+	    1.0f,
+	    false);
+
+	if (!IdleClip || !SlowClip || !FastClip)
+	{
+		ReleaseTestAssets();
+		return;
+	}
+
+	TestBlendSpace = NewObject<UBlendSpace1D>(this);
+	TestBlendSpace->SetSkeletalMesh(Mesh);
+
+	FBlendParameter SpeedAxis;
+	SpeedAxis.Name = FName("Speed");
+	SpeedAxis.Min = 0.0f;
+	SpeedAxis.Max = 600.0f;
+
+	if (!TestBlendSpace->SetBlendParameter(0, SpeedAxis))
+	{
+		ReleaseTestAssets();
+		return;
+	}
+
+	FBlendSample IdleSample;
+	IdleSample.Animation = IdleClip;
+	IdleSample.SampleValue = FVector(0.0f, 0.0f, 0.0f);
+
+	FBlendSample SlowSample;
+	SlowSample.Animation = SlowClip;
+	SlowSample.SampleValue = FVector(300.0f, 0.0f, 0.0f);
+
+	FBlendSample FastSample;
+	FastSample.Animation = FastClip;
+	FastSample.SampleValue = FVector(600.0f, 0.0f, 0.0f);
+
+	const bool bConfigured =
+	    TestBlendSpace->AddSample(IdleSample) && TestBlendSpace->AddSample(SlowSample) && TestBlendSpace->AddSample(FastSample);
+
+	if (!bConfigured)
+	{
+		ReleaseTestAssets();
+		return;
+	}
+
+	BlendSpacePlayer.BlendSpace = TestBlendSpace;
+	BlendSpacePlayer.X = 0.0f;
+	BlendSpacePlayer.PlayRate = 1.0f;
+	BlendSpacePlayer.bPlaying = true;
+	BlendSpacePlayer.bLoop = true;
+	BlendSpacePlayer.ResetPlayback();
+
+	RootNode = &BlendSpacePlayer;
+
+	// 시간 진행 없이 최초 가중치를 계산한다.
+	// Initialize 직후 Evaluate만 호출해도 샘플이 준비되어 있게 한다.
+	FAnimationUpdateContext Context;
+	Context.AnimInstance = this;
+	Context.DeltaSeconds = 0.0f;
+
+	BlendSpacePlayer.Update(Context);
+}
+
+void UTestAnimInstance::SetSpeed(float InSpeed)
+{
+	if (!std::isfinite(InSpeed))
+	{
+		return;
+	}
+
+	BlendSpacePlayer.X = std::clamp(InSpeed, 0.0f, 600.0f);
 }
 
 void UTestAnimInstance::NativeUnInitializeAnimation()
 {
-	// 노드를 가리키는 참조를 먼저 해제한다.
-	RootNode = nullptr;
-
-	// 이전 메시와 인스턴스를 참조하는 데이터를 제거한다.
-	BlendNode.A.LinkedNode = nullptr;
-	BlendNode.B.LinkedNode = nullptr;
-
-	ConstantA.ConstantPose.AnimInstance = nullptr;
-	ConstantA.ConstantPose.Pose = FAnimationPose{};
-	ConstantA.ConstantPose.Curve.Reset();
-
-	ConstantB.ConstantPose.AnimInstance = nullptr;
-	ConstantB.ConstantPose.Pose = FAnimationPose{};
-	ConstantB.ConstantPose.Curve.Reset();
+	ReleaseTestAssets();
 
 	Super::NativeUnInitializeAnimation();
 }
 
-bool UTestAnimInstance::SetTestBoneTranslation(
-    int32 BoneIndex,
-    const FVector& TranslationOffset)
+void UTestAnimInstance::ReleaseTestAssets()
 {
-	if (!IsInitialized())
-		return false;
+	// 먼저 삭제할 에셋을 참조하는 노드를 끊는다.
+	RootNode = nullptr;
+	BlendSpacePlayer.BlendSpace = nullptr;
+	BlendSpacePlayer.ResetPlayback();
 
-	FAnimationPose& PoseA = ConstantA.ConstantPose.Pose;
-	FAnimationPose& PoseB = ConstantB.ConstantPose.Pose;
+	// 이전 샘플 가중치도 비운다.
+	FAnimationUpdateContext Context;
+	Context.AnimInstance = this;
+	Context.DeltaSeconds = 0.0f;
+	BlendSpacePlayer.Update(Context);
 
-	if (!PoseA.TargetMesh ||
-		!PoseA.LocalTransforms.IsValidIndex(BoneIndex) ||
-		!PoseB.TargetMesh ||
-		!PoseB.LocalTransforms.IsValidIndex(BoneIndex))
+	delete TestBlendSpace;
+	TestBlendSpace = nullptr;
+
+	const auto DeleteClip = [](UAnimSequence*& Clip)
 	{
-		return false;
-	}
+		if (!Clip)
+		{
+			return;
+		}
 
-	// 이전 테스트 결과에 누적하지 않고 기준 포즈에서 다시 시작한다.
-	ConstantA.ConstantPose.ResetToRefPose();
-	ConstantB.ConstantPose.ResetToRefPose();
+		// 현재 프로젝트에서는 UAnimSequence 소멸자가
+		// 생성한 DataModel을 해제하지 않으므로 테스트에서 함께 정리한다.
+		UAnimDataModel* Model = Clip->GetDataModel();
+		delete Model;
 
-	PoseB.LocalTransforms[BoneIndex].Translation +=
-	    TranslationOffset;
+		delete Clip;
+		Clip = nullptr;
+	};
 
-	return true;
-}
-
-void UTestAnimInstance::SetBlendAlpha(float InAlpha)
-{
-	BlendNode.Alpha = FMath::Clamp01(InAlpha);
-}
-
-void UTestAnimInstance::ResetTestPose()
-{
-	if (!IsInitialized() ||
-		!ConstantB.ConstantPose.Pose.TargetMesh)
-	{
-		return;
-	}
-
-	ConstantB.ConstantPose.ResetToRefPose();
+	DeleteClip(IdleClip);
+	DeleteClip(SlowClip);
+	DeleteClip(FastClip);
 }

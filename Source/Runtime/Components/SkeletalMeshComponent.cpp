@@ -27,17 +27,13 @@ void USkeletalMeshComponent::BeginPlay()
 	UTestAnimInstance* TestInstance =
 	    Cast<UTestAnimInstance>(GetAnimInstance());
 
-	if (!TestInstance)
+	if (!TestInstance || !TestInstance->IsInitialized())
 		return;
 
-	const bool bConfigured = TestInstance->SetTestBoneTranslation(
-	    258,
-	    FVector(0.3f, 0.0f, 0.0f));
+	TestInstance->SetSpeed(DebugSpeed);
 
-	if (!bConfigured)
-		return;
-
-	TestInstance->SetBlendAlpha(0.5f);
+	// Evaluate 전에 현재 속도의 가중치를 준비한다.
+	TestInstance->UpdateAnimation(0.0f);
 
 	// BeginPlay 안에서 스키닝 결과까지 바로 반영.
 	if (RefreshAnimationPose())
@@ -49,14 +45,6 @@ void USkeletalMeshComponent::BeginPlay()
 void USkeletalMeshComponent::TickComponent(float DeltaTime)
 {
 	Super::TickComponent(DeltaTime);
-
-	UTestAnimInstance* TestInstance =
-	    Cast<UTestAnimInstance>(GetAnimInstance());
-
-	if (!TestInstance)
-		return;
-
-	TestInstance->SetBlendAlpha(DebugAlpha);
 }
 
 void USkeletalMeshComponent::InitializeComponent()
@@ -162,6 +150,13 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 		return;
 
 	SCOPE_CYCLE_COUNTER(SkinningStats::STAT_AnimEvaluate);
+
+	if (UTestAnimInstance* TestInstance =
+	        Cast<UTestAnimInstance>(AnimInstance.get()))
+	{
+		TestInstance->SetSpeed(DebugSpeed);
+	}
+
 	AnimInstance->UpdateAnimation(DeltaTime);
 	RefreshAnimationPose();
 }

@@ -13,6 +13,8 @@ class UAnimationAsset;
 // 모든 노드의 뿌리. 프레임마다 Update -> Evaluate 순서로 불린다.
 struct FAnimNode_Base
 {
+	virtual ~FAnimNode_Base() = default;
+
 	virtual void OnEnter() {}
 	virtual void OnExit() {}
 

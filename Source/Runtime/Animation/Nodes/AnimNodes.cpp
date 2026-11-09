@@ -143,3 +143,111 @@ float FAnimNode_BlendSpacePlayer::GetEffectivePlayLength() const
 
 	return BlendSpace->GetEffectivePlayLength(SampleWeights);
 }
+
+void FAnimNode_BlendSpacePlayer::Evaluate(FPoseContext& Output)
+{
+	// 정상적인 AnimInstance 평가 경로에서는 대상 메시가 설정되어 있다.
+	if (!Output.Pose.TargetMesh)
+	{
+		assert(false);
+		return;
+	}
+
+	// 샘플 평가에 실패하면 기준 포즈와 빈 커브를 출력한다.
+	Output.ResetToRefPose();
+
+	if (!BlendSpace || SampleWeights.IsEmpty())
+	{
+		return;
+	}
+
+	// 현재 구현은 최대 두 샘플을 섞는 1D 전용이다.
+	if (BlendSpace->GetDimension() != 1 || SampleWeights.Num() > 2)
+	{
+		assert(false);
+		return;
+	}
+
+	const float NormalizedTime = GetNormalizedTime();
+
+	// 선택된 샘플을 같은 정규화 진행률에서 평가한다.
+	const auto EvaluateSample =
+	    [this, NormalizedTime](
+	        const FBlendSampleWeight& Entry,
+	        FPoseContext& SamplePose) -> bool
+	{
+		if (!std::isfinite(Entry.Weight) || Entry.Weight <= 0.0f)
+		{
+			return false;
+		}
+
+		const FBlendSample* Sample =
+		    BlendSpace->GetSample(Entry.SampleIndex);
+
+		if (!Sample || !Sample->Animation)
+		{
+			return false;
+		}
+
+		UAnimSequence* Sequence = Sample->Animation;
+
+		// GetPlayLength()가 DataModel을 직접 참조하므로 먼저 검사.
+		if (!Sequence->GetDataModel())
+		{
+			return false;
+		}
+
+		const float Length = Sequence->GetPlayLength();
+
+		if (!std::isfinite(Length) || Length <= 0.0f)
+		{
+			return false;
+		}
+
+		const float TimeSeconds = NormalizedTime * Length;
+
+		// SamplePose는 Output과 같은 대상 메시를 가진다.
+		// GetAnimationPose 내부에서 본 이름 매핑과 보간을 수행한다.
+		Sequence->GetAnimationPose(TimeSeconds, SamplePose.Pose);
+
+		// 현재 시퀀스 API는 본 포즈만 평가한다.
+		SamplePose.Curve.Reset();
+
+		return true;
+	};
+
+	// FPoseContext 복사 생성자는 같은 평가 환경과 대상 메시를 가진 기준 포즈 버퍼를 만든다.
+	FPoseContext PoseA(Output);
+
+	if (!EvaluateSample(SampleWeights[0], PoseA))
+	{
+		return;
+	}
+
+	// 샘플 좌표와 일치하거나 입력이 양 끝에 있으면 하나의 샘플만 사용한다.
+	if (SampleWeights.Num() == 1)
+	{
+		Output.Pose = PoseA.Pose;
+		Output.Curve = PoseA.Curve;
+		return;
+	}
+
+	FPoseContext PoseB(Output);
+
+	if (!EvaluateSample(SampleWeights[1], PoseB))
+	{
+		return;
+	}
+
+	// 두 가중치는 앞에서 유효한 양수인지 검사한다.
+	const double WeightA = SampleWeights[0].Weight;
+	const double WeightB = SampleWeights[1].Weight;
+
+	const float NormalizedWeightA =
+	    static_cast<float>(WeightA / (WeightA + WeightB));
+
+	// 이 함수는 Alpha(B의 비율)가 아닌 A의 가중치를 받는다.
+	FAnimationRuntime::BlendTwoPosesTogether(
+	    PoseA.Pose, PoseB.Pose, PoseA.Curve, PoseB.Curve,
+	    NormalizedWeightA, Output.Pose, Output.Curve);
+}

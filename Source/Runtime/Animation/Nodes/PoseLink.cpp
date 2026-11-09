@@ -4,6 +4,14 @@
 #include "Animation/Nodes/AnimNodes.h"
 #include "Animation/AnimationContext.h"
 
+void FPoseLink::OnEnter()
+{
+	if (LinkedNode)
+	{
+		LinkedNode->OnEnter();
+	}
+}
+
 void FPoseLink::Update(const FAnimationUpdateContext& Context)
 {
 	if (LinkedNode)

@@ -33,6 +33,7 @@ public:
 
 	static const FObjectInitializer* GetForObject(const UObject* InObject);
 	const FStaticConstructObjectParameters& GetParameters() const { return Parameters; }
+	bool InitProperties(const UObject* DefaultData) const;
 	void Complete();
 
 private:

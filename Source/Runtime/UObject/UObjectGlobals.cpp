@@ -88,6 +88,126 @@ void FObjectInitializer::Complete()
 	bCompleted = true;
 }
 
+// 기본값 복사와 객체 참조 재연결 이후의 생성 후처리
+bool FObjectInitializer::InitProperties(const UObject* DefaultData) const
+{
+	if (DefaultData)
+	{
+		// 자신 복사/클래스 불일치
+		if (DefaultData == Object || DefaultData->GetClass() != Object->GetClass())
+		{
+			HTR_LOG(Error, "InitProperties: incompatible default source for '{}'.", Object->GetName());
+			return false;
+		}
+		// CDO 생성중 여부
+		for (const UObject* Owner = DefaultData; Owner; Owner = Owner->GetOuter())
+		{
+			if (Owner->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject) && Owner->GetClass()->IsCreatingDefaultObject())
+			{
+				HTR_LOG(Error, "InitProperties: default object '{}' is still being created.", Owner->GetName());
+				return false;
+			}
+		}
+	}
+
+	// 프로퍼티 등록 여부와 무관한 목적지 기본 서브오브젝트 수집
+	TArray<UObject*> Destinations;
+	Destinations.Add(Object);
+	for (int32 Index = 0; Index < Destinations.Num(); ++Index)
+	{
+		for (UObject* Child : GUObjectArray)
+		{
+			if (Child->GetOuter() == Destinations[Index] && Child->HasAnyFlags(EObjectFlags::RF_DefaultSubObject))
+			{
+				Destinations.Add(Child);
+			}
+		}
+	}
+
+	if (DefaultData)
+	{
+		// 값 복사 이전의 전체 원본·인스턴스 대응표 구성
+		TMap<const UObject*, UObject*> Instances;
+		TArray<const UObject*> Sources;
+		Instances.Add(DefaultData, Object);
+		Sources.Add(DefaultData);
+		for (int32 Index = 0; Index < Sources.Num(); ++Index)
+		{
+			const UObject* SourceOuter = Sources[Index];
+			UObject* DestinationOuter = Instances.FindRef(SourceOuter);
+			for (UObject* Source : GUObjectArray)
+			{
+				if (Source->GetOuter() != SourceOuter 
+					|| !Source->HasAnyFlags(EObjectFlags::RF_DefaultSubObject))
+				{
+					continue;
+				}
+				UObject* Destination = FindObjectWithOuter(DestinationOuter, Source->GetClass(), Source->GetFName());
+				if (!Destination || !Destination->HasAnyFlags(EObjectFlags::RF_DefaultSubObject))
+				{
+					HTR_LOG(Error, "InitProperties: unmatched default subobject '{}' in '{}'.",
+					        Source->GetName(), Object->GetName());
+					return false;
+				}
+				Instances.Add(Source, Destination);
+				Sources.Add(Source);
+			}
+		}
+
+		// 상속 프로퍼티 복사와 실제 멤버 타입을 보존한 참조 치환
+		for (const UObject* Source : Sources)
+		{
+			UObject* Destination = Instances.FindRef(Source);
+			for (UClass* Class = Source->GetClass(); Class; Class = Class->Super)
+			{
+				for (const FProperty& Property : Class->GetProperties())
+				{
+					const void* SourceValue = Property.ContainerPtrToValuePtr(Source);
+					void* DestinationValue = Property.ContainerPtrToValuePtr(Destination);
+					if (!Property.GetObjectFunction)
+					{
+						Property.CopyCompleteValue(DestinationValue, SourceValue);
+						continue;
+					}
+
+					UObject* Reference = Property.GetObjectPropertyValue(SourceValue);
+					if (UObject* Instance = Instances.FindRef(Reference))
+					{
+						Reference = Instance;
+					}
+					else
+					{
+						// 대응되지 않은 원본 소유 객체 참조의 유출 차단
+						for (const UObject* Owner = Reference; Owner; Owner = Owner->GetOuter())
+						{
+							if (Owner == DefaultData)
+							{
+								HTR_LOG(Error, "InitProperties: unmapped owned reference '{}' in '{}'.",
+								        Property.Name.ToString(), Object->GetName());
+								return false;
+							}
+						}
+					}
+					Property.SetObjectPropertyValue(DestinationValue, Reference);
+				}
+			}
+		}
+	}
+
+	// 부모 생성자의 전체 그래프 설정 이후로 미루는 서브오브젝트 후처리
+	if (Previous && Object->HasAnyFlags(EObjectFlags::RF_DefaultSubObject) && Object->GetOuter() == Previous->Object)
+	{
+		return true;
+	}
+
+	// 전체 값과 참조가 확정된 이후의 객체별 생성 후처리
+	for (UObject* Destination : Destinations)
+	{
+		Destination->PostInitProperties();
+	}
+	return true;
+}
+
 UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& Params)
 {
 	const UClass* Class = Params.Class;

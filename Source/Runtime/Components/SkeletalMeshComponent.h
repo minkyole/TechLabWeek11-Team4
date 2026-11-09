@@ -5,8 +5,16 @@
 #include "Engine/SkeletonSceneProxy.h"
 #include "Render/Mesh.h"
 #include "Animation/AnimationContext.h"
+#include "Animation/SingleAnimationPlayData.h"
 
 class UAnimInstance;
+class UClass;
+
+enum class EAnimationMode : uint8
+{
+	AnimationBlueprint,  // AnimClass로 지정한 그래프 인스턴스 (StateMachine 등)
+	AnimationSingleNode, // UAnimSingleNodeInstance로 클립 하나만 재생
+};
 
 class USkeletalMeshComponent : public USkinnedMeshComponent
 {
@@ -49,6 +57,14 @@ protected:
 
 private:
 	TUniquePtr<UAnimInstance> AnimInstance;
+
+	EAnimationMode AnimationMode = EAnimationMode::AnimationSingleNode;
+
+	// AnimationBlueprint 모드에서 생성할 클래스. 
+	UClass* AnimClass = nullptr;
+
+	// AnimationSingleNode 모드의 재생 요청.
+	FSingleAnimationPlayData AnimationData;
 
 	// 매 프레임 포즈 배열을 새로 만들지 않고 재사용.
 	FPoseContext EvaluatedPose;

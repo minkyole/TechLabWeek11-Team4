@@ -224,6 +224,23 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 		Effective.SetFlags |= EObjectFlags::RF_ClassDefaultObject;
 	}
 
+	// 생성자 소유 기본 서브오브젝트의 부모 단위 초기화 판별
+	const bool bDeferDefaultInitialization = HasFlag(Effective.SetFlags, EObjectFlags::RF_DefaultSubObject)
+		&& FObjectInitializer::GetForObject(Effective.Outer) != nullptr;
+
+	// 일반 객체에 사용할 완성된 CDO 확보
+	const UObject* DefaultData = nullptr;
+	if (!Effective.bCreateClassDefaultObject && !bDeferDefaultInitialization)
+	{
+		DefaultData = const_cast<UClass*>(Class)->GetDefaultObject();
+		if (!DefaultData || Class->IsCreatingDefaultObject())
+		{
+			HTR_LOG(Error, "Cannot initialize '{}' from an unfinished class default object.", Class->GetName());
+			return nullptr;
+		}
+	}
+
+
 	if (Effective.Name.IsNone())
 	{
 		Effective.Name = MakeUniqueObjectName(Effective.Outer, Class);
@@ -236,13 +253,18 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 		return Object;
 	}
 
-	// 생성 완료 이후의 실패 정리를 위한 임시 소유권
-	TUniquePtr<UObject> CompletedObject;
+	bool bConstructorCompleted = false;
 	try
 	{
 		FObjectInitializer Initializer(Object, Effective);
 		Class->Constructor(Object);
-		CompletedObject.reset(Object);
+		bConstructorCompleted = true;
+
+		TUniquePtr<UObject> CompletedObject(Object);
+		if (!Initializer.InitProperties(DefaultData))
+		{
+			return nullptr;
+		}
 
 		HashObject(Object, Class);
 		Initializer.Complete();
@@ -251,7 +273,7 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 	catch (...)
 	{
 		// 생성자가 완료되지 않은 원시 할당의 반환
-		if (!CompletedObject)
+		if (!bConstructorCompleted)
 		{
 			UObject::operator delete(Object, Class->ClassSize);
 		}

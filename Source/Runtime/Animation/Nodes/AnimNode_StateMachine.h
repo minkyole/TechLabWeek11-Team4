@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Animation/Nodes/AnimNodes.h"
+#include "Animation/AnimCondition.h"
+#include "Animation/AnimParameters.h"
 
 using FAnimStateId = int32;
 using FAnimTransitionId = int32;
@@ -28,6 +30,13 @@ struct FAnimStateDefinition
 	int32 RootNodeIndex = -1;
 };
 
+enum class EAnimTransitionInterruptPolicy : uint8
+{
+	Never,
+	HigherPriorityOnly,
+	Always,
+};
+
 struct FAnimTransitionDefinition
 {
 	FAnimStateId From = InvalidAnimStateId;
@@ -36,10 +45,20 @@ struct FAnimTransitionDefinition
 	// true이면 From을 무시하고 모든 상태에서 사용할 수 있다.
 	bool bFromAnyState = false;
 
+	FAnimConditionId Condition = InvalidAnimConditionId;
+	int32 Priority = 0;
+
 	FAnimBlendSettings Blend;
 
 	// 현재 상태가 To여도 재진입할 것인지.
 	bool bRestartIfSameState = false;
+
+	// 이 전환이 진행 중일 때 다른 전환을 허용하는가 기준.
+	EAnimTransitionInterruptPolicy InterruptPolicy =
+	    EAnimTransitionInterruptPolicy::Always;
+
+	// 이 전환이 실제로 실행되었을 때 소비할 Trigger
+	TArray<FName> ConsumeTriggers;
 };
 
 struct FAnimStateMachineDefinition
@@ -47,14 +66,16 @@ struct FAnimStateMachineDefinition
 	FAnimStateId EntryState = InvalidAnimStateId;
 
 	TArray<FAnimStateDefinition> States;
+	TArray<FAnimConditionDefinition> Conditions;
 	TArray<FAnimTransitionDefinition> Transitions;
 };
 
-enum class EAnimState : uint8
+struct FAnimConditionContext
 {
-	Locomotion, // 안에 BlendSpace1D (Idle / Walk / Run)
-	Attack,
-	Hit,
+	const FAnimParameterSet& Parameters;
+
+	bool bSourceFinished = false;
+	float StateElpased = 0.0f;
 };
 
 class UMyAnimInstance;
@@ -70,19 +91,28 @@ struct FAnimNode_StateMachine : public FAnimNode_Base
 	void Update(const FAnimationUpdateContext& Context) override;
 	void Evaluate(FPoseContext& Output) override;
 
-	bool TryTransition(FAnimTransitionId TransitionId);
 	FAnimStateId GetCurrentState() const { return CurrentState; }
 
-	//void ProcessState(UMyAnimInstance* AnimInstance);
+	// void ProcessState(UMyAnimInstance* AnimInstance);
 
 	bool IsClipFinished() const;
 
 private:
 	FAnimNode_Base* GetStateNode(FAnimStateId StateId) const;
 
+	bool TryTransition(FAnimTransitionId TransitionId);
 	void ChangeState(const FAnimTransitionDefinition& Transition);
 	void ClearTransition();
 
+	bool CanTakeTransition(
+	    const FAnimTransitionDefinition& Transition) const;
+
+	void ProcessTransitions();
+
+public:
+	FAnimParameterSet Parameters;
+
+private:
 	// 비소유 참조. 실행 중에는 정의를 수정하지 않는다.
 	const FAnimStateMachineDefinition* Definition = nullptr;
 
@@ -90,6 +120,12 @@ private:
 	TArray<FAnimNode_Base*> Nodes;
 
 	FAnimStateId CurrentState = InvalidAnimStateId;
+
+	TArray<uint8> ConditionResults;
+	float StateElpased = 0.0f;
+	int32 ActiveTransitionPriority = 0;
+	EAnimTransitionInterruptPolicy ActiveInterruptPolicy =
+	    EAnimTransitionInterruptPolicy::Always;
 
 	// 일반 전환의 출발 노드. 비소유 참조.
 	FAnimNode_Base* PreviousNode = nullptr;

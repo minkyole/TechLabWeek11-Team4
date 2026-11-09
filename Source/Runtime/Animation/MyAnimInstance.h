@@ -28,7 +28,7 @@ private:
 	UAnimSequence* CreateRootTestClip(
 	    int32 RootBoneIndex, float DurationSeconds, const FVector& Offset);
 	void ReleaseTestAssets();
-	void ProcessStateTransition();
+	//void ProcessStateTransition();
 
 	// 테스트용으로 생성한 에셋은 이 인스턴스가 소유한다.
 	UBlendSpace1D* TestBlendSpace = nullptr;

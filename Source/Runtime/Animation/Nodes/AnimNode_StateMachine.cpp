@@ -9,8 +9,8 @@
 namespace
 {
 	float EvaluateBlendAlpha(
-		EAnimBlendCurve Curve,
-		float Progress)
+	    EAnimBlendCurve Curve,
+	    float Progress)
 	{
 		const float T = std::clamp(Progress, 0.0f, 1.0f);
 
@@ -23,13 +23,253 @@ namespace
 			return T;
 		}
 	}
+
+	bool CompareAnimFloat(
+	    float Left,
+	    EAnimCompareOp Op,
+	    float Right,
+	    float Tolerance)
+	{
+		switch (Op)
+		{
+		case EAnimCompareOp::Less:
+			return Left < Right;
+
+		case EAnimCompareOp::LessEqual:
+			return Left <= Right;
+
+		case EAnimCompareOp::Greater:
+			return Left > Right;
+
+		case EAnimCompareOp::GreaterEqual:
+			return Left >= Right;
+
+		case EAnimCompareOp::NearlyEqual:
+			return std::abs(Left - Right) <= Tolerance;
+
+		case EAnimCompareOp::NotNearlyEqual:
+			return std::abs(Left - Right) > Tolerance;
+		}
+
+		return false;
+	}
+
+	bool EvaluateAnimConditions(
+	    const TArray<FAnimConditionDefinition>& Definitions,
+	    const FAnimConditionContext& Context,
+	    TArray<uint8>& Results)
+	{
+		// Results는 초기화 시 Definitions.Num() 크기로 준비한다.
+		if (Results.Num() != Definitions.Num())
+			return false;
+
+		for (int32 Index = 0; Index < Definitions.Num(); ++Index)
+		{
+			const FAnimConditionDefinition& Condition = Definitions[Index];
+
+			bool Result = false;
+
+			switch (Condition.Type)
+			{
+			case EAnimConditionType::Always:
+				Result = true;
+				break;
+
+			case EAnimConditionType::BoolEquals:
+			{
+				bool Value = false;
+
+				if (!Context.Parameters.TryGetBool(
+				        Condition.ParameterName, Value))
+				{
+					return false;
+				}
+
+				Result = Value == Condition.BoolValue;
+				break;
+			}
+
+			case EAnimConditionType::FloatCompare:
+			{
+				float Value = 0.0f;
+
+				if (!Context.Parameters.TryGetFloat(
+				        Condition.ParameterName, Value))
+				{
+					return false;
+				}
+
+				Result = CompareAnimFloat(
+				    Value,
+				    Condition.CompareOp,
+				    Condition.FloatValue,
+				    Condition.Tolerance);
+				break;
+			}
+
+			case EAnimConditionType::TriggerActive:
+			{
+				if (!Context.Parameters.TryGetTrigger(
+				        Condition.ParameterName, Result))
+				{
+					return false;
+				}
+
+				break;
+			}
+
+			case EAnimConditionType::SourceFinished:
+				Result = Context.bSourceFinished;
+				break;
+
+			case EAnimConditionType::StateElapsedCompare:
+				Result = CompareAnimFloat(
+				    Context.StateElpased,
+				    Condition.CompareOp,
+				    Condition.FloatValue,
+				    Condition.Tolerance);
+				break;
+
+			case EAnimConditionType::And:
+				Result = true;
+
+				for (FAnimConditionId Child : Condition.Children)
+					Result = Result && (Results[Child] != 0);
+				break;
+
+			case EAnimConditionType::Or:
+				Result = false;
+
+				for (FAnimConditionId Child : Condition.Children)
+					Result = Result || (Results[Child] != 0);
+
+				break;
+
+			case EAnimConditionType::Not:
+				Result = Results[Condition.Children[0]] == 0;
+				break;
+
+			default:
+				return false;
+			}
+
+			Results[Index] = Result ? 1 : 0;
+		}
+		return true;
+	}
+
+	bool ValidateAnimConditions(
+	    const FAnimStateMachineDefinition& Definition)
+	{
+		for (int32 Index = 0;
+		     Index < Definition.Conditions.Num();
+		     ++Index)
+		{
+			const FAnimConditionDefinition& Condition =
+			    Definition.Conditions[Index];
+
+			switch (Condition.Type)
+			{
+			case EAnimConditionType::And:
+			case EAnimConditionType::Or:
+				if (Condition.Children.Num() == 0)
+					return false;
+				break;
+
+			case EAnimConditionType::Not:
+				if (Condition.Children.Num() != 1)
+					return false;
+				break;
+
+			case EAnimConditionType::Always:
+			case EAnimConditionType::BoolEquals:
+			case EAnimConditionType::FloatCompare:
+			case EAnimConditionType::TriggerActive:
+			case EAnimConditionType::SourceFinished:
+			case EAnimConditionType::StateElapsedCompare:
+				if (Condition.Children.Num() != 0)
+					return false;
+				break;
+
+			default:
+				return false;
+			}
+
+			for (FAnimConditionId Child : Condition.Children)
+			{
+				// 유효 인덱스 검사와 순환 방지를 동시에 수행
+				if (Child < 0 || Child >= Index)
+					return false;
+			}
+
+			if (Condition.Type == EAnimConditionType::FloatCompare ||
+			    Condition.Type ==
+			        EAnimConditionType::StateElapsedCompare)
+			{
+				if (!std::isfinite(Condition.FloatValue) ||
+				    !std::isfinite(Condition.Tolerance) ||
+				    Condition.Tolerance < 0.0f)
+				{
+					return false;
+				}
+
+				switch (Condition.CompareOp)
+				{
+				case EAnimCompareOp::Less:
+				case EAnimCompareOp::LessEqual:
+				case EAnimCompareOp::Greater:
+				case EAnimCompareOp::GreaterEqual:
+				case EAnimCompareOp::NearlyEqual:
+				case EAnimCompareOp::NotNearlyEqual:
+					break;
+
+				default:
+					return false;
+				}
+			}
+		}
+
+		for (const FAnimTransitionDefinition& Transition : Definition.Transitions)
+		{
+			if (!Definition.Conditions.IsValidIndex(
+			        Transition.Condition))
+			{
+				return false;
+			}
+
+			switch (Transition.InterruptPolicy)
+			{
+			case EAnimTransitionInterruptPolicy::Never:
+			case EAnimTransitionInterruptPolicy::HigherPriorityOnly:
+			case EAnimTransitionInterruptPolicy::Always:
+				break;
+
+			default:
+				return false;
+			}
+		}
+
+		return true;
+	}
 }
 
 bool FAnimNode_StateMachine::Initialize(
-    const FAnimStateMachineDefinition& InDefinition, 
-	const TArray<FAnimNode_Base*>& InNodes)
+    const FAnimStateMachineDefinition& InDefinition,
+    const TArray<FAnimNode_Base*>& InNodes)
 {
 	ClearTransition();
+
+	if (!ValidateAnimConditions(InDefinition))
+		return false;
+
+	ConditionResults = {};
+
+	for (int32 Index = 0;
+	     Index < InDefinition.Conditions.Num();
+	     ++Index)
+	{
+		ConditionResults.Add(0);
+	}
 
 	Definition = nullptr;
 	Nodes = {};
@@ -51,26 +291,25 @@ bool FAnimNode_StateMachine::Initialize(
 			return false;
 	}
 
-	for (const FAnimTransitionDefinition& Transition
-		: InDefinition.Transitions)
+	for (const FAnimTransitionDefinition& Transition : InDefinition.Transitions)
 	{
 		if (!InDefinition.States.IsValidIndex(Transition.To))
 			return false;
 
 		if (!Transition.bFromAnyState &&
-			!InDefinition.States.IsValidIndex(Transition.From))
+		    !InDefinition.States.IsValidIndex(Transition.From))
 		{
 			return false;
 		}
 
 		if (!std::isfinite(Transition.Blend.Duration) ||
-			Transition.Blend.Duration < 0.0f)
+		    Transition.Blend.Duration < 0.0f)
 		{
 			return false;
 		}
 
 		if (Transition.Blend.Curve != EAnimBlendCurve::Linear &&
-			Transition.Blend.Curve != EAnimBlendCurve::SmoothStep)
+		    Transition.Blend.Curve != EAnimBlendCurve::SmoothStep)
 		{
 			return false;
 		}
@@ -83,7 +322,7 @@ bool FAnimNode_StateMachine::Initialize(
 }
 
 FAnimNode_Base* FAnimNode_StateMachine::GetStateNode(
-	FAnimStateId StateId) const
+    FAnimStateId StateId) const
 {
 	if (!Definition || !Definition->States.IsValidIndex(StateId))
 		return nullptr;
@@ -100,6 +339,8 @@ FAnimNode_Base* FAnimNode_StateMachine::GetStateNode(
 void FAnimNode_StateMachine::OnEnter()
 {
 	ClearTransition();
+
+	StateElpased = 0.0f;
 
 	bHasLastOutput = false;
 	LastOutputPose = FAnimationPose();
@@ -122,6 +363,13 @@ void FAnimNode_StateMachine::OnEnter()
 
 void FAnimNode_StateMachine::Update(const FAnimationUpdateContext& Context)
 {
+	const float DeltaSeconds =
+	    std::isfinite(Context.DeltaSeconds)
+	        ? std::max(Context.DeltaSeconds, 0.0f)
+	        : 0.0f;
+
+	ProcessTransitions();
+
 	FAnimNode_Base* CurrentNode = GetStateNode(CurrentState);
 
 	if (!CurrentNode)
@@ -139,13 +387,10 @@ void FAnimNode_StateMachine::Update(const FAnimationUpdateContext& Context)
 
 	CurrentNode->Update(Context);
 
+	StateElpased += DeltaSeconds;
+
 	if (bTransitioning)
 	{
-		const float DeltaSeconds =
-		    std::isfinite(Context.DeltaSeconds)
-		        ? std::max(Context.DeltaSeconds, 0.0f)
-		        : 0.0f;
-
 		BlendElapsed += DeltaSeconds;
 
 		if (BlendElapsed >= BlendDuration)
@@ -206,8 +451,8 @@ void FAnimNode_StateMachine::Evaluate(FPoseContext& Output)
 
 			// 이 프로젝트의 함수는 첫 번째 포즈의 가중치를 받는다.
 			FAnimationRuntime::BlendTwoPosesTogether(
-				SourcePose.Pose, CurrentPose.Pose,
-				SourcePose.Curve, CurrentPose.Curve,
+			    SourcePose.Pose, CurrentPose.Pose,
+			    SourcePose.Curve, CurrentPose.Curve,
 			    1.0f - Alpha, Output.Pose, Output.Curve);
 		}
 		else
@@ -229,10 +474,10 @@ void FAnimNode_StateMachine::Evaluate(FPoseContext& Output)
 }
 
 bool FAnimNode_StateMachine::TryTransition(
-	FAnimTransitionId TransitionId)
+    FAnimTransitionId TransitionId)
 {
 	if (!Definition ||
-		!Definition->Transitions.IsValidIndex(TransitionId))
+	    !Definition->Transitions.IsValidIndex(TransitionId))
 	{
 		return false;
 	}
@@ -240,23 +485,8 @@ bool FAnimNode_StateMachine::TryTransition(
 	const FAnimTransitionDefinition& Transition =
 	    Definition->Transitions[TransitionId];
 
-	if (!Transition.bFromAnyState &&
-		Transition.From != CurrentState)
-	{
+	if (!CanTakeTransition(Transition))
 		return false;
-	}
-
-	if (Transition.To == CurrentState &&
-		!Transition.bRestartIfSameState)
-	{
-		return false;
-	}
-
-	if (!GetStateNode(CurrentState) ||
-		!GetStateNode(Transition.To))
-	{
-		return false;
-	}
 
 	ChangeState(Transition);
 	return true;
@@ -306,6 +536,14 @@ void FAnimNode_StateMachine::ChangeState(
 	}
 
 	CurrentState = Transition.To;
+	StateElpased = 0.0f;
+
+	if (bTransitioning)
+	{
+		ActiveTransitionPriority = Transition.Priority;
+		ActiveInterruptPolicy = Transition.InterruptPolicy;
+	}
+
 	NewNode->OnEnter();
 }
 
@@ -321,4 +559,109 @@ void FAnimNode_StateMachine::ClearTransition()
 
 	TransitionSourcePose = FAnimationPose();
 	TransitionSourceCurve.Reset();
+
+	ActiveTransitionPriority = 0;
+	ActiveInterruptPolicy = EAnimTransitionInterruptPolicy::Always;
+}
+
+bool FAnimNode_StateMachine::CanTakeTransition(
+    const FAnimTransitionDefinition& Transition) const
+{
+	if (!GetStateNode(CurrentState) ||
+	    !GetStateNode(Transition.To))
+	{
+		return false;
+	}
+
+	if (!Transition.bFromAnyState &&
+	    Transition.From != CurrentState)
+	{
+		return false;
+	}
+
+	if (Transition.To == CurrentState &&
+	    !Transition.bRestartIfSameState)
+	{
+		return false;
+	}
+
+	if (bTransitioning)
+	{
+		switch (ActiveInterruptPolicy)
+		{
+		case EAnimTransitionInterruptPolicy::Never:
+			return false;
+
+		case EAnimTransitionInterruptPolicy::HigherPriorityOnly:
+			if (Transition.Priority <= ActiveTransitionPriority)
+				return false;
+			break;
+
+		case EAnimTransitionInterruptPolicy::Always:
+			break;
+		}
+	}
+	return true;
+}
+
+void FAnimNode_StateMachine::ProcessTransitions()
+{
+	if (!Definition)
+		return;
+
+	const FAnimNode_Base* CurrentNode =
+	    GetStateNode(CurrentState);
+
+	if (!CurrentNode)
+		return;
+
+	const FAnimConditionContext Context{
+		Parameters,
+		CurrentNode->IsFinished(),
+		StateElpased,
+	};
+
+	if (!EvaluateAnimConditions(
+	        Definition->Conditions,
+	        Context,
+	        ConditionResults))
+	{
+		// 실제 적용 시 잘못된 파라미터 등에 대한 진단을 남긴다.
+		return;
+	}
+
+	FAnimTransitionId Selected = InvalidAnimTransitionId;
+
+	for (int32 Index = 0;
+	     Index < Definition->Transitions.Num();
+	     ++Index)
+	{
+		const FAnimTransitionDefinition& Transition =
+		    Definition->Transitions[Index];
+
+		if (!CanTakeTransition(Transition))
+			continue;
+
+		if (ConditionResults[Transition.Condition] == 0)
+			continue;
+
+		if (Selected == InvalidAnimTransitionId ||
+		    Transition.Priority >
+		        Definition->Transitions[Selected].Priority)
+		{
+			Selected = Index;
+		}
+	}
+
+	if (Selected == InvalidAnimTransitionId)
+		return;
+
+	if (!TryTransition(Selected))
+		return;
+
+	const FAnimTransitionDefinition& Transition =
+	    Definition->Transitions[Selected];
+
+	for (const FName& TriggerName : Transition.ConsumeTriggers)
+		Parameters.ConsumeTrigger(TriggerName);
 }

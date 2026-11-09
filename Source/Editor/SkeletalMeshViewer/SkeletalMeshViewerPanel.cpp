@@ -86,7 +86,7 @@ bool FSkeletalMeshViewerPanel::OpenAsset(const FString& Path)
 void FSkeletalMeshViewerPanel::ReleaseResources()
 {
 	BoneGizmo.SetTarget(nullptr, false);
-	// 클립을 지우기 전에 인스턴스가 가리키지 않게 떼어 낸다. (메시가 없으면 인스턴스도 없다)
+	// 클립을 지우기 전에 인스턴스에서 먼저 떼어 낸다.
 	if (UAnimSingleNodeInstance* AnimInstance = GetPreviewAnimInstance())
 	{
 		AnimInstance->SetAnimationAsset(nullptr);
@@ -165,8 +165,7 @@ void FSkeletalMeshViewerPanel::SetSelectedMesh(USkeletalMesh* Mesh)
 	bFrameRequested = Mesh != nullptr;
 	FocusOnMesh();
 
-	// 메시가 바뀌면 컴포넌트가 AnimInstance를 새로 만들므로 클립 목록과 선택도 새 메시 기준으로 다시 맞춘다.
-	// (열기, 탭 전환, 탭 닫기 모두 여기를 지난다)
+	// 메시가 바뀌면 AnimInstance가 새로 만들어지므로 클립과 선택을 다시 맞춘다.
 	BuildPreviewTestClips();
 	SelectPreviewClip(-1);
 }
@@ -945,7 +944,6 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 		Render3DBones(ViewProj);
 
 		// 3단계: 에디터와 100% 동일한 3D 기즈모(FGizmoRenderer)를 선택된 본 위치에 렌더링
-		// 애니메이션 미리보기 중에는 기즈모 편집이 다음 Tick에 덮어써지므로 그리지 않는다. (본 선택 표시는 유지)
 		if (!HasPreviewClip() && GizmoRenderer && BoneGizmoTarget && SelectedBoneIndex >= 0 && SelectedBoneIndex < static_cast<int32>(SelectedMesh->MeshData.Bones.Num()))
 		{
 			if (!BoneGizmo.IsUsing())
@@ -1042,7 +1040,6 @@ void FSkeletalMeshViewerPanel::OnRender()
 		ImGuiID LeftNode = ImGui::DockBuilderSplitNode(CenterNode, ImGuiDir_Left, 0.22f, nullptr, &CenterNode);
 		ImGuiID RightNode = ImGui::DockBuilderSplitNode(CenterNode, ImGuiDir_Right, 0.28f, nullptr, &CenterNode);
 		ImGuiID RightBottomNode = ImGui::DockBuilderSplitNode(RightNode, ImGuiDir_Down, 0.50f, nullptr, &RightNode);
-		// 좌우 패널을 떼어 낸 뒤 남은 가운데 열만 아래로 나눈다 (언리얼 애니메이션 에디터처럼 좌우 패널은 위아래로 길게 유지)
 		ImGuiID CenterBottomNode = ImGui::DockBuilderSplitNode(CenterNode, ImGuiDir_Down, 0.25f, nullptr, &CenterNode);
 
 		ImGui::DockBuilderDockWindow("Skeleton Tree", LeftNode);
@@ -1187,7 +1184,6 @@ void FSkeletalMeshViewerPanel::DrawViewportWindow(const ImGuiWindowClass& Window
 				IM_COL32(0, 0, 0, 160), 4.0f);
 			DrawList->AddText(ImVec2(CursorPos.x + 12, CursorPos.y + 10), IM_COL32(230, 230, 230, 240), HintText);
 
-			// 애니메이션 미리보기 중이면 안내 줄 아래에 편집 잠금 배지를 표시한다.
 			if (HasPreviewClip())
 			{
 				const char* LockText = "ANIMATION PREVIEW  -  editing locked (select None in Animation to edit)";
@@ -1864,11 +1860,8 @@ void FSkeletalMeshViewerPanel::DrawPreviewSettingsWindow(const ImGuiWindowClass&
 
 namespace
 {
-	// 미리보기 모드(클립 선택됨)에서 편집·저장 UI를 막을 때 보여 줄 안내
 	constexpr const char* PreviewLockedTooltip = "Animation preview: select None in the Animation window to edit";
 
-	// 직전 항목이 잠겨 있으면 잠금 안내를, 아니면 원래 툴팁(NormalTooltip, nullptr이면 없음)을 띄운다.
-	// BeginDisabled된 항목은 기본 IsItemHovered가 false라서 AllowWhenDisabled로 확인한다.
 	void ShowEditTooltip(bool bLocked, const char* NormalTooltip = nullptr)
 	{
 		if (bLocked)
@@ -1884,21 +1877,30 @@ namespace
 		}
 	}
 
-	// 전송 바 아이콘. 엔진 폰트에 아이콘 글리프가 없어서 DrawList로 직접 그린다.
 	enum class ETransportIcon : uint8
 	{
-		Play,       // ▶
-		Pause,      // ❚❚
-		Reverse,    // ◀
-		ToFirst,    // |◀◀
-		ToLast,     // ▶▶|
-		StepBack,   // |◀
-		StepForward,// ▶|
-		Loop,       // 원형 화살표
+		Play,
+		Pause,
+		Reverse,
+		ToFirst,
+		ToLast,
+		StepBack,
+		StepForward,
+		Loop,
 	};
 
-	// 정사각형 아이콘 버튼. bActive면 토글이 켜진 상태로 강조한다. 눌렸으면 true.
-	// BeginDisabled 안에서는 눌리지 않고, 색은 GetColorU32가 비활성 알파를 적용한다.
+	std::string FormatPlaySpeed(float Speed)
+	{
+		char Buffer[32];
+		snprintf(Buffer, sizeof(Buffer), "%.2f", Speed);
+		std::string Text(Buffer);
+		while (Text.size() > 3 && Text.back() == '0' && Text[Text.size() - 2] != '.')
+		{
+			Text.pop_back();
+		}
+		return "x" + Text;
+	}
+
 	bool DrawTransportButton(const char* Id, ETransportIcon Icon, bool bActive)
 	{
 		const float Size = ImGui::GetFrameHeight();
@@ -1919,10 +1921,9 @@ namespace
 		const ImU32 IconCol = ImGui::GetColorU32(bActive ? ImGuiCol_CheckMark : ImGuiCol_Text);
 		const float Cx = (Min.x + Max.x) * 0.5f;
 		const float Cy = (Min.y + Max.y) * 0.5f;
-		const float R = Size * 0.28f;     // 아이콘 반경
-		const float Bar = R * 0.35f;      // 막대 두께
+		const float R = Size * 0.28f;
+		const float Bar = R * 0.35f;
 
-		// 오른쪽(Dir=+1) 또는 왼쪽(Dir=-1)을 향한 삼각형. Tip은 꼭짓점 x.
 		auto Triangle = [&](float TipX, float Dir, float Width)
 		{
 			const float BaseX = TipX - Dir * Width;
@@ -1947,7 +1948,7 @@ namespace
 			break;
 		case ETransportIcon::ToFirst:
 			VerticalBar(Cx - R);
-			Triangle(Cx - R + Bar, -1.0f, R);   // 막대에 붙은 왼쪽 삼각형 두 개
+			Triangle(Cx - R + Bar, -1.0f, R);
 			Triangle(Cx, -1.0f, R);
 			break;
 		case ETransportIcon::ToLast:
@@ -1965,7 +1966,6 @@ namespace
 			break;
 		case ETransportIcon::Loop:
 		{
-			// 3/4 원호 + 끝의 화살촉
 			const float Pi = 3.14159265f;
 			const float A0 = -Pi * 0.35f;
 			const float A1 = Pi * 1.25f;
@@ -1974,7 +1974,6 @@ namespace
 
 			const ImVec2 End(Cx + std::cos(A1) * R, Cy + std::sin(A1) * R);
 			const float Head = R * 0.55f;
-			// 원호 진행 방향(접선) 쪽으로 향하는 화살촉
 			const float Tx = -std::sin(A1), Ty = std::cos(A1);
 			const float Nx = std::cos(A1), Ny = std::sin(A1);
 			DrawList->AddTriangleFilled(
@@ -1990,7 +1989,6 @@ namespace
 	}
 }
 
-// 시퀀스 뷰어 창: 클립 선택, 타임라인(5단계), 전송 바
 void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& WindowClass)
 {
 	ImGui::SetNextWindowClass(&WindowClass);
@@ -1998,7 +1996,6 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 	{
 		UAnimSingleNodeInstance* AnimInstance = GetPreviewAnimInstance();
 
-		// SingleNode 인스턴스가 없으면 클립을 재생할 수 없으므로 선택 UI를 막는다.
 		if (!AnimInstance)
 		{
 			ImGui::TextDisabled("Preview has no single-node anim instance. Clip playback unavailable.");
@@ -2006,7 +2003,6 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 			return;
 		}
 
-		// ---- 클립 선택 콤보 (None + 클립 목록) ----
 		const bool bHasSelection = SelectedClipIndex >= 0 && SelectedClipIndex < PreviewClips.Num();
 		const char* PreviewLabel = bHasSelection ? PreviewClips[SelectedClipIndex].Name.c_str() : "None";
 
@@ -2016,7 +2012,6 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 		ImGui::SetNextItemWidth(260.0f);
 		if (ImGui::BeginCombo("##PreviewClip", PreviewLabel))
 		{
-			// None: 애니메이션을 끄고 편집 모드로 돌아간다.
 			if (ImGui::Selectable("None", !bHasSelection) && bHasSelection)
 			{
 				SelectPreviewClip(-1);
@@ -2043,8 +2038,7 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 			ImGui::EndCombo();
 		}
 
-		// ---- 선택된 클립 정보 ----
-		// 콤보에서 선택이 바뀌었을 수 있으므로 bHasSelection을 재사용하지 않고 다시 확인한다.
+		// 콤보에서 선택이 바뀌었을 수 있어 다시 확인한다.
 		ImGui::SameLine();
 		const UAnimSequence* Clip = (SelectedClipIndex >= 0 && SelectedClipIndex < PreviewClips.Num())
 			? PreviewClips[SelectedClipIndex].Sequence.get()
@@ -2062,23 +2056,55 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 			ImGui::TextDisabled("No animation clip selected (edit mode)");
 		}
 
-		// ---- (5단계) 타임라인 자리 ----
+		DrawPreviewTimeline(Model);
 
-		// ---- 전송 바: [재생/일시정지] [반복]  Frame n / N   t / T ----
 		ImGui::Separator();
 		ImGui::BeginDisabled(Model == nullptr);
 		{
 			const bool bPlaying = Model && AnimInstance->IsPlaying();
-			if (DrawTransportButton("##PlayPause", bPlaying ? ETransportIcon::Pause : ETransportIcon::Play, false))
+			const bool bPlayingForward = bPlaying && PreviewPlayDirection > 0;
+			const bool bPlayingReverse = bPlaying && PreviewPlayDirection < 0;
+			const float ClipLength = Model ? Model->GetPlayLength() : 0.0f;
+
+			auto TransportButton = [](const char* Id, ETransportIcon Icon, const char* Tooltip) -> bool
 			{
-				TogglePreviewPlayback();
+				const bool bPressed = DrawTransportButton(Id, Icon, false);
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("%s", Tooltip);
+				}
+				ImGui::SameLine();
+				return bPressed;
+			};
+
+			if (TransportButton("##ToFirst", ETransportIcon::ToFirst, "To Front"))
+			{
+				ScrubPreviewToTime(0.0f);
 			}
-			if (ImGui::IsItemHovered())
+			if (TransportButton("##StepBack", ETransportIcon::StepBack, "Previous Frame"))
 			{
-				ImGui::SetTooltip(bPlaying ? "Pause" : "Play");
+				StepPreviewFrame(-1);
+			}
+			if (TransportButton("##Reverse", bPlayingReverse ? ETransportIcon::Pause : ETransportIcon::Reverse,
+				bPlayingReverse ? "Pause" : "Play Reverse"))
+			{
+				PlayPreviewInDirection(-1);
+			}
+			if (TransportButton("##PlayPause", bPlayingForward ? ETransportIcon::Pause : ETransportIcon::Play,
+				bPlayingForward ? "Pause" : "Play Forward"))
+			{
+				PlayPreviewInDirection(+1);
+			}
+			if (TransportButton("##StepForward", ETransportIcon::StepForward, "Next Frame"))
+			{
+				StepPreviewFrame(+1);
+			}
+			if (TransportButton("##ToLast", ETransportIcon::ToLast, "To End"))
+			{
+				ScrubPreviewToTime(ClipLength);
 			}
 
-			ImGui::SameLine();
+			ImGui::SameLine(0.0f, 12.0f);
 			const bool bLooping = AnimInstance->IsLooping();
 			if (DrawTransportButton("##Loop", ETransportIcon::Loop, bLooping))
 			{
@@ -2087,6 +2113,54 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 			if (ImGui::IsItemHovered())
 			{
 				ImGui::SetTooltip(bLooping ? "Looping: On" : "Looping: Off");
+			}
+
+			ImGui::SameLine();
+			const std::string SpeedLabel = FormatPlaySpeed(PreviewPlaySpeed) + "###PlaybackSpeed";
+			if (ImGui::Button(SpeedLabel.c_str()))
+			{
+				ImGui::OpenPopup("##PlaybackSpeedPopup");
+			}
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Playback Speed");
+			}
+			if (ImGui::BeginPopup("##PlaybackSpeedPopup"))
+			{
+				static constexpr float SpeedPresets[] = { 0.1f, 0.25f, 0.5f, 0.75f, 1.0f, 2.0f, 5.0f, 10.0f };
+
+				ImGui::TextDisabled("Playback Speed");
+				ImGui::Separator();
+
+				bool bIsPreset = false;
+				for (const float Preset : SpeedPresets)
+				{
+					bIsPreset |= std::fabs(PreviewPlaySpeed - Preset) < 1e-4f;
+				}
+
+				for (const float Preset : SpeedPresets)
+				{
+					const bool bSelected = std::fabs(PreviewPlaySpeed - Preset) < 1e-4f;
+					if (ImGui::RadioButton(FormatPlaySpeed(Preset).c_str(), bSelected))
+					{
+						SetPreviewPlaySpeed(Preset);
+						ImGui::CloseCurrentPopup();
+					}
+				}
+				if (ImGui::RadioButton("xCustom", !bIsPreset))
+				{
+					SetPreviewPlaySpeed(PreviewCustomSpeed);
+					PreviewCustomSpeed = PreviewPlaySpeed;
+				}
+
+				ImGui::SetNextItemWidth(80.0f);
+				ImGui::InputFloat("Custom Speed", &PreviewCustomSpeed, 0.0f, 0.0f, "%.2f");
+				if (ImGui::IsItemDeactivatedAfterEdit())
+				{
+					SetPreviewPlaySpeed(PreviewCustomSpeed);
+					PreviewCustomSpeed = PreviewPlaySpeed;
+				}
+				ImGui::EndPopup();
 			}
 
 			ImGui::SameLine(0.0f, 16.0f);
@@ -2109,6 +2183,108 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 	ImGui::End();
 }
 
+void FSkeletalMeshViewerPanel::DrawPreviewTimeline(const UAnimDataModel* Model)
+{
+	constexpr float RulerHeight = 18.0f;
+	constexpr float TrackHeight = 28.0f;
+	constexpr float SidePadding = 10.0f;
+
+	const float Width = ImGui::GetContentRegionAvail().x;
+	if (Width <= SidePadding * 2.0f + 1.0f)
+	{
+		return;
+	}
+
+	const ImVec2 Origin = ImGui::GetCursorScreenPos();
+	const ImVec2 Size(Width, RulerHeight + TrackHeight);
+	const ImVec2 Max(Origin.x + Size.x, Origin.y + Size.y);
+	const float RulerBottom = Origin.y + RulerHeight;
+
+	ImGui::InvisibleButton("##PreviewTimeline", Size);
+	const bool bHovered = ImGui::IsItemHovered();
+	const bool bActive = ImGui::IsItemActive();
+
+	ImDrawList* DrawList = ImGui::GetWindowDrawList();
+	DrawList->AddRectFilled(Origin, ImVec2(Max.x, RulerBottom), ImGui::GetColorU32(ImGuiCol_FrameBg));
+	DrawList->AddRectFilled(ImVec2(Origin.x, RulerBottom), Max, ImGui::GetColorU32(ImGuiCol_FrameBg, 0.5f));
+	DrawList->AddLine(ImVec2(Origin.x, RulerBottom), ImVec2(Max.x, RulerBottom), ImGui::GetColorU32(ImGuiCol_Border));
+
+	UAnimSingleNodeInstance* AnimInstance = GetPreviewAnimInstance();
+	if (!Model || !AnimInstance || !HasPreviewClip())
+	{
+		return;
+	}
+
+	const int32 NumFrames = std::max(Model->GetNumberOfFrames(), 1);
+	const float Length = Model->GetPlayLength();
+	const float FPS = Model->GetFrameRate().AsDecimal();
+	const float X0 = Origin.x + SidePadding;
+	const float X1 = Max.x - SidePadding;
+	const float Span = X1 - X0;
+	const float PixelsPerFrame = Span / static_cast<float>(NumFrames);
+
+	auto FrameToX = [&](float Frame) { return X0 + (Frame / static_cast<float>(NumFrames)) * Span; };
+	auto XToTime = [&](float X) { return std::clamp((X - X0) / Span, 0.0f, 1.0f) * Length; };
+
+	if (bActive)
+	{
+		ScrubPreviewToTime(XToTime(ImGui::GetIO().MousePos.x));
+	}
+
+	const float MinLabelSpacing = ImGui::CalcTextSize(std::to_string(NumFrames).c_str()).x + 12.0f;
+	int32 MajorStep = 1;
+	for (const int32 Candidate : { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000 })
+	{
+		MajorStep = Candidate;
+		if (Candidate * PixelsPerFrame >= MinLabelSpacing)
+		{
+			break;
+		}
+	}
+	int32 MinorStep = (MajorStep % 5 == 0) ? MajorStep / 5 : ((MajorStep % 2 == 0) ? MajorStep / 2 : MajorStep);
+	if (MinorStep * PixelsPerFrame < 4.0f)
+	{
+		MinorStep = MajorStep;
+	}
+
+	const ImU32 TickCol = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+	const ImU32 LabelCol = ImGui::GetColorU32(ImGuiCol_Text);
+	const ImU32 GridCol = ImGui::GetColorU32(ImGuiCol_Border, 0.6f);
+	for (int32 Frame = 0; Frame <= NumFrames; Frame += MinorStep)
+	{
+		const float X = FrameToX(static_cast<float>(Frame));
+		if (Frame % MajorStep == 0)
+		{
+			DrawList->AddLine(ImVec2(X, RulerBottom - 7.0f), ImVec2(X, RulerBottom), TickCol);
+			DrawList->AddLine(ImVec2(X, RulerBottom), ImVec2(X, Max.y), GridCol);
+			DrawList->AddText(ImVec2(X + 3.0f, Origin.y + 1.0f), LabelCol, std::to_string(Frame).c_str());
+		}
+		else
+		{
+			DrawList->AddLine(ImVec2(X, RulerBottom - 3.0f), ImVec2(X, RulerBottom), TickCol);
+		}
+	}
+	DrawList->AddLine(ImVec2(X1, Origin.y), ImVec2(X1, Max.y), TickCol);
+
+	const ImU32 PlayheadCol = IM_COL32(230, 60, 50, 255);
+	const float PlayheadX = FrameToX(AnimInstance->GetPosition() * FPS);
+	DrawList->AddLine(ImVec2(PlayheadX, Origin.y), ImVec2(PlayheadX, Max.y), PlayheadCol, 2.0f);
+
+	const std::string FrameLabel = std::to_string(GetPreviewCurrentFrame());
+	const ImVec2 LabelSize = ImGui::CalcTextSize(FrameLabel.c_str());
+	const float HandleW = LabelSize.x + 8.0f;
+	const float HandleX = std::clamp(PlayheadX - HandleW * 0.5f, Origin.x, Max.x - HandleW);
+	DrawList->AddRectFilled(ImVec2(HandleX, Origin.y), ImVec2(HandleX + HandleW, RulerBottom), PlayheadCol, 3.0f);
+	DrawList->AddText(ImVec2(HandleX + 4.0f, Origin.y + (RulerHeight - LabelSize.y) * 0.5f), IM_COL32(255, 255, 255, 255), FrameLabel.c_str());
+
+	if (bHovered && !bActive)
+	{
+		const float HoverTime = XToTime(ImGui::GetIO().MousePos.x);
+		const int32 HoverFrame = std::clamp(static_cast<int32>(std::floor(HoverTime * FPS)), 0, NumFrames);
+		ImGui::SetTooltip("Frame %d  (%.2fs)", HoverFrame, HoverTime);
+	}
+}
+
 void FSkeletalMeshViewerPanel::DrawToolbarUI()
 {
 	if (ImGui::BeginMenuBar())
@@ -2118,7 +2294,6 @@ void FSkeletalMeshViewerPanel::DrawToolbarUI()
 		{
 			if (SelectedMesh)
 			{
-				// 미리보기 모드에서는 애니메이션 프레임이 RefPose로 저장될 수 있으므로 막는다.
 				const bool bEditLocked = HasPreviewClip();
 				if (ImGui::MenuItem("Save Asset (.bin)", "Ctrl+S", false, !bEditLocked))
 				{
@@ -2423,7 +2598,6 @@ void FSkeletalMeshViewerPanel::DrawBoneHierarchyUI()
 		return;
 	}
 
-	// 미리보기 모드에서는 다음 Tick에 애니메이션이 덮어쓰므로 막는다. (본 선택은 계속 허용)
 	const bool bEditLocked = HasPreviewClip();
 	ImGui::BeginDisabled(bEditLocked);
 	if (ImGui::Button("Reset All Bones to Bind Pose", ImVec2(-1.0f, 0.0f)))
@@ -2494,7 +2668,6 @@ void FSkeletalMeshViewerPanel::DrawBoneHierarchyUI()
 			ImGui::Text("Parent: None (Root Bone)");
 		}
 
-		// 미리보기 모드: 값은 애니메이션 결과를 실시간으로 보여 주되(읽기 전용) 편집은 막는다.
 		const bool bEditLocked = HasPreviewClip();
 		ImGui::BeginDisabled(bEditLocked);
 		if (PreviewComponent)
@@ -2696,12 +2869,10 @@ void FSkeletalMeshViewerPanel::BuildPreviewTestClips()
 
 		UAnimDataModel* Model = Clip.Sequence->GetDataModel();
 		Model->SetFrameRate(FFrameRate(30, 1));
-		Model->SetNumberOfFrames(NumFrames); // 키 = 프레임 + 1
+		Model->SetNumberOfFrames(NumFrames);
 		return Model;
 	};
 
-	// TrackName 트랙에 BaseRot에서 Axis로 AngleRad만큼 도는 회전 키를 넣는다.
-	// bPingPong이면 0 → 최대 → 0으로 왕복해서 반복 재생 시 끊기지 않는다.
 	auto AddRotationTrack = [](UAnimDataModel* Model, const FString& TrackName, const FQuat& BaseRot,
 	                           const FVector& Axis, float AngleRad, bool bPingPong)
 	{
@@ -2729,13 +2900,11 @@ void FSkeletalMeshViewerPanel::BuildPreviewTestClips()
 
 	constexpr float HalfPi = 3.14159265f * 0.5f;
 
-	// 1) 1초, 본 1번을 Z축 90° 회전 (TEMP 2-5와 같은 클립: 0.5초에서 45°)
 	{
 		UAnimDataModel* Model = AddClip("Test_Rotate1s", 30);
 		AddRotationTrack(Model, Bones[1].Name, RefRotOf(1), FVector(0.0f, 0.0f, 1.0f), HalfPi, false);
 	}
 
-	// 2) 3초, 서로 떨어진 본 여러 개를 다른 축으로 왕복 회전
 	{
 		UAnimDataModel* Model = AddClip("Test_Multi3s", 90);
 		const int32 BoneCount = Bones.Num();
@@ -2744,7 +2913,6 @@ void FSkeletalMeshViewerPanel::BuildPreviewTestClips()
 
 		for (int32 i = 0; i < 3; ++i)
 		{
-			// 본이 적은 메시에서 같은 본이 겹치면 건너뛴다.
 			bool bDuplicate = false;
 			for (int32 j = 0; j < i; ++j)
 			{
@@ -2757,7 +2925,6 @@ void FSkeletalMeshViewerPanel::BuildPreviewTestClips()
 		}
 	}
 
-	// 3) 1초, 메시에 없는 본 이름 트랙 → 매칭 실패라 바인드 포즈 그대로 보여야 한다.
 	{
 		UAnimDataModel* Model = AddClip("Test_Mismatch", 30);
 		AddRotationTrack(Model, "NotABone_Mismatch", FQuat(), FVector(0.0f, 0.0f, 1.0f), HalfPi, false);
@@ -2788,13 +2955,13 @@ void FSkeletalMeshViewerPanel::SelectPreviewClip(int32 ClipIndex)
 	{
 		AnimInstance->SetAnimationAsset(PreviewClips[ClipIndex].Sequence.get());
 		AnimInstance->SetLooping(true);
-		AnimInstance->SetPlayRate(1.0f);
+		PreviewPlayDirection = 1;
+		ApplyPreviewPlayRate();
 		AnimInstance->SetPlaying(true);
 		PreviewComponent->RefreshAnimationPose();
 	}
 	SelectedClipIndex = ClipIndex;
 }
-
 
 bool FSkeletalMeshViewerPanel::HasPreviewClip() const
 {
@@ -2871,4 +3038,90 @@ int32 FSkeletalMeshViewerPanel::GetPreviewCurrentFrame() const
 	const float ClipFPS = Model->GetFrameRate().AsDecimal();
 	const int32 Frame = static_cast<int32>(std::floor(AnimSingleNodeInstance->GetPosition() * ClipFPS));
 	return (std::clamp(Frame, 0, Model->GetNumberOfFrames()));
+}
+
+void FSkeletalMeshViewerPanel::ScrubPreviewToTime(float Seconds)
+{
+	UAnimSingleNodeInstance* AnimSingleNodeInstance = GetPreviewAnimInstance();
+	if (!AnimSingleNodeInstance || !HasPreviewClip())
+	{
+		return;
+	}
+
+	AnimSingleNodeInstance->SetPlaying(false);
+	AnimSingleNodeInstance->SetPosition(Seconds);
+	PreviewComponent->RefreshAnimationPose();
+}
+
+void FSkeletalMeshViewerPanel::ApplyPreviewPlayRate()
+{
+	UAnimSingleNodeInstance* AnimSingleNodeInstance = GetPreviewAnimInstance();
+	if (!AnimSingleNodeInstance)
+	{
+		return;
+	}
+	AnimSingleNodeInstance->SetPlayRate(static_cast<float>(PreviewPlayDirection) * PreviewPlaySpeed);
+}
+
+void FSkeletalMeshViewerPanel::SetPreviewPlaySpeed(float Speed)
+{
+	PreviewPlaySpeed = std::clamp(Speed, 0.01f, 100.0f);
+	ApplyPreviewPlayRate();
+}
+
+void FSkeletalMeshViewerPanel::PlayPreviewInDirection(int32 Direction)
+{
+	UAnimSingleNodeInstance* AnimSingleNodeInstance = GetPreviewAnimInstance();
+	if (!AnimSingleNodeInstance || !HasPreviewClip())
+	{
+		return;
+	}
+
+	if (AnimSingleNodeInstance->IsPlaying() && PreviewPlayDirection == Direction)
+	{
+		AnimSingleNodeInstance->SetPlaying(false);
+		return;
+	}
+	PreviewPlayDirection = Direction;
+	ApplyPreviewPlayRate();
+	if (!AnimSingleNodeInstance->IsLooping() && IsPreviewAtEnd())
+	{
+		if (PreviewPlayDirection == 1)
+		{
+			AnimSingleNodeInstance->SetPosition(0.0f);
+		}
+		else
+		{
+			AnimSingleNodeInstance->SetPosition(AnimSingleNodeInstance->GetLength());
+		}
+	}
+	AnimSingleNodeInstance->SetPlaying(true);
+}
+
+void FSkeletalMeshViewerPanel::StepPreviewFrame(int32 Delta)
+{
+	UAnimSingleNodeInstance* AnimSingleNodeInstance = GetPreviewAnimInstance();
+	if (!AnimSingleNodeInstance || !HasPreviewClip() || Delta == 0)
+	{
+		return;
+	}
+
+	const UAnimDataModel* Model = PreviewClips[SelectedClipIndex].Sequence->GetDataModel();
+	const float ClipFPS = Model->GetFrameRate().AsDecimal();
+	if (ClipFPS <= 0.0f)
+	{
+		return;
+	}
+
+	const float ExactFrame = AnimSingleNodeInstance->GetPosition() * ClipFPS;
+	const int32 CurrentFrame = static_cast<int32>(std::floor(ExactFrame));
+
+	int32 TargetFrame = CurrentFrame + Delta;
+	if (Delta < 0 && (ExactFrame - static_cast<float>(CurrentFrame)) > 1e-3f)
+	{
+		TargetFrame = CurrentFrame + Delta + 1;
+	}
+
+	TargetFrame = std::clamp(TargetFrame, 0, Model->GetNumberOfFrames());
+	ScrubPreviewToTime(static_cast<float>(TargetFrame) / ClipFPS);
 }

@@ -68,7 +68,11 @@ struct FProperty
 	using FIdenticalValueFunction = bool (*)(const void* Left, const void* Right);
 	// 직렬화 함수
 	using FSerializeValueFunction = void (*)(FStructuredArchive::FSlot Slot, void* ValueAddress);
-    FName Name;
+    // 객체 읽기 함수
+	using FGetObjectValueFunction = UObject* (*)(const void* ValueAddress);
+	// 객체 쓰기 함수
+	using FSetObjectValueFunction = void (*)(void* ValueAddress, UObject* Object);
+	FName Name;
     EPropertyType Type;
     size_t Offset;
     size_t Size;
@@ -80,6 +84,8 @@ struct FProperty
 	FCopyValueFunction CopyFunction = nullptr;
 	FIdenticalValueFunction IdenticalFunction = nullptr;
 	FSerializeValueFunction SerializeFunction = nullptr;
+	FGetObjectValueFunction GetObjectFunction = nullptr;
+	FSetObjectValueFunction SetObjectFunction = nullptr;
 
 	// 객체 내부의 프로퍼티 값 주소 조회
 	template <typename TValueType = void>
@@ -113,6 +119,18 @@ struct FProperty
 		SerializeFunction(Slot, ValueAddress);
 	}
 
+	// 타입을 보존한 객체 프로퍼티 참조 조회
+	UObject* GetObjectPropertyValue(const void* ValueAddress) const
+	{
+		return GetObjectFunction(ValueAddress);
+	}
+
+	// 실제 선언 타입에 맞춘 객체 프로퍼티 참조 교체
+	void SetObjectPropertyValue(void* ValueAddress, UObject* Object) const
+	{
+		SetObjectFunction(ValueAddress, Object);
+	}
+
 	// 실제 C++ 타입의 값 연산 연결
 	template <typename T>
 	void InitializeValueOperations()
@@ -126,5 +144,21 @@ struct FProperty
 		{
 			return *static_cast<const T*>(Left) == *static_cast<const T*>(Right);
 		};
+
+		//객체 포인터 타입일때만 추가
+		if constexpr (std::is_pointer_v<T> 
+			&& std::is_base_of_v<UObject, std::remove_pointer_t<T>>)
+		{
+			GetObjectFunction = [](const void* ValueAddress) -> UObject*
+			{
+				return *static_cast<T const*>(ValueAddress);
+			};
+
+			SetObjectFunction = [](void* ValueAddress, UObject* Object)
+			{
+				*static_cast<T*>(ValueAddress) = static_cast<T>(Object);
+			};
+		}
+
 	}
 };

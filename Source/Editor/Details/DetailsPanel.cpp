@@ -220,7 +220,7 @@ namespace
 
 		UTexture2D* Texture = *TexturePtr;
 
-		ImGui::PushID(TexturePtr);
+		ImGui::PushID("TextureProperty");
 
 		if (Texture && Texture->GetResource())
 		{
@@ -855,221 +855,6 @@ namespace
 		}
 	}
 
-	// UClass에 등록된 프로퍼티를 타입에 맞는 위젯으로 그린다
-	void DrawProperty(UObject* Object, const FProperty& Property, ImFont* CustomFont)
-	{
-		void* ValuePtr = reinterpret_cast<char*>(Object) + Property.Offset;
-		const FString PropertyName = Property.Name.ToString();
-		const FString Label = "##" + PropertyName;
-
-		// 패널이 넓으면 라벨 | 값을 한 줄에, 좁거나 라벨이 길면 라벨 아래 줄에 값을 놓는다.
-		const float StartX = ImGui::GetCursorPosX();
-		const float AvailableWidth = ImGui::GetContentRegionAvail().x;
-		const float LabelWidth = AvailableWidth * 0.45f;
-
-		const bool bInline = Property.Type != EPropertyType::Transform && AvailableWidth >= 260.0f && ImGui::CalcTextSize(PropertyName.c_str()).x < LabelWidth;
-
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextWrapped("%s", PropertyName.c_str());
-
-		if (bInline)
-			ImGui::SameLine(StartX + LabelWidth);
-
-		ImGui::SetNextItemWidth(-1.0f);
-
-		bool bChanged = false;
-
-		switch (Property.Type)
-		{
-		case EPropertyType::Float:
-			bChanged = ImGui::DragFloat(Label.c_str(), static_cast<float*>(ValuePtr), 0.1f);
-			break;
-		case EPropertyType::Int:
-			bChanged = ImGui::DragInt(Label.c_str(), static_cast<int*>(ValuePtr), 1.0f);
-			break;
-		case EPropertyType::Bool:
-			bChanged = ImGui::Checkbox(Label.c_str(), static_cast<bool*>(ValuePtr));
-			break;
-		case EPropertyType::Vector:
-		{
-			FVector* Value = static_cast<FVector*>(ValuePtr);
-			bChanged = ImGui::DragFloat3(Label.c_str(), Value->V, 0.1f);
-			break;
-		}
-		case EPropertyType::Rotator:
-		{
-			FRotator* Value = static_cast<FRotator*>(ValuePtr);
-			// Transform의 Rotation과 같은 X/Y/Z 축 순서로 보여준다.
-			float Euler[3] = { Value->Roll, Value->Pitch, Value->Yaw };
-			if (ImGui::DragFloat3(Label.c_str(), Euler, 0.1f))
-			{
-				Value->Roll = Euler[0];
-				Value->Pitch = Euler[1];
-				Value->Yaw = Euler[2];
-			}
-			break;
-		}
-
-
-		case EPropertyType::Vector4:
-		{
-			FVector4* Value = static_cast<FVector4*>(ValuePtr);
-			bChanged = ImGui::DragFloat4(Label.c_str(), &Value->X, 0.1f);
-			break;
-		}
-
-		case EPropertyType::Color:
-		{
-			FColor* C = static_cast<FColor*>(ValuePtr);
-			float V[4] = { C->R / 255.f, C->G / 255.f, C->B / 255.f, C->A / 255.f };
-			if (ImGui::ColorEdit4(Label.c_str(), V))
-			{
-				*C = FColor(uint8(V[0] * 255.f + 0.5f), uint8(V[1] * 255.f + 0.5f),
-					uint8(V[2] * 255.f + 0.5f), uint8(V[3] * 255.f + 0.5f));
-				bChanged = true;
-			}
-			break;
-		}
-
-		case EPropertyType::LinearColor:
-		{
-			// 타입은 Vector4와 같고 위젯만 색상 선택기다
-			FLinearColor* Value = static_cast<FLinearColor*>(ValuePtr);
-			bChanged = ImGui::ColorEdit4(Label.c_str(), &Value->R);
-			break;
-		}
-		case EPropertyType::String:
-		{
-			FString* Value = static_cast<FString*>(ValuePtr);
-
-			char Buffer[256] = {};
-			strncpy_s(Buffer, Value->c_str(), sizeof(Buffer) - 1);
-			if (CustomFont) ImGui::PushFont(CustomFont);
-			if (ImGui::InputText(Label.c_str(), Buffer, sizeof(Buffer)))
-			{
-				*Value = Buffer;
-			}
-			if (CustomFont) ImGui::PopFont();
-			break;
-		}
-		case EPropertyType::Transform:
-		{
-			FTransform* Value = static_cast<FTransform*>(ValuePtr);
-
-			ImGui::NewLine();
-
-			FTransform Transform = *Value;
-			bool bChange = false;
-
-			bChanged |= DrawVector3Controller("Location", Value->Location.V, 0.0f, 55.0f);
-			bChanged |= DrawRotatorAsXYZ("Rotation", Value->Rotation);
-			bChanged |= DrawVector3Controller("Scale", Value->Scale.V, 1.0f, 55.0f);
-
-			//if (bChange)
-			//{
-			//	// 씬 컴포넌트면 SetTransform을 거치고, 아니면 값을 직접 쓴다
-			//	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
-			//	{
-			//		SceneComponent->SetTransform(Transform);
-			//	}
-			//	else
-			//	{
-			//		*Value = Transform;
-			//	}
-			//}
-			break;
-		}
-		case EPropertyType::Object:
-		{
-			UObject** ObjPtr = static_cast<UObject**>(ValuePtr);
-
-			if (Property.Class == UMaterial::StaticClass())
-			{
-				DrawTextureSlot(reinterpret_cast<UMaterial**>(ObjPtr), 0);
-			}
-			else if (Property.Class == UTexture2D::StaticClass())
-			{
-				bChanged = DrawTextureProperty(reinterpret_cast<UTexture2D**>(ObjPtr));
-			}
-			else if (Property.Class == UFont::StaticClass())
-			{
-				DrawFontSlot(Object, reinterpret_cast<UFont**>(ObjPtr));
-			}
-			else if (Property.Class == UStaticMesh::StaticClass())
-			{
-				DrawMeshSlot(Object, reinterpret_cast<UStaticMesh**>(ObjPtr));
-			}
-			else if (Property.Class == USkeletalMesh::StaticClass())
-			{
-				DrawSkeletalMeshSlot(Object, reinterpret_cast<USkeletalMesh**>(ObjPtr));
-			}
-			break;
-		}
-		default:
-			ImGui::TextDisabled("(Unsupported)");
-			break;
-		}
-
-		if (bChanged)
-		{
-			Object->PostEditChangeProperty(Property);
-		}
-	}
-
-	// 클래스 계층을 따라 올라가며 각 단계의 프로퍼티를 표시
-	void DrawProperties(UObject* Object, ImFont* CustomFont)
-	{
-		if (!Object)
-		{
-			return;
-		}
-
-		TArray<UClass*> ClassChain;
-		for (UClass* Class = Object->GetClass(); Class; Class = Class->Super)
-		{
-			ClassChain.Add(Class);
-		}
-
-		// 기반 클래스부터 표시
-		for (auto It = ClassChain.rbegin(); It != ClassChain.rend(); ++It)
-		{
-			UClass* Class = *It;
-
-			// 노출할 프로퍼티가 하나도 없으면 헤더도 그리지 않는다
-			bool bHasVisibleProperty = false;
-			for (const FProperty& Property : Class->GetProperties())
-			{
-				if (Property.HasAnyFlags(CPF_Edit) && Object->IsPropertyVisibleInDetails(Property))
-				{
-					bHasVisibleProperty = true;
-					break;
-				}
-			}
-			if (!bHasVisibleProperty)
-			{
-				continue;
-			}
-
-			ImGui::PushID(Class->GetName().c_str());
-			if (ImGui::CollapsingHeader(Class->GetName().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				for (const FProperty& Property : Class->GetProperties())
-				{
-					if (!Property.HasAnyFlags(CPF_Edit) || !Object->IsPropertyVisibleInDetails(Property))
-					{
-						continue;
-					}
-
-					const bool bReadOnly = Property.HasAnyFlags(CPF_EditConst);
-					if (bReadOnly) ImGui::BeginDisabled();
-					DrawProperty(Object, Property, CustomFont);
-					if (bReadOnly) ImGui::EndDisabled();
-				}
-			}
-			ImGui::PopID();
-		}
-	}
-
 	void DrawCameraDetailRow(const char* Label, const FString& Value) {
 		ImGui::TableNextRow();
 		ImGui::TableSetColumnIndex(0);
@@ -1188,6 +973,217 @@ namespace
 		}
 	}
 }
+
+// UClass에 등록된 프로퍼티를 타입에 맞는 위젯으로 그린다
+void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImFont* CustomFont)
+{
+	void* ValuePtr = reinterpret_cast<char*>(Object) + Property.Offset;
+	const FString PropertyName = Property.Name.ToString();
+	const FString Label = "##" + PropertyName;
+	ImGui::PushID(PropertyName.c_str());
+	// 패널이 넓으면 라벨 | 값을 한 줄에, 좁거나 라벨이 길면 라벨 아래 줄에 값을 놓는다.
+	const float StartX = ImGui::GetCursorPosX();
+	const float AvailableWidth = ImGui::GetContentRegionAvail().x;
+	const float LabelWidth = AvailableWidth * 0.45f;
+
+	const bool bInline = Property.Type != EPropertyType::Transform && AvailableWidth >= 260.0f && ImGui::CalcTextSize(PropertyName.c_str()).x < LabelWidth;
+
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextWrapped("%s", PropertyName.c_str());
+
+	if (bInline)
+		ImGui::SameLine(StartX + LabelWidth);
+
+	ImGui::SetNextItemWidth(-1.0f);
+
+	bool bChanged = false;
+
+	switch (Property.Type)
+	{
+	case EPropertyType::Float:
+		bChanged = ImGui::DragFloat(Label.c_str(), static_cast<float*>(ValuePtr), 0.1f);
+		break;
+	case EPropertyType::Int:
+		bChanged = ImGui::DragInt(Label.c_str(), static_cast<int*>(ValuePtr), 1.0f);
+		break;
+	case EPropertyType::UInt32:
+	{
+		uint32* Value = static_cast<uint32*>(ValuePtr);
+		bChanged = ImGui::DragScalar(Label.c_str(), ImGuiDataType_U32, Value, 1.0f);
+		break;
+	}
+	case EPropertyType::Bool:
+		bChanged = ImGui::Checkbox(Label.c_str(), static_cast<bool*>(ValuePtr));
+		break;
+	case EPropertyType::Vector:
+	{
+		FVector* Value = static_cast<FVector*>(ValuePtr);
+		bChanged = ImGui::DragFloat3(Label.c_str(), Value->V, 0.1f);
+		break;
+	}
+	case EPropertyType::Rotator:
+	{
+		FRotator* Value = static_cast<FRotator*>(ValuePtr);
+		// Transform의 Rotation과 같은 X/Y/Z 축 순서로 보여준다.
+		float Euler[3] = { Value->Roll, Value->Pitch, Value->Yaw };
+		if (ImGui::DragFloat3(Label.c_str(), Euler, 0.1f))
+		{
+			Value->Roll = Euler[0];
+			Value->Pitch = Euler[1];
+			Value->Yaw = Euler[2];
+		}
+		break;
+	}
+
+
+	case EPropertyType::Vector4:
+	{
+		FVector4* Value = static_cast<FVector4*>(ValuePtr);
+		bChanged = ImGui::DragFloat4(Label.c_str(), &Value->X, 0.1f);
+		break;
+	}
+
+	case EPropertyType::Color:
+	{
+		FColor* C = static_cast<FColor*>(ValuePtr);
+		float V[4] = { C->R / 255.f, C->G / 255.f, C->B / 255.f, C->A / 255.f };
+		if (ImGui::ColorEdit4(Label.c_str(), V))
+		{
+			*C = FColor(uint8(V[0] * 255.f + 0.5f), uint8(V[1] * 255.f + 0.5f),
+			            uint8(V[2] * 255.f + 0.5f), uint8(V[3] * 255.f + 0.5f));
+			bChanged = true;
+		}
+		break;
+	}
+
+	case EPropertyType::LinearColor:
+	{
+		// 타입은 Vector4와 같고 위젯만 색상 선택기다
+		FLinearColor* Value = static_cast<FLinearColor*>(ValuePtr);
+		bChanged = ImGui::ColorEdit4(Label.c_str(), &Value->R);
+		break;
+	}
+	case EPropertyType::String:
+	{
+		FString* Value = static_cast<FString*>(ValuePtr);
+
+		char Buffer[256] = {};
+		strncpy_s(Buffer, Value->c_str(), sizeof(Buffer) - 1);
+		if (CustomFont) ImGui::PushFont(CustomFont);
+		if (ImGui::InputText(Label.c_str(), Buffer, sizeof(Buffer)))
+		{
+			*Value = Buffer;
+		}
+		if (CustomFont) ImGui::PopFont();
+		break;
+	}
+	case EPropertyType::Transform:
+	{
+		FTransform* Value = static_cast<FTransform*>(ValuePtr);
+
+		ImGui::NewLine();
+
+		FTransform Transform = *Value;
+		bool bChange = false;
+
+		bChanged |= DrawVector3Controller("Location", Value->Location.V, 0.0f, 55.0f);
+		bChanged |= DrawRotatorAsXYZ("Rotation", Value->Rotation);
+		bChanged |= DrawVector3Controller("Scale", Value->Scale.V, 1.0f, 55.0f);
+
+		break;
+	}
+	case EPropertyType::Object:
+	{
+		UObject** ObjPtr = static_cast<UObject**>(ValuePtr);
+
+		if (Property.Class == UMaterial::StaticClass())
+		{
+			DrawTextureSlot(reinterpret_cast<UMaterial**>(ObjPtr), 0);
+		}
+		else if (Property.Class == UTexture2D::StaticClass())
+		{
+			bChanged = DrawTextureProperty(reinterpret_cast<UTexture2D**>(ObjPtr));
+		}
+		else if (Property.Class == UFont::StaticClass())
+		{
+			DrawFontSlot(Object, reinterpret_cast<UFont**>(ObjPtr));
+		}
+		else if (Property.Class == UStaticMesh::StaticClass())
+		{
+			DrawMeshSlot(Object, reinterpret_cast<UStaticMesh**>(ObjPtr));
+		}
+		else if (Property.Class == USkeletalMesh::StaticClass())
+		{
+			DrawSkeletalMeshSlot(Object, reinterpret_cast<USkeletalMesh**>(ObjPtr));
+		}
+		break;
+	}
+	default:
+		ImGui::TextDisabled("(Unsupported)");
+		break;
+	}
+
+	if (bChanged)
+	{
+		Object->PostEditChangeProperty(Property);
+	}
+	ImGui::PopID();
+}
+
+// 클래스 계층을 따라 올라가며 각 단계의 프로퍼티를 표시
+void FDetailsPanel::DrawProperties(UObject* Object, ImFont* CustomFont)
+{
+	if (!Object)
+	{
+		return;
+	}
+
+	TArray<UClass*> ClassChain;
+	for (UClass* Class = Object->GetClass(); Class; Class = Class->Super)
+	{
+		ClassChain.Add(Class);
+	}
+
+	// 기반 클래스부터 표시
+	for (auto It = ClassChain.rbegin(); It != ClassChain.rend(); ++It)
+	{
+		UClass* Class = *It;
+
+		// 노출할 프로퍼티가 하나도 없으면 헤더도 그리지 않는다
+		bool bHasVisibleProperty = false;
+		for (const FProperty& Property : Class->GetProperties())
+		{
+			if (Property.HasAnyFlags(CPF_Edit) && Object->IsPropertyVisibleInDetails(Property))
+			{
+				bHasVisibleProperty = true;
+				break;
+			}
+		}
+		if (!bHasVisibleProperty)
+		{
+			continue;
+		}
+
+		ImGui::PushID(Class->GetName().c_str());
+		if (ImGui::CollapsingHeader(Class->GetName().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			for (const FProperty& Property : Class->GetProperties())
+			{
+				if (!Property.HasAnyFlags(CPF_Edit) || !Object->IsPropertyVisibleInDetails(Property))
+				{
+					continue;
+				}
+
+				const bool bReadOnly = Property.HasAnyFlags(CPF_EditConst);
+				if (bReadOnly) ImGui::BeginDisabled();
+				DrawProperty(Object, Property, CustomFont);
+				if (bReadOnly) ImGui::EndDisabled();
+			}
+		}
+		ImGui::PopID();
+	}
+}
+
 
 void FDetailsPanel::DrawShadowMapPreview(const ULightComponent& Light)
 {

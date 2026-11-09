@@ -14,7 +14,22 @@ class UFont;
 class UObject;
 class UClass;
 
-enum class EPropertyType { Unknown, Float, Int, String, Bool, Vector, Vector4, Color, LinearColor, Rotator, Transform, Object};
+enum class EPropertyType
+{
+	Unknown,
+	Float,
+	Int,
+	String,
+	Bool,
+	Vector,
+	Vector4,
+	Color,
+	LinearColor,
+	Rotator,
+	Transform,
+	Object,
+	UInt32
+};
 
 template <typename T>
 constexpr EPropertyType GetPropertyType()
@@ -36,7 +51,7 @@ constexpr EPropertyType GetPropertyType()
     { return EPropertyType::EnumValue; }
 
 DEFINE_PROPERTY_TYPE(int, Int)
-DEFINE_PROPERTY_TYPE(uint32, Int)
+DEFINE_PROPERTY_TYPE(uint32, UInt32)
 DEFINE_PROPERTY_TYPE(float, Float)
 DEFINE_PROPERTY_TYPE(bool, Bool)
 DEFINE_PROPERTY_TYPE(FString, String)

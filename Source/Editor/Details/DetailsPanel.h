@@ -6,6 +6,7 @@
 #include <utility>
 #include "Engine/World.h"
 
+struct FProperty;
 struct FTransform;
 class FRenderer;
 class ULightComponent;
@@ -56,6 +57,8 @@ public:
 	ImFont* GetCustomFont() { return CustomFont; }
 
 private:
+	void DrawProperty(UObject* Object, const FProperty& Property, ImFont* CustomFont);
+	void DrawProperties(UObject* Object, ImFont* CustomFont);
 	void DrawObjectLabel(UObject* Object);
 	void DrawSceneComponentNode(USceneComponent* Component, USceneComponent* Root, UActorComponent*& OutSelectedComponent);
 	void TryReparent(USceneComponent* DroppedComponent, USceneComponent* DragComponent);

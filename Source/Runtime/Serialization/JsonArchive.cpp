@@ -74,8 +74,40 @@ bool FJsonArchive::LoadWorldFromBytes(UWorld* World, const TArray<uint8>& Bytes)
 	World->ClearWorld();
 	World->Serialize(Root.EnterRecord("World"));
 	Ar.Close();
+	if (Reader.IsError())
+	{
+		HTR_LOG(Error, "Load: scene deserialization failed");
+		return false;
+	}
 
-	World->GetScene().BuildBVH();
+	TArray<UObject*> LoadedObjects;
+	for (UObject* Object : GUObjectArray)
+	{
+		if (Object->IsTemplate()) continue;
+
+		for (UObject* Owner = Object; Owner; Owner = Owner->GetOuter())
+		{
+			if (Owner == World)
+			{
+				LoadedObjects.Add(Object);
+				break;
+			}
+		}
+	}
+
+	// 첫 로드 후처리 이전의 전체 대상 값 보정
+	for (UObject* Object : LoadedObjects)
+	{
+		Object->NormalizeProperties(nullptr);
+	}
+
+	// 전체 보정 완료 이후의 객체별 로드 후처리
+	for (UObject* Object : LoadedObjects)
+	{
+		Object->PostLoad();
+	}
+
+	World->GetScene().UpdateAllTransforms();
 	return !Reader.IsError();
 }
 

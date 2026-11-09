@@ -349,6 +349,7 @@ UObject* StaticDuplicateObjectEx(FObjectDuplicationParameters& Parameters)
 	}
 
 	// 3. 읽기
+	bool bReadSucceeded = false;
 	{
 		FDuplicateDataReader Reader(DuplicatedObjectAnnotation, ObjectData, Parameters.PortFlags, Parameters.DestOuter);
 		for (UObject* Src : SerializedObjects)
@@ -356,15 +357,37 @@ UObject* StaticDuplicateObjectEx(FObjectDuplicationParameters& Parameters)
 			UObject* Dup = DuplicatedObjectAnnotation.GetAnnotation(Src).DuplicatedObject;
 			Dup->Serialize(Reader);
 		}
-		if (Reader.IsError())
+		bReadSucceeded = !Reader.IsError();
+		if (!bReadSucceeded)
 			HTR_LOG(Error, "StaticDuplicateObjectEx: read failed for {}", Source->GetName());
 	}
-
-	const bool bDuplicateForPIE = HasFlag(Parameters.PortFlags, EPropertyPortFlags::PPF_DuplicateForPIE);
-	for (UObject* Src : SerializedObjects)
+	
+	if (bReadSucceeded)
 	{
-		if (UObject* Dup = DuplicatedObjectAnnotation.GetAnnotation(Src).DuplicatedObject)
-			Dup->PostDuplicate(bDuplicateForPIE);
+		// 복제 전용 후처리 이전의 전체 목적지 값 보정
+		for (UObject* Src : SerializedObjects)
+		{
+			if (UObject* Dup = DuplicatedObjectAnnotation.GetAnnotation(Src).DuplicatedObject)
+			{
+				Dup->NormalizeProperties(nullptr);
+			}
+		}
+
+		// 전체 값 보정 완료 이후의 공통 상태 갱신
+		for (UObject* Src : SerializedObjects)
+		{
+			if (UObject* Dup = DuplicatedObjectAnnotation.GetAnnotation(Src).DuplicatedObject)
+			{
+				Dup->PostApplyProperties(nullptr);
+			}
+		}
+
+		const bool bDuplicateForPIE = HasFlag(Parameters.PortFlags, EPropertyPortFlags::PPF_DuplicateForPIE);
+		for (UObject* Src : SerializedObjects)
+		{
+			if (UObject* Dup = DuplicatedObjectAnnotation.GetAnnotation(Src).DuplicatedObject)
+				Dup->PostDuplicate(bDuplicateForPIE);
+		}
 	}
 
 	// 4. 결과

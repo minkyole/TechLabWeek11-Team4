@@ -1305,7 +1305,7 @@ void UWorld::PostDuplicate(bool bDuplicateForPIE)
 		BeginPlayList.Enqueue(Actor);   // Tick 등록은 BeginPlay에서 함
 	}
 
-	Scene.BuildBVH();
+	Scene.UpdateAllTransforms();
 }
 
 void UWorld::Serialize(FStructuredArchive::FRecord Record) {

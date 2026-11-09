@@ -133,11 +133,6 @@ void ULevel::Serialize(FStructuredArchive::FRecord Record)
 				AttachRecord << SA_VALUE("Actor", Attachment.ParentIndex) << SA_VALUE("Component", Attachment.ParentComponentName);
 				PendingAttachments.Add(Attachment);
 			}
-
-			// SpawnActor가 기본값으로 등록한 Fog를 방금 읽은 값으로 갱신한다.
-			for (UActorComponent* Component : Actor->GetComponents())
-				if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
-					OwningWorld->GetScene().UpdateFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
 		}
 	}
 

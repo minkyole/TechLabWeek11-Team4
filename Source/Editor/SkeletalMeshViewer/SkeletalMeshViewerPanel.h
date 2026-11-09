@@ -16,6 +16,8 @@
 #include "Render/ViewMode.h"
 
 class FGridRenderer;
+class UAnimSequence;
+class UAnimSingleNodeInstance;
 
 class FSkeletalMeshViewerPanel : public IEditorPanel
 {
@@ -76,6 +78,7 @@ private:
 	void DrawSkeletonTreeWindow(const struct ImGuiWindowClass& WindowClass);
 	void DrawAssetDetailsWindow(const struct ImGuiWindowClass& WindowClass);
 	void DrawPreviewSettingsWindow(const struct ImGuiWindowClass& WindowClass);
+	void DrawAnimationWindow(const struct ImGuiWindowClass& WindowClass);
 	void DrawMeshDetailsUI();
 	void DrawBoneHierarchyUI();
 	void DrawLightingSettingsUI();
@@ -127,6 +130,7 @@ private:
 	bool bSkeletonTreeOpen = true;
 	bool bAssetDetailsOpen = true;
 	bool bPreviewSettingsOpen = true;
+	bool bAnimationOpen = true;
 	bool bResetLayout = false;
 
 	// 레벨 에디터와 같은 공전 및 자유 이동 카메라 조작을 사용한다.
@@ -205,4 +209,34 @@ private:
 
 	//BoneWeightHeatmap 관련 변수
 	FBoneWeightHeatmap BoneWeightHeatmap;
+
+	// ---- 시퀀스 뷰어 (Animation 창) ----
+	// 미리보기용 클립. 지금은 테스트 클립, A의 FBX 애니메이션 임포트가 들어오면 그 결과로 채운다.
+	struct FPreviewClip
+	{
+		FString Name;
+		TUniquePtr<UAnimSequence> Sequence;
+	};
+
+	// 프리뷰 컴포넌트의 AnimInstance를 SingleNode로 꺼낸다. 없거나 다른 타입이면 nullptr.
+	UAnimSingleNodeInstance* GetPreviewAnimInstance() const;
+	// 현재 메시용 테스트 클립을 PreviewClips에 다시 만든다.
+	void BuildPreviewTestClips();
+	// ClipIndex번 클립을 재생한다. -1이면 None(클립 해제 + 바인드 포즈).
+	void SelectPreviewClip(int32 ClipIndex);
+
+	// 클립이 선택돼 있는가 (SelectedClipIndex가 목록 범위 안)
+	bool HasPreviewClip() const;
+	bool BlockEditDuringAnimationPreview();
+	// 재생 방향 기준으로 끝에 닿았는가 (정방향: 길이, 역방향: 0)
+	bool IsPreviewAtEnd() const;
+	// 반복이 꺼진 채 끝에 닿으면 일시정지로 바꾼다. Tick에서 TickComponent 다음에 호출.
+	void UpdatePreviewPlaybackEnd();
+	// 재생/일시정지 토글. 반복 꺼짐 + 끝에서 멈춰 있으면 처음(역재생이면 끝)부터 다시 재생.
+	void TogglePreviewPlayback();
+	// 현재 프레임 번호 = floor(위치 × fps). 클립이 없으면 0.
+	int32 GetPreviewCurrentFrame() const;
+
+	TArray<FPreviewClip> PreviewClips;
+	int32 SelectedClipIndex = -1; // -1 = None (편집 모드)
 };

@@ -132,7 +132,17 @@ public:
 	virtual void Serialize(FArchive& Ar);
 	virtual void Serialize(FStructuredArchive::FRecord Record);
 
-	virtual void PostEditChangeProperty(const FProperty& Property) {};
+	// 지정 프로퍼티 또는 전체 복원값의 보정
+	// ChangedProperty가 nullptr이면 전체 값 보정 대상
+	virtual void NormalizeProperties(const FProperty* ChangedProperty = nullptr) {}
+
+	// 보정된 최종값에 따른 객체·Scene 상태의 갱신
+	// ChangedProperty가 nullptr이면 전체 상태 갱신 대상
+	virtual void PostApplyProperties(const FProperty* ChangedProperty = nullptr) {}
+
+	// 기존 편집 통지와 공통 보정·후처리의 연결
+	virtual void PostEditChangeProperty(const FProperty& Property);
+
 	// 디테일 창에 이 프로퍼티를 보여 줄지 정한다. 다른 값에 따라 숨길 때 재정의한다.
 	virtual bool IsPropertyVisibleInDetails(const FProperty& Property) const { return true; }
 
@@ -167,6 +177,7 @@ public:
 	bool IsTemplate() const;
 	virtual void PostDuplicate(bool bDuplicateForPIE) {}
 	virtual void PostInitProperties() {}
+	virtual void PostLoad();
 
 protected:
 

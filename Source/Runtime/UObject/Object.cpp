@@ -111,6 +111,19 @@ void UObject::Serialize(FArchive& Ar)
 	StructuredAr.Close();
 }
 
+// 변경 프로퍼티의 값 보정 이후 외부 상태 갱신
+void UObject::PostEditChangeProperty(const FProperty& Property)
+{
+	NormalizeProperties(&Property);
+	PostApplyProperties(&Property);
+}
+
+// 전체 로드 대상의 값 보정 완료 이후 호출하는 후처리
+void UObject::PostLoad()
+{
+	PostApplyProperties(nullptr);
+}
+
 void UObject::Serialize(FStructuredArchive::FRecord Record)
 {
 	// 인스턴스 라벨의 필수 필드 직렬화

@@ -174,6 +174,11 @@ void UObject::PostEditChangeProperty(const FProperty& Property)
 	PostApplyProperties(&Property);
 }
 
+void UObject::PostInitProperties()
+{
+    PostApplyProperties(nullptr);
+}
+
 // 전체 로드 대상의 값 보정 완료 이후 호출하는 후처리
 void UObject::PostLoad()
 {

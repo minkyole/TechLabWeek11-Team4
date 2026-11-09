@@ -25,11 +25,7 @@ public:
 	virtual ~USceneComponent() override;
 
 	virtual void PostApplyProperties(const FProperty* ChangedProperty = nullptr) override;
-	void PostInitProperties() override
-	{
-		Super::PostInitProperties();
-		MarkTransformDirty();
-	}
+
 	// Get & Set
 	const FVector& GetRelativeLocation() const { return Transform.Location; }
 	void SetRelativeLocation(const FVector& InLocation) 

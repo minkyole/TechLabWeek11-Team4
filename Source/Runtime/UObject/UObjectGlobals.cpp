@@ -203,8 +203,13 @@ bool FObjectInitializer::InitProperties(const UObject* DefaultData) const
 	// 전체 값과 참조가 확정된 이후의 객체별 생성 후처리
 	for (UObject* Destination : Destinations)
 	{
+		Destination->NormalizeProperties(nullptr);
+	}
+	for (UObject* Destination : Destinations)
+	{
 		Destination->PostInitProperties();
 	}
+
 	return true;
 }
 

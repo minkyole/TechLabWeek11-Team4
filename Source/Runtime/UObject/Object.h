@@ -178,7 +178,7 @@ public:
 	}
 	bool IsTemplate() const;
 	virtual void PostDuplicate(bool bDuplicateForPIE) {}
-	virtual void PostInitProperties() {}
+	virtual void PostInitProperties();
 	virtual void PostLoad();
 
 protected:

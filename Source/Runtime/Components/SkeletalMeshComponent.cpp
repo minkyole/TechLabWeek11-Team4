@@ -9,6 +9,7 @@
 
 // Debug
 #include "Animation/TestAnimInstance.h"
+#include "Animation/MyAnimInstance.h"
 #include "Animation/AnimTestClips.h"
 
 USkeletalMeshComponent::USkeletalMeshComponent()
@@ -43,15 +44,19 @@ void USkeletalMeshComponent::BeginPlay()
 	}
 	// ---- Debug [3-4] 끝 ----
 
-	UTestAnimInstance* TestInstance = Cast<UTestAnimInstance>(GetAnimInstance());
+	//UTestAnimInstance* TestInstance = Cast<UTestAnimInstance>(GetAnimInstance());
+	UMyAnimInstance* MyInstance =
+	    Cast<UMyAnimInstance>(GetAnimInstance());
 
-	if (!TestInstance || !TestInstance->IsInitialized())
+	if (!MyInstance || !MyInstance->IsInitialized())
 		return;
 
-	TestInstance->SetSpeed(DebugSpeed);
+	MyInstance->Speed = DebugSpeed;
+	MyInstance->bIsAttacking = bDebugAttack;
+	MyInstance->bIsHit = bDebugHit;
 
 	// Evaluate 전에 현재 속도의 가중치를 준비한다.
-	TestInstance->UpdateAnimation(0.0f);
+	MyInstance->UpdateAnimation(0.0f);
 
 	// BeginPlay 안에서 스키닝 결과까지 바로 반영.
 	if (RefreshAnimationPose())
@@ -245,10 +250,20 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 
 	SCOPE_CYCLE_COUNTER(SkinningStats::STAT_AnimEvaluate);
 
-	if (UTestAnimInstance* TestInstance =
-	        Cast<UTestAnimInstance>(AnimInstance.get()))
+	if (UMyAnimInstance* MyInstance =
+	        Cast<UMyAnimInstance>(AnimInstance.get()))
 	{
-		TestInstance->SetSpeed(DebugSpeed);
+		MyInstance->Speed = DebugSpeed;
+		if (bDebugAttack)
+		{
+			MyInstance->bIsAttacking = true;
+			bDebugAttack = false; // 한 번만 반영
+		}
+		if (bDebugHit)
+		{
+			MyInstance->bIsHit = true;
+			bDebugHit = false; // 한 번만 반영
+		}
 	}
 
 	AnimInstance->UpdateAnimation(DeltaTime);

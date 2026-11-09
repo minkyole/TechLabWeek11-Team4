@@ -13,8 +13,13 @@ class UAnimationAsset;
 // 모든 노드의 뿌리. 프레임마다 Update -> Evaluate 순서로 불린다.
 struct FAnimNode_Base
 {
+	virtual void OnEnter() {}
+	virtual void OnExit() {}
+
 	virtual void Update(const FAnimationUpdateContext& Context) {}
 	virtual void Evaluate(FPoseContext& Output) {}
+
+	virtual bool IsFinished() const { return false; }
 };
 
 // 두 포즈를 Alpha 로 섞는다.
@@ -24,6 +29,7 @@ struct FAnimNode_TwoWayBlend : public FAnimNode_Base
 	FPoseLink B;
 	float Alpha = 0.0f; // 0 = A, 1 = B
 
+	void OnEnter() override;
 	void Update(const FAnimationUpdateContext& Context) override;
 	void Evaluate(FPoseContext& Output) override;
 };
@@ -51,6 +57,8 @@ struct FAnimNode_AssetPlayerBase : public FAnimNode_Base
 	// Sequence: 시퀀스 길이
 	// BlendSpace: 현재 샘플 가중치를 반영한 길이
 	virtual float GetEffectivePlayLength() const = 0;
+
+	void OnEnter() override;
 
 	void Update(const FAnimationUpdateContext& Context) override;
 
@@ -85,6 +93,8 @@ struct FAnimNode_SequencePlayer : public FAnimNode_AssetPlayerBase
 	float GetEffectivePlayLength() const override;
 
 	void Evaluate(FPoseContext& Output) override;
+
+	bool IsFinished() const override;
 
 };
 

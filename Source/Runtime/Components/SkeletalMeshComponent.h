@@ -24,6 +24,8 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
 		PROPERTY(DebugSpeed)
 		PROPERTY(bDebugPlayTestClip)
 		PROPERTY(bDebugTestClipLoop)
+		PROPERTY(bDebugAttack)
+		PROPERTY(bDebugHit)
 	REFLECT_END()
 
 public:
@@ -90,6 +92,8 @@ private:
 	FPoseContext EvaluatedPose;
 
 	float DebugSpeed = 0.0f;
+	bool bDebugAttack = false;
+	bool bDebugHit = false;
 
 	// Debug [3-4]: 켜면 BeginPlay에서 합성 클립을 PlayAnimation으로 재생한다. 꺼 두면 B의 테스트가 그대로 돈다.
 	bool bDebugPlayTestClip = false;

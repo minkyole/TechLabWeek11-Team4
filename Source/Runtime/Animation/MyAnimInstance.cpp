@@ -1,0 +1,162 @@
+#include "EnginePCH.h"
+#include "MyAnimInstance.h"
+
+#include "Animation/AnimSequence.h"
+#include "Render/Mesh.h"
+#include "UObject/UObjectGlobals.h"
+
+#include <algorithm>
+#include <cmath>
+
+UMyAnimInstance::~UMyAnimInstance()
+{
+	ReleaseTestAssets();
+}
+
+UAnimSequence* UMyAnimInstance::CreateRootTestClip(
+    int32 RootBoneIndex, float DurationSeconds, const FVector& Offset)
+{
+	const USkeletalMesh* Mesh = GetSkeletalMesh();
+	if (!Mesh || !Mesh->MeshData.Bones.IsValidIndex(RootBoneIndex))
+		return nullptr;
+
+	UAnimSequence* Clip = NewObject<UAnimSequence>(this);
+	Clip->SetSkeletalMesh(Mesh);
+	UAnimDataModel* Model = Clip->GetDataModel();
+	constexpr int32 FPS = 30;
+	Model->SetFrameRate(FFrameRate(FPS, 1));
+	Model->SetNumberOfFrames(std::max(
+	    1, static_cast<int32>(std::round(DurationSeconds * FPS))));
+
+	const FSkeletalBone& RootBone = Mesh->MeshData.Bones[RootBoneIndex];
+	const int32 TrackIndex = Model->AddBoneTrack(FName(RootBone.Name));
+	TArray<FVector> Positions;
+	const int32 NumKeys = Model->GetNumberOfKeys();
+	Positions.Reserve(NumKeys);
+	constexpr float TwoPi = 6.28318530718f;
+	for (int32 Key = 0; Key < NumKeys; ++Key)
+	{
+		const float Phase = static_cast<float>(Key) / (NumKeys - 1);
+		// 시작/끝은 기준 위치, 중간은 Offset. 반복 경계에서도 연속적이다.
+		const float Weight = (Key == 0 || Key == NumKeys - 1)
+		    ? 0.0f : 0.5f - 0.5f * std::cos(TwoPi * Phase);
+		Positions.Add(RootBone.RefPoseTransform.Location + Offset * Weight);
+	}
+	// 회전/스케일과 나머지 본의 로컬 변환은 기준 포즈를 유지한다.
+	Model->SetBoneTrackKeys(TrackIndex, Positions, {}, {});
+	return Clip;
+}
+
+void UMyAnimInstance::NativeInitializeAnimation()
+{
+	ReleaseTestAssets();
+	bIsAttacking = false;
+	bIsHit = false;
+	StateMachine.State = EAnimState::Locomotion;
+
+	const USkeletalMesh* Mesh = GetSkeletalMesh();
+	if (!Mesh)
+		return;
+
+	int32 RootBoneIndex = 1;
+
+	// 메시 로컬 X: 앞뒤, Z: 위아래. 액터 이동이 아닌 루트 본 이동 테스트.
+	IdleClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0));
+	WalkClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0.5f));
+	RunClip = CreateRootTestClip(RootBoneIndex, 0.5f, FVector(0, 0, 1.2f));
+	AttackClip = CreateRootTestClip(RootBoneIndex, 0.6f, FVector(3.0f, 0, 0));
+	HitClip = CreateRootTestClip(RootBoneIndex, 0.4f, FVector(-1.5f, 0, 0));
+	if (!IdleClip || !WalkClip || !RunClip || !AttackClip || !HitClip)
+	{
+		ReleaseTestAssets();
+		return;
+	}
+
+	TestBlendSpace = NewObject<UBlendSpace1D>(this);
+	TestBlendSpace->SetSkeletalMesh(Mesh);
+	FBlendParameter SpeedAxis;
+	SpeedAxis.Name = FName("Speed");
+	SpeedAxis.Min = 0.0f;
+	SpeedAxis.Max = 600.0f;
+	const auto AddSample = [this](UAnimSequence* Clip, float SampleSpeed)
+	{
+		FBlendSample Sample;
+		Sample.Animation = Clip;
+		Sample.SampleValue = FVector(SampleSpeed, 0, 0);
+		return TestBlendSpace->AddSample(Sample);
+	};
+	if (!TestBlendSpace->SetBlendParameter(0, SpeedAxis) ||
+	    !AddSample(IdleClip, 0.0f) || !AddSample(WalkClip, 300.0f) ||
+	    !AddSample(RunClip, 600.0f))
+	{
+		ReleaseTestAssets();
+		return;
+	}
+
+	LocomotionPlayer.BlendSpace = TestBlendSpace;
+	LocomotionPlayer.bLoop = true;
+	LocomotionPlayer.bPlaying = true;
+	LocomotionPlayer.PlayRate = 1.0f;
+	AttackPlayer.Sequence = AttackClip;
+	HitPlayer.Sequence = HitClip;
+	AttackPlayer.bLoop = HitPlayer.bLoop = false;
+	AttackPlayer.bPlaying = HitPlayer.bPlaying = true;
+	AttackPlayer.PlayRate = HitPlayer.PlayRate = 1.0f;
+
+	StateMachine.SetStateNode(EAnimState::Locomotion, &LocomotionPlayer);
+	StateMachine.SetStateNode(EAnimState::Attack, &AttackPlayer);
+	StateMachine.SetStateNode(EAnimState::Hit, &HitPlayer);
+	RootNode = &StateMachine;
+	RootNode->OnEnter();
+
+	// 최초 Evaluate 전에도 BlendSpace 샘플 가중치를 준비한다.
+	NativeUpdateAnimation(0.0f);
+	FAnimationUpdateContext Context;
+	Context.AnimInstance = this;
+	Context.DeltaSeconds = 0.0f;
+	LocomotionPlayer.Update(Context);
+}
+
+void UMyAnimInstance::NativeUnInitializeAnimation()
+{
+	ReleaseTestAssets();
+}
+
+void UMyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
+{
+	// 테스트 입력은 공개 Speed / bIsAttacking / bIsHit으로 전달한다.
+	LocomotionPlayer.X = std::isfinite(Speed)
+	    ? std::clamp(Speed, 0.0f, 600.0f) : 0.0f;
+}
+
+void UMyAnimInstance::ReleaseTestAssets()
+{
+	RootNode = nullptr;
+	LocomotionPlayer.BlendSpace = nullptr;
+	AttackPlayer.Sequence = nullptr;
+	HitPlayer.Sequence = nullptr;
+	LocomotionPlayer.ResetPlayback();
+	AttackPlayer.ResetPlayback();
+	HitPlayer.ResetPlayback();
+	FAnimationUpdateContext Context;
+	Context.AnimInstance = this;
+	Context.DeltaSeconds = 0.0f;
+	LocomotionPlayer.Update(Context); // 이전 샘플 가중치도 비운다.
+
+	delete TestBlendSpace;
+	TestBlendSpace = nullptr;
+	const auto DeleteClip = [](UAnimSequence*& Clip)
+	{
+		if (!Clip)
+			return;
+		// 현재 UAnimSequence는 DataModel을 해제하지 않아 생성 측에서 정리한다.
+		delete Clip->GetDataModel();
+		delete Clip;
+		Clip = nullptr;
+	};
+	DeleteClip(IdleClip);
+	DeleteClip(WalkClip);
+	DeleteClip(RunClip);
+	DeleteClip(AttackClip);
+	DeleteClip(HitClip);
+}

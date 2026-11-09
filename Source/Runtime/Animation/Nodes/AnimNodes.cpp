@@ -4,6 +4,12 @@
 #include "Animation/AnimationContext.h"
 #include "Animation/AnimSequence.h"
 
+void FAnimNode_TwoWayBlend::OnEnter()
+{
+	A.OnEnter();
+	B.OnEnter();
+}
+
 void FAnimNode_TwoWayBlend::Update(const FAnimationUpdateContext& Context)
 {
 	A.Update(Context); // 각 입력이 자기 재생 시간을 흘린다
@@ -43,6 +49,12 @@ void FAnimNode_AssetPlayerBase::SetNormalizedTime(float InTime)
 		return;
 	}
 	NormalizedTime = std::clamp(InTime, 0.0f, 1.0f);
+}
+
+void FAnimNode_AssetPlayerBase::OnEnter()
+{
+	// 재생 시작 시점에 호출된다. 재생 시간을 초기화한다.
+	ResetPlayback();
 }
 
 void FAnimNode_AssetPlayerBase::Update(
@@ -99,6 +111,19 @@ void FAnimNode_SequencePlayer::Evaluate(FPoseContext& Output)
 		return;
 	}
 	Sequence->GetAnimationPose(GetNormalizedTime() * Sequence->GetPlayLength(), Output.Pose);
+}
+
+bool FAnimNode_SequencePlayer::IsFinished() const
+{
+	if (!Sequence)
+	{
+		return true;
+	}
+	if (bLoop)
+	{
+		return false;
+	}
+	return GetNormalizedTime() >= 1.0f;
 }
 
 const UAnimationAsset* FAnimNode_SequencePlayer::GetAnimationAsset() const

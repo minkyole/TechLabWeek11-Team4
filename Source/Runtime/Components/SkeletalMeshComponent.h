@@ -48,6 +48,24 @@ public:
 	// 비소유 포인터. 호출자는 delete하지 않는다.
 	UAnimInstance* GetAnimInstance() const { return AnimInstance.get(); }
 
+	// SingleNode 모드가 아니면 nullptr.
+	UAnimSingleNodeInstance* GetSingleNodeInstance() const;
+
+	// ---- 재생 입구 ----
+	// 모드나 클래스가 바뀌면 인스턴스를 버리고 설계도로 다시 만든다.
+	void SetAnimationMode(EAnimationMode InMode);
+	EAnimationMode GetAnimationMode() const { return AnimationMode; }
+	void SetAnimInstanceClass(UClass* InClass);
+
+	// ---- SingleNode 모드 전용 ----
+	void SetAnimation(UAnimSequence* NewAnimToPlay);
+	void Play(bool bLooping);
+	void Stop();
+	bool IsPlaying() const;
+
+	// SingleNode 모드로 전환 → 클립 지정 → 처음부터 재생.
+	void PlayAnimation(UAnimSequence* NewAnimToPlay, bool bLooping);
+
 	FPrimitiveSceneProxy* CreateSceneProxy() override;
 	void SubmitToRenderQueue(FRenderQueue& RenderQueue) override;
 

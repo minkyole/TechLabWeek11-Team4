@@ -134,6 +134,94 @@ void USkeletalMeshComponent::SetSkeletalMesh(
 	InitializeAnimInstance();
 }
 
+UAnimSingleNodeInstance* USkeletalMeshComponent::GetSingleNodeInstance() const
+{
+	return Cast<UAnimSingleNodeInstance>(AnimInstance.get());
+}
+
+void USkeletalMeshComponent::SetAnimationMode(EAnimationMode InMode)
+{
+	if (AnimationMode == InMode)
+		return;
+
+	AnimationMode = InMode;
+
+	// 인스턴스 타입이 모드에 묶여 있으므로 기존 실행체를 버린다.
+	// AnimationData는 컴포넌트에 남아 있어 SingleNode로 돌아오면 그대로 복원된다.
+	ClearAnimInstance();
+	InitializeAnimInstance();
+}
+
+void USkeletalMeshComponent::SetAnimInstanceClass(UClass* InClass)
+{
+	if (AnimClass == InClass)
+		return;
+
+	AnimClass = InClass;
+
+	// SingleNode 모드 중에는 클래스만 기억해 두고, Blueprint 모드로 바뀔 때 쓴다.
+	if (AnimationMode == EAnimationMode::AnimationBlueprint)
+	{
+		ClearAnimInstance();
+		InitializeAnimInstance();
+	}
+}
+
+void USkeletalMeshComponent::SetAnimation(UAnimSequence* NewAnimToPlay)
+{
+	AnimationData.AnimToPlay = NewAnimToPlay;
+	AnimationData.SavedPosition = 0.0f;
+
+	if (UAnimSingleNodeInstance* SingleNode = GetSingleNodeInstance())
+	{
+		SingleNode->SetAnimationAsset(NewAnimToPlay);
+
+		// SetAnimationAsset은 같은 클립이면 아무것도 안 하므로,
+		// "다시 지정 = 처음부터"를 보장하려고 위치를 명시적으로 되돌린다.
+		SingleNode->SetPosition(0.0f);
+	}
+}
+
+void USkeletalMeshComponent::Play(bool bLooping)
+{
+	AnimationData.bSavedLooping = bLooping;
+	AnimationData.bSavedPlaying = true;
+
+	if (UAnimSingleNodeInstance* SingleNode = GetSingleNodeInstance())
+	{
+		SingleNode->SetLooping(bLooping);
+		SingleNode->SetPlaying(true);
+	}
+}
+
+void USkeletalMeshComponent::Stop()
+{
+	AnimationData.bSavedPlaying = false;
+
+	if (UAnimSingleNodeInstance* SingleNode = GetSingleNodeInstance())
+	{
+		SingleNode->SetPlaying(false);
+	}
+}
+
+bool USkeletalMeshComponent::IsPlaying() const
+{
+	// 인스턴스가 아직 없으면 "재생 요청이 걸려 있는가"를 답한다.
+	if (UAnimSingleNodeInstance* SingleNode = GetSingleNodeInstance())
+	{
+		return SingleNode->IsPlaying();
+	}
+	return AnimationData.AnimToPlay != nullptr && AnimationData.bSavedPlaying;
+}
+
+void USkeletalMeshComponent::PlayAnimation(UAnimSequence* NewAnimToPlay, bool bLooping)
+{
+	// 모드 전환이 인스턴스를 재생성할 수 있으므로 먼저 실행체를 확정하고, 그 실행체에 요청을 건다.
+	SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	SetAnimation(NewAnimToPlay);
+	Play(bLooping);
+}
+
 void USkeletalMeshComponent::TickPose(float DeltaTime)
 {
 	if (!AnimInstance || !AnimInstance->IsInitialized())

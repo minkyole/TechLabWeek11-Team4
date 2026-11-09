@@ -4,9 +4,7 @@
 
 class UAnimSequence;
 
-// SingleNode 모드의 "재생 요청"을 컴포넌트에 보관한다.
-// AnimInstance는 메시 교체·모드 전환·PIE 복제 때마다 다시 만들어지므로,
-// 요청을 인스턴스 안에만 두면 그때마다 사라진다. 그래서 컴포넌트가 소유한다.
+// SingleNode 모드의 "재생 요청"을 컴포넌트에 보관한다. FAnimNode_SequencePlayer에 대응.
 struct FSingleAnimationPlayData
 {
 	// 비소유 참조. 클립은 AssetManager가 소유하는 공유 에셋이다.

@@ -53,6 +53,9 @@ public:
 		if (bHasSkinnedBounds) return SkinnedBounds;
 		return SkeletalMesh ? SkeletalMesh->GetRenderBounds() : Super::CalcLocalBounds();
 	}
+
+	void PostDuplicate(bool bDuplicateForPIE) override;
+
 protected:
 	virtual void TickPose(float DeltaTime);
 

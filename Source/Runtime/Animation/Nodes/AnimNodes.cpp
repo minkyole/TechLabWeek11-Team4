@@ -2,16 +2,44 @@
 #include "AnimNodes.h"
 
 #include "Animation/AnimationContext.h"
+#include "Animation/AnimSequence.h"
 
 
 void FAnimNode_SequencePlayer::Update(const FAnimationUpdateContext& Context)
 {
-	throw std::logic_error("Not Implemented");
+	if (!Sequence || !bPlaying)
+	{
+		return;
+	}
+
+	float Length = Sequence->GetPlayLength();
+	if (Length <= 0)
+	{
+		CurrentTime = 0;
+		return;
+	}
+
+	CurrentTime += Context.DeltaSeconds * PlayRate;
+	if (bLoop)
+	{
+		if (CurrentTime >= Length)
+		{
+			CurrentTime = std::fmod(CurrentTime, Length);
+		}
+	}
+	else
+	{
+		CurrentTime = FMath::Clamp(CurrentTime, 0.f, Length);
+	}
 }
 
 void FAnimNode_SequencePlayer::Evaluate(FPoseContext& Output)
 {
-	throw std::logic_error("Not Implemented");
+	if (!Sequence)
+	{
+		return;
+	}
+	Sequence->GetAnimationPose(CurrentTime, Output.Pose);
 }
 
 void FAnimNode_TwoWayBlend::Update(const FAnimationUpdateContext& Context)

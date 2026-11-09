@@ -57,6 +57,22 @@ FRawAnimSequenceTrack& UAnimDataModel::GetBoneTrackChecked(int32 TrackIndex)
 	return BoneAnimationTracks[TrackIndex].InternalTrack;
 }
 
+void UAnimDataModel::SetBoneTrackKeys(int32 TrackIndex, const TArray<FVector>& PosKeys, const TArray<FQuat>& RotKeys, const TArray<FVector>& ScaleKeys)
+{
+	int32 PosNum = PosKeys.Num();
+	int32 RotNum = RotKeys.Num();
+	int32 ScaleNum = ScaleKeys.Num();
+	assert(PosNum == 0 || PosNum == 1 || PosNum == NumberOfKeys);
+	assert(RotNum == 0 || RotNum == 1 || RotNum == NumberOfKeys);
+	assert(ScaleNum == 0 || ScaleNum == 1 || ScaleNum == NumberOfKeys);
+
+	assert(TrackIndex >= 0 && TrackIndex < BoneAnimationTracks.Num());
+	FRawAnimSequenceTrack& Track = GetBoneTrackChecked(TrackIndex);
+	Track.PosKeys = PosKeys;
+	Track.RotKeys = RotKeys;
+	Track.ScaleKeys = ScaleKeys;
+}
+
 void UAnimDataModel::Reset()
 {
 	BoneAnimationTracks.Empty();
@@ -64,6 +80,8 @@ void UAnimDataModel::Reset()
 	PlayLength = 0.f;
 	NumberOfFrames = 0;
 	NumberOfKeys = 0;
+	FrameRate.Numerator = 30;
+	FrameRate.Denominator = 1;
 }
 
 

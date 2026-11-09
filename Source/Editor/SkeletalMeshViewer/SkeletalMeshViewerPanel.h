@@ -212,10 +212,18 @@ private:
 	//BoneWeightHeatmap 관련 변수
 	FBoneWeightHeatmap BoneWeightHeatmap;
 
+	struct FPreviewNotifyStub
+	{
+		FString Name;
+		float StartTime = 0.0f;
+		float Duration = 0.0f; // 0 = 점 Notify
+	};
+
 	struct FPreviewClip
 	{
 		FString Name;
 		TUniquePtr<UAnimSequence> Sequence;
+		TArray<FPreviewNotifyStub> Notifies;
 	};
 
 	UAnimSingleNodeInstance* GetPreviewAnimInstance() const;
@@ -233,10 +241,12 @@ private:
 	void PlayPreviewInDirection(int32 Direction);
 	void StepPreviewFrame(int32 Delta);
 	void SetPreviewPlaySpeed(float Speed);
+	void HandlePreviewShortcuts();
 
 	TArray<FPreviewClip> PreviewClips;
 	int32 SelectedClipIndex = -1; // -1 = None
 	int32 PreviewPlayDirection = 1;
 	float PreviewPlaySpeed = 1.0f;
 	float PreviewCustomSpeed = 1.0f;
+	bool bAnimationWindowFocused = false;
 };

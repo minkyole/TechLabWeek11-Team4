@@ -1,6 +1,6 @@
 #include "EnginePCH.h"
 #include "Editor/Details/DetailsPanel.h"
-
+#include "misc/cpp/imgui_stdlib.h"
 #include "imgui_internal.h"
 #include "Editor/HitoriEd/EditorDragDrop.h"
 #include "Editor/HitoriEd/EditorResourcePaths.h"
@@ -1001,20 +1001,29 @@ void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImF
 	switch (Property.Type)
 	{
 	case EPropertyType::Float:
-		bChanged = ImGui::DragFloat(Label.c_str(), static_cast<float*>(ValuePtr), 0.1f);
+	{
+		float Value = *static_cast<const float*>(ValuePtr);
+		if (ImGui::DragFloat(Label.c_str(), &Value, 0.1f)) Object->ApplyPropertyValue(Property.Name, &Value);
 		break;
+	}
 	case EPropertyType::Int:
-		bChanged = ImGui::DragInt(Label.c_str(), static_cast<int*>(ValuePtr), 1.0f);
+	{
+		int Value = *static_cast<const int*>(ValuePtr);
+		if (ImGui::DragInt(Label.c_str(), &Value, 1.0f)) Object->ApplyPropertyValue(Property.Name, &Value);
 		break;
+	}
 	case EPropertyType::UInt32:
 	{
-		uint32* Value = static_cast<uint32*>(ValuePtr);
-		bChanged = ImGui::DragScalar(Label.c_str(), ImGuiDataType_U32, Value, 1.0f);
+		uint32 Value = *static_cast<const uint32*>(ValuePtr);
+		if (ImGui::DragScalar(Label.c_str(), ImGuiDataType_U32, &Value, 1.0f)) Object->ApplyPropertyValue(Property.Name, &Value);
 		break;
 	}
 	case EPropertyType::Bool:
-		bChanged = ImGui::Checkbox(Label.c_str(), static_cast<bool*>(ValuePtr));
+	{
+		bool Value = *static_cast<const bool*>(ValuePtr);
+		if (ImGui::Checkbox(Label.c_str(), &Value)) Object->ApplyPropertyValue(Property.Name, &Value);
 		break;
+	}
 	case EPropertyType::Vector:
 	{
 		FVector* Value = static_cast<FVector*>(ValuePtr);
@@ -1065,16 +1074,11 @@ void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImF
 	}
 	case EPropertyType::String:
 	{
-		FString* Value = static_cast<FString*>(ValuePtr);
-
-		char Buffer[256] = {};
-		strncpy_s(Buffer, Value->c_str(), sizeof(Buffer) - 1);
-		if (CustomFont) ImGui::PushFont(CustomFont);
-		if (ImGui::InputText(Label.c_str(), Buffer, sizeof(Buffer)))
-		{
-			*Value = Buffer;
-		}
-		if (CustomFont) ImGui::PopFont();
+		FString Value = *static_cast<FString*>(ValuePtr);
+		if (CustomFont) { ImGui::PushFont(CustomFont); }
+		const bool bValueChanged = ImGui::InputText(Label.c_str(), &Value);
+		if (CustomFont) { ImGui::PopFont(); }
+		if (bValueChanged){ Object->ApplyPropertyValue(Property.Name, &Value); }
 		break;
 	}
 	case EPropertyType::Transform:

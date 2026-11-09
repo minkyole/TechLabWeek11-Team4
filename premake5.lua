@@ -145,6 +145,8 @@ project "ImGui"
 		"%{IncludeDir.ImGui}/*.cpp",
 		"%{IncludeDir.ImGui}/backends/imgui_impl_win32.*",
 		"%{IncludeDir.ImGui}/backends/imgui_impl_dx11.*",
+		"%{IncludeDir.ImGui}/misc/cpp/imgui_stdlib.h",
+		"%{IncludeDir.ImGui}/misc/cpp/imgui_stdlib.cpp",
 	}
 
 	includedirs

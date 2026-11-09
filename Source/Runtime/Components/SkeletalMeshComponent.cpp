@@ -16,7 +16,7 @@ USkeletalMeshComponent::USkeletalMeshComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	AnimationMode = EAnimationMode::AnimationBlueprint;
-	AnimClass = UTestAnimInstance::StaticClass();
+	AnimClass = UMyAnimInstance::StaticClass();
 }
 
 USkeletalMeshComponent::~USkeletalMeshComponent()
@@ -44,7 +44,6 @@ void USkeletalMeshComponent::BeginPlay()
 	}
 	// ---- Debug [3-4] 끝 ----
 
-	//UTestAnimInstance* TestInstance = Cast<UTestAnimInstance>(GetAnimInstance());
 	UMyAnimInstance* MyInstance =
 	    Cast<UMyAnimInstance>(GetAnimInstance());
 

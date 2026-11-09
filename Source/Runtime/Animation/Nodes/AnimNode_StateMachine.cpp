@@ -6,10 +6,95 @@
 #include <algorithm>
 #include <cmath>
 
-void FAnimNode_StateMachine::SetStateNode(
-    EAnimState InState, FAnimNode_Base* Node)
+namespace
 {
-	StateNodes[static_cast<int>(InState)] = Node;
+	float EvaluateBlendAlpha(
+		EAnimBlendCurve Curve,
+		float Progress)
+	{
+		const float T = std::clamp(Progress, 0.0f, 1.0f);
+
+		switch (Curve)
+		{
+		case EAnimBlendCurve::SmoothStep:
+			return T * T * (3.0f - 2.0f * T);
+		case EAnimBlendCurve::Linear:
+		default:
+			return T;
+		}
+	}
+}
+
+bool FAnimNode_StateMachine::Initialize(
+    const FAnimStateMachineDefinition& InDefinition, 
+	const TArray<FAnimNode_Base*>& InNodes)
+{
+	ClearTransition();
+
+	Definition = nullptr;
+	Nodes = {};
+	CurrentState = InvalidAnimStateId;
+
+	bHasLastOutput = false;
+	LastOutputPose = FAnimationPose();
+	LastOutputCurve.Reset();
+
+	if (!InDefinition.States.IsValidIndex(InDefinition.EntryState))
+		return false;
+
+	for (const FAnimStateDefinition& State : InDefinition.States)
+	{
+		if (!InNodes.IsValidIndex(State.RootNodeIndex))
+			return false;
+
+		if (!InNodes[State.RootNodeIndex])
+			return false;
+	}
+
+	for (const FAnimTransitionDefinition& Transition
+		: InDefinition.Transitions)
+	{
+		if (!InDefinition.States.IsValidIndex(Transition.To))
+			return false;
+
+		if (!Transition.bFromAnyState &&
+			!InDefinition.States.IsValidIndex(Transition.From))
+		{
+			return false;
+		}
+
+		if (!std::isfinite(Transition.Blend.Duration) ||
+			Transition.Blend.Duration < 0.0f)
+		{
+			return false;
+		}
+
+		if (Transition.Blend.Curve != EAnimBlendCurve::Linear &&
+			Transition.Blend.Curve != EAnimBlendCurve::SmoothStep)
+		{
+			return false;
+		}
+	}
+
+	Definition = &InDefinition;
+	Nodes = InNodes;
+
+	return true;
+}
+
+FAnimNode_Base* FAnimNode_StateMachine::GetStateNode(
+	FAnimStateId StateId) const
+{
+	if (!Definition || !Definition->States.IsValidIndex(StateId))
+		return nullptr;
+
+	const int32 NodeIndex =
+	    Definition->States[StateId].RootNodeIndex;
+
+	if (!Nodes.IsValidIndex(NodeIndex))
+		return nullptr;
+
+	return Nodes[NodeIndex];
 }
 
 void FAnimNode_StateMachine::OnEnter()
@@ -20,32 +105,24 @@ void FAnimNode_StateMachine::OnEnter()
 	LastOutputPose = FAnimationPose();
 	LastOutputCurve.Reset();
 
-	State = EAnimState::Locomotion; // 초기 상태
+	CurrentState = InvalidAnimStateId;
 
-	FAnimNode_Base* EntryNode = StateNodes[static_cast<int>(State)];
+	FAnimNode_Base* EntryNode =
+	    GetStateNode(Definition->EntryState);
+
 	if (!EntryNode)
 	{
 		assert(false);
 		return;
 	}
 
+	CurrentState = Definition->EntryState;
 	EntryNode->OnEnter(); // 초기 상태 노드에 진입
 }
 
 void FAnimNode_StateMachine::Update(const FAnimationUpdateContext& Context)
 {
-	UMyAnimInstance* AnimInstance =
-	    Cast<UMyAnimInstance>(Context.AnimInstance); // 단순화 (UE: AnimInstanceProxy)
-	if (!AnimInstance)
-	{
-		assert(false);
-		return;
-	}
-
-	ProcessState(AnimInstance);
-
-	FAnimNode_Base* CurrentNode =
-	    StateNodes[static_cast<int>(State)];
+	FAnimNode_Base* CurrentNode = GetStateNode(CurrentState);
 
 	if (!CurrentNode)
 	{
@@ -80,8 +157,7 @@ void FAnimNode_StateMachine::Update(const FAnimationUpdateContext& Context)
 
 void FAnimNode_StateMachine::Evaluate(FPoseContext& Output)
 {
-	FAnimNode_Base* CurrentNode =
-	    StateNodes[static_cast<int>(State)];
+	FAnimNode_Base* CurrentNode = GetStateNode(CurrentState);
 
 	if (!CurrentNode)
 	{
@@ -124,8 +200,9 @@ void FAnimNode_StateMachine::Evaluate(FPoseContext& Output)
 
 		if (bSourceValid)
 		{
-			const float Alpha = std::clamp(
-			    BlendElapsed / BlendDuration, 0.0f, 1.0f);
+			const float Alpha = EvaluateBlendAlpha(
+			    BlendCurve,
+			    BlendElapsed / BlendDuration);
 
 			// 이 프로젝트의 함수는 첫 번째 포즈의 가중치를 받는다.
 			FAnimationRuntime::BlendTwoPosesTogether(
@@ -151,57 +228,53 @@ void FAnimNode_StateMachine::Evaluate(FPoseContext& Output)
 	bHasLastOutput = Output.Pose.TargetMesh != nullptr;
 }
 
-void FAnimNode_StateMachine::ProcessState(UMyAnimInstance* AnimInstance)
+bool FAnimNode_StateMachine::TryTransition(
+	FAnimTransitionId TransitionId)
 {
-	if (AnimInstance->bIsHit) // 우선 순위가 가장 높다. 공격 중에도 피격이 들어오면 Hit로 전환한다.
+	if (!Definition ||
+		!Definition->Transitions.IsValidIndex(TransitionId))
 	{
-		ChangeState(EAnimState::Hit, true);
-		AnimInstance->bIsHit = false;
+		return false;
 	}
-	else if (State == EAnimState::Locomotion && AnimInstance->bIsAttacking)
+
+	const FAnimTransitionDefinition& Transition =
+	    Definition->Transitions[TransitionId];
+
+	if (!Transition.bFromAnyState &&
+		Transition.From != CurrentState)
 	{
-		ChangeState(EAnimState::Attack, false);
-		AnimInstance->bIsAttacking = false;
+		return false;
 	}
-	else if (State != EAnimState::Locomotion && IsClipFinished()) // UE: Automatic Rule / Time Remaining
+
+	if (Transition.To == CurrentState &&
+		!Transition.bRestartIfSameState)
 	{
-		ChangeState(EAnimState::Locomotion, false);
+		return false;
 	}
+
+	if (!GetStateNode(CurrentState) ||
+		!GetStateNode(Transition.To))
+	{
+		return false;
+	}
+
+	ChangeState(Transition);
+	return true;
 }
 
 bool FAnimNode_StateMachine::IsClipFinished() const
 {
-	const FAnimNode_Base* CurrentNode =
-	    StateNodes[static_cast<int>(State)];
-	if (!CurrentNode)
-	{
-		assert(false);
-		return true;
-	}
-	return CurrentNode->IsFinished();
+	const FAnimNode_Base* CurrentNode = GetStateNode(CurrentState);
+	return CurrentNode && CurrentNode->IsFinished();
 }
 
 void FAnimNode_StateMachine::ChangeState(
-    EAnimState NewState, bool bRestartIfSameState)
+    const FAnimTransitionDefinition& Transition)
 {
-	if (State == NewState && !bRestartIfSameState)
-	{
-		return;
-	}
+	FAnimNode_Base* NewNode = GetStateNode(Transition.To);
+	FAnimNode_Base* OldNode = GetStateNode(CurrentState);
 
-	FAnimNode_Base* NewNode = StateNodes[static_cast<int>(NewState)];
-	FAnimNode_Base* OldNode = StateNodes[static_cast<int>(State)];
-
-	if (!NewNode || !OldNode)
-	{
-		assert(false);
-		return;
-	}
-
-	const float RequestedDuration =
-	    NewState == EAnimState::Hit
-	        ? HitBlendDuration
-	        : DefaultBlendDuration;
+	const float RequestedDuration = Transition.Blend.Duration;
 
 	// 진행 중인 혼합을 끊거나 같은 플레이어를 재시작할 때는
 	// 노드 두 개로 이전 출력을 재현할 수 없으므로 스냅샷 사용.
@@ -209,7 +282,6 @@ void FAnimNode_StateMachine::ChangeState(
 	    bTransitioning || OldNode == NewNode;
 
 	const bool bCanBlend =
-	    std::isfinite(RequestedDuration) &&
 	    RequestedDuration > 0.0f &&
 	    (!bNeedsSnapshot || bHasLastOutput);
 
@@ -219,6 +291,7 @@ void FAnimNode_StateMachine::ChangeState(
 	{
 		bTransitioning = true;
 		BlendDuration = RequestedDuration;
+		BlendCurve = Transition.Blend.Curve;
 		bUseSnapshot = bNeedsSnapshot;
 
 		if (bUseSnapshot)
@@ -232,7 +305,7 @@ void FAnimNode_StateMachine::ChangeState(
 		}
 	}
 
-	State = NewState;
+	CurrentState = Transition.To;
 	NewNode->OnEnter();
 }
 
@@ -244,6 +317,7 @@ void FAnimNode_StateMachine::ClearTransition()
 
 	BlendElapsed = 0.0f;
 	BlendDuration = 0.0f;
+	BlendCurve = EAnimBlendCurve::Linear;
 
 	TransitionSourcePose = FAnimationPose();
 	TransitionSourceCurve.Reset();

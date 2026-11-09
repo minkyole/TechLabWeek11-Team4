@@ -28,6 +28,7 @@ private:
 	UAnimSequence* CreateRootTestClip(
 	    int32 RootBoneIndex, float DurationSeconds, const FVector& Offset);
 	void ReleaseTestAssets();
+	void ProcessStateTransition();
 
 	// 테스트용으로 생성한 에셋은 이 인스턴스가 소유한다.
 	UBlendSpace1D* TestBlendSpace = nullptr;
@@ -36,4 +37,12 @@ private:
 	UAnimSequence* RunClip = nullptr;
 	UAnimSequence* AttackClip = nullptr;
 	UAnimSequence* HitClip = nullptr;
+
+	// 상태들
+	FAnimStateMachineDefinition StateMachineDefinition;
+
+	FAnimTransitionId HitTransitionId = InvalidAnimTransitionId;
+	FAnimTransitionId AttackTransitionId = InvalidAnimTransitionId;
+	FAnimTransitionId AttackReturnTransitionId = InvalidAnimTransitionId;
+	FAnimTransitionId HitReturnTransitionId = InvalidAnimTransitionId;
 };

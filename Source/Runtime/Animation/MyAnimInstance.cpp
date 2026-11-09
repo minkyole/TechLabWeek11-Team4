@@ -39,7 +39,8 @@ UAnimSequence* UMyAnimInstance::CreateRootTestClip(
 		const float Phase = static_cast<float>(Key) / (NumKeys - 1);
 		// 시작/끝은 기준 위치, 중간은 Offset. 반복 경계에서도 연속적이다.
 		const float Weight = (Key == 0 || Key == NumKeys - 1)
-		    ? 0.0f : 0.5f - 0.5f * std::cos(TwoPi * Phase);
+		                         ? 0.0f
+		                         : 0.5f - 0.5f * std::cos(TwoPi * Phase);
 		Positions.Add(RootBone.RefPoseTransform.Location + Offset * Weight);
 	}
 	// 회전/스케일과 나머지 본의 로컬 변환은 기준 포즈를 유지한다.
@@ -52,7 +53,7 @@ void UMyAnimInstance::NativeInitializeAnimation()
 	ReleaseTestAssets();
 	bIsAttacking = false;
 	bIsHit = false;
-	StateMachine.State = EAnimState::Locomotion;
+	// StateMachine.State = EAnimState::Locomotion;
 
 	const USkeletalMesh* Mesh = GetSkeletalMesh();
 	if (!Mesh)
@@ -103,9 +104,70 @@ void UMyAnimInstance::NativeInitializeAnimation()
 	AttackPlayer.bPlaying = HitPlayer.bPlaying = true;
 	AttackPlayer.PlayRate = HitPlayer.PlayRate = 1.0f;
 
-	StateMachine.SetStateNode(EAnimState::Locomotion, &LocomotionPlayer);
-	StateMachine.SetStateNode(EAnimState::Attack, &AttackPlayer);
-	StateMachine.SetStateNode(EAnimState::Hit, &HitPlayer);
+	StateMachineDefinition = {};
+
+	auto AddState = [&](const char* Name, int32 NodeIndex)
+	{
+		const FAnimStateId Id = StateMachineDefinition.States.Num();
+
+		FAnimStateDefinition State;
+		State.Name = FName(Name);
+		State.RootNodeIndex = NodeIndex;
+
+		StateMachineDefinition.States.Add(State);
+		return Id;
+	};
+
+	const FAnimStateId Locomotion = AddState("Locomotion", 0);
+	const FAnimStateId Attack = AddState("Attack", 1);
+	const FAnimStateId Hit = AddState("Hit", 2);
+
+	StateMachineDefinition.EntryState = Locomotion;
+
+	auto AddTransition = [&](
+	                         FAnimStateId From,
+	                         FAnimStateId To,
+	                         float Duration,
+	                         bool bAnyState,
+	                         bool bRestart)
+	{
+		const FAnimTransitionId Id =
+		    StateMachineDefinition.Transitions.Num();
+
+		FAnimTransitionDefinition Transition;
+		Transition.From = From;
+		Transition.To = To;
+		Transition.bFromAnyState = bAnyState;
+		Transition.Blend.Duration = Duration;
+		Transition.bRestartIfSameState = bRestart;
+
+		StateMachineDefinition.Transitions.Add(Transition);
+		return Id;
+	};
+
+	HitTransitionId = AddTransition(
+	    InvalidAnimStateId, Hit, 0.1f, true, true);
+
+	AttackTransitionId = AddTransition(
+	    Locomotion, Attack, 0.2f, false, false);
+
+	AttackReturnTransitionId = AddTransition(
+	    Attack, Locomotion, 0.2f, false, false);
+
+	HitReturnTransitionId = AddTransition(
+	    Hit, Locomotion, 0.2f, false, false);
+	
+	TArray<FAnimNode_Base*> Nodes;
+	Nodes.Add(&LocomotionPlayer);
+	Nodes.Add(&AttackPlayer);
+	Nodes.Add(&HitPlayer);
+
+	if (!StateMachine.Initialize(StateMachineDefinition, Nodes))
+	{
+		RootNode = nullptr;
+		return;
+	}
+
 	RootNode = &StateMachine;
 	RootNode->OnEnter();
 
@@ -126,7 +188,10 @@ void UMyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	// 테스트 입력은 공개 Speed / bIsAttacking / bIsHit으로 전달한다.
 	LocomotionPlayer.X = std::isfinite(Speed)
-	    ? std::clamp(Speed, 0.0f, 600.0f) : 0.0f;
+	                         ? std::clamp(Speed, 0.0f, 600.0f)
+	                         : 0.0f;
+
+	ProcessStateTransition();
 }
 
 void UMyAnimInstance::ReleaseTestAssets()
@@ -159,4 +224,28 @@ void UMyAnimInstance::ReleaseTestAssets()
 	DeleteClip(RunClip);
 	DeleteClip(AttackClip);
 	DeleteClip(HitClip);
+}
+
+void UMyAnimInstance::ProcessStateTransition()
+{
+	if (bIsHit)
+	{
+		if (StateMachine.TryTransition(HitTransitionId))
+		{
+			bIsHit = false;
+		}
+	}
+	else if (
+		bIsAttacking &&
+		StateMachine.TryTransition(AttackTransitionId))
+	{
+		bIsAttacking = false;
+	}
+	else if (StateMachine.IsClipFinished())
+	{
+		if (!StateMachine.TryTransition(AttackReturnTransitionId))
+		{
+			StateMachine.TryTransition(HitReturnTransitionId);
+		}
+	}
 }

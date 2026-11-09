@@ -1,6 +1,9 @@
 #pragma pack_matrix(row_major)
 
 #include "ColorSpace.hlsli"
+#if GPU_SKINNING
+#include "SkinCommon.hlsli"
+#endif
 
 #define LIGHT_TYPE_POINT 1   // C++ ELightType과 같아야 함
 #define LIGHT_TYPE_SPOT  2
@@ -187,6 +190,11 @@ struct VS_INPUT
     float4 Tangent : TANGENT;   // w = 바이탄젠트 부호
     float2 UV : TEXCOORD;
     float4 Color : COLOR;
+#if GPU_SKINNING
+    // FSkeletalVertex의 BoneIndices / BoneWeights. 바인드 포즈 정점 뒤에 붙는다.
+    uint4 BoneIndices : BLENDINDICES;
+    float4 BoneWeights : BLENDWEIGHT;
+#endif
 };
 
 // VS가 출력하고 PS가 입력으로 받는다.
@@ -823,6 +831,13 @@ bool bUseLightGrid, bool bReceiveShadow)
 VS_OUTPUT mainVS(VS_INPUT Input)
 {
     VS_OUTPUT Output;
+
+#if GPU_SKINNING
+    // 바인드 포즈 정점을 컴포넌트 공간으로 스키닝한 뒤 아래 기존 변환을 그대로 쓴다. 탄젠트 w(부호)는 유지한다.
+    float3 SkinnedTangent = Input.Tangent.xyz;
+    SkinVertex(Input.BoneIndices, Input.BoneWeights, Input.Position, Input.Normal, SkinnedTangent);
+    Input.Tangent.xyz = SkinnedTangent;
+#endif
 
     const float4 WorldPos = mul(float4(Input.Position, 1.0f), World);
     Output.SvPosition = mul(WorldPos, ViewProjection);

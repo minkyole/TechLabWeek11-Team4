@@ -40,6 +40,14 @@ void FRenderResourceManager::ScanShaders(const fs::path& ShaderRoot)
 		LoadOrCompileShader(Path);
 	}
 	LoadUberLit(ShaderRoot);
+	// 선택 아웃라인의 GPU 스키닝 변형. GPU 모드 스켈레탈 메시를 현재 자세로 감싼다.
+	LoadOrCompileShader((ShaderRoot / "OutlineShader.hlsl").generic_string(), GetSkinningMacros());
+}
+
+const D3D_SHADER_MACRO* FRenderResourceManager::GetSkinningMacros()
+{
+	static const D3D_SHADER_MACRO Macros[] = { { "GPU_SKINNING", "1" },{ nullptr, nullptr } };
+	return Macros;
 }
 
 void FRenderResourceManager::LoadUberLit(const fs::path& ShaderRoot)
@@ -56,12 +64,25 @@ void FRenderResourceManager::LoadUberLit(const fs::path& ShaderRoot)
 	static const D3D_SHADER_MACRO BlinnPhong[] = { { "LIGHTING_MODEL_BLINN_PHONG", "1" },{ nullptr, nullptr } };
 	static const D3D_SHADER_MACRO WorldNormal[] = { { "WORLD_NORMAL", "1" },{ nullptr, nullptr } };
 
+	// GPU 스키닝 변형. 정점 셰이더가 BLENDINDICES / BLENDWEIGHT와 본 행렬(t30, t31)로 스키닝한다.
+	// 기본 키의 스킨 변형은 만들지 않는다. BindMaterial이 UberLit을 항상 뷰모드 변형으로 바꿔 끼우기 때문이다.
+	static const D3D_SHADER_MACRO UnlitSkin[] = { { "LIGHTING_MODEL_UNLIT", "1" },{ "GPU_SKINNING", "1" },{ nullptr, nullptr } };
+	static const D3D_SHADER_MACRO GouraudSkin[] = { { "LIGHTING_MODEL_GOURAUD", "1" },{ "GPU_SKINNING", "1" },{ nullptr, nullptr } };
+	static const D3D_SHADER_MACRO LambertSkin[] = { { "LIGHTING_MODEL_LAMBERT", "1" },{ "GPU_SKINNING", "1" },{ nullptr, nullptr } };
+	static const D3D_SHADER_MACRO BlinnPhongSkin[] = { { "LIGHTING_MODEL_BLINN_PHONG", "1" },{ "GPU_SKINNING", "1" },{ nullptr, nullptr } };
+	static const D3D_SHADER_MACRO WorldNormalSkin[] = { { "WORLD_NORMAL", "1" },{ "GPU_SKINNING", "1" },{ nullptr, nullptr } };
+
 	LoadOrCompileShader(Path);	// 기본 (Lambert)
 	LoadOrCompileShader(Path, Unlit);
 	LoadOrCompileShader(Path, Gouraud);
 	LoadOrCompileShader(Path, Lambert);
 	LoadOrCompileShader(Path, BlinnPhong);
 	LoadOrCompileShader(Path, WorldNormal);
+	LoadOrCompileShader(Path, UnlitSkin);
+	LoadOrCompileShader(Path, GouraudSkin);
+	LoadOrCompileShader(Path, LambertSkin);
+	LoadOrCompileShader(Path, BlinnPhongSkin);
+	LoadOrCompileShader(Path, WorldNormalSkin);
 
 	// 뷰모드 -> 변형 테이블. 컴파일에 실패한 키는 nullptr로 남는다(GetShaderProgram의 폴백을 쓰지 않으려고 맵을 직접 찾는다).
 	auto FindProgram = [this](const FString& Key) -> FShaderProgram*
@@ -71,19 +92,27 @@ void FRenderResourceManager::LoadUberLit(const fs::path& ShaderRoot)
 		};
 
 	UberLitDefault = FindProgram(MakeShaderKey(Path, nullptr));
-	UberLitPrograms[static_cast<int32>(EViewMode::Lit_Gouraud)] = FindProgram(MakeShaderKey(Path, Gouraud));
-	UberLitPrograms[static_cast<int32>(EViewMode::Lit_Lambert)] = FindProgram(MakeShaderKey(Path, Lambert));
-	UberLitPrograms[static_cast<int32>(EViewMode::Lit_BlinnPhong)] = FindProgram(MakeShaderKey(Path, BlinnPhong));
-	UberLitPrograms[static_cast<int32>(EViewMode::Unlit)] = FindProgram(MakeShaderKey(Path, Unlit));
-	UberLitPrograms[static_cast<int32>(EViewMode::WorldNormal)] = FindProgram(MakeShaderKey(Path, WorldNormal));
+	FShaderProgram** Base = UberLitPrograms[0];
+	Base[static_cast<int32>(EViewMode::Lit_Gouraud)] = FindProgram(MakeShaderKey(Path, Gouraud));
+	Base[static_cast<int32>(EViewMode::Lit_Lambert)] = FindProgram(MakeShaderKey(Path, Lambert));
+	Base[static_cast<int32>(EViewMode::Lit_BlinnPhong)] = FindProgram(MakeShaderKey(Path, BlinnPhong));
+	Base[static_cast<int32>(EViewMode::Unlit)] = FindProgram(MakeShaderKey(Path, Unlit));
+	Base[static_cast<int32>(EViewMode::WorldNormal)] = FindProgram(MakeShaderKey(Path, WorldNormal));
+
+	FShaderProgram** Skinned = UberLitPrograms[1];
+	Skinned[static_cast<int32>(EViewMode::Lit_Gouraud)] = FindProgram(MakeShaderKey(Path, GouraudSkin));
+	Skinned[static_cast<int32>(EViewMode::Lit_Lambert)] = FindProgram(MakeShaderKey(Path, LambertSkin));
+	Skinned[static_cast<int32>(EViewMode::Lit_BlinnPhong)] = FindProgram(MakeShaderKey(Path, BlinnPhongSkin));
+	Skinned[static_cast<int32>(EViewMode::Unlit)] = FindProgram(MakeShaderKey(Path, UnlitSkin));
+	Skinned[static_cast<int32>(EViewMode::WorldNormal)] = FindProgram(MakeShaderKey(Path, WorldNormalSkin));
 }
 
-FShaderProgram* FRenderResourceManager::GetUberLitProgram(EViewMode Mode)
+FShaderProgram* FRenderResourceManager::GetUberLitProgram(EViewMode Mode, bool bSkinned)
 {
 	const int32 Index = static_cast<int32>(Mode);
 	if (Index < 0 || Index >= static_cast<int32>(EViewMode::Count))
 		return nullptr;
-	return Get().UberLitPrograms[Index];
+	return Get().UberLitPrograms[bSkinned ? 1 : 0][Index];
 }
 
 bool FRenderResourceManager::IsUberLitProgram(const FShaderProgram* Program)
@@ -94,10 +123,13 @@ bool FRenderResourceManager::IsUberLitProgram(const FShaderProgram* Program)
 	const FRenderResourceManager& Self = Get();
 	if (Program == Self.UberLitDefault)
 		return true;
-	for (const FShaderProgram* Variant : Self.UberLitPrograms)
+	for (const auto& Variants : Self.UberLitPrograms)
 	{
-		if (Program == Variant)
-			return true;
+		for (const FShaderProgram* Variant : Variants)
+		{
+			if (Program == Variant)
+				return true;
+		}
 	}
 	return false;
 }
@@ -109,8 +141,9 @@ void FRenderResourceManager::Shutdown()
 	Get().ComputeShaderMap.Empty();
 	Get().ShaderProgramMap.Empty();
 	Get().UberLitDefault = nullptr;
-	for (FShaderProgram*& Program : Get().UberLitPrograms)
-		Program = nullptr;
+	for (auto& Variants : Get().UberLitPrograms)
+		for (FShaderProgram*& Program : Variants)
+			Program = nullptr;
 }
 
 FShaderProgram* FRenderResourceManager::GetShaderProgram(const FString& InPath, const D3D_SHADER_MACRO* Macro)

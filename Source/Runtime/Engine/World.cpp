@@ -19,6 +19,8 @@
 #include "Components/ExponentialHeightFogComponent.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "Render/SkinningSettings.h"
 #include "Components/ShapeComponent.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
 
@@ -170,6 +172,20 @@ void UWorld::Tick(float DeltaTime) {
 			APlayerCameraManager* CameraManager{ GetPlayerCameraManager() };
 			if (CameraManager) {
 				CameraManager->UpdateCamera(DeltaTime);
+			}
+		}
+	}
+	// 에디터 월드는 컴포넌트 Tick이 돌지 않는다. 스키닝 측정 모드(skinning force on)일 때만
+	// 스켈레탈 메시를 매 프레임 다시 스키닝해 에디터 뷰포트에서도 CPU / GPU를 비교할 수 있게 한다.
+	else if (FSkinningSettings::IsForceEveryFrame() && PersistentLevel)
+	{
+		for (AActor* Actor : PersistentLevel->GetActors())
+		{
+			if (!Actor) continue;
+			for (UActorComponent* Component : Actor->GetComponents())
+			{
+				if (USkinnedMeshComponent* Skinned = Cast<USkinnedMeshComponent>(Component))
+					Skinned->FlushPendingPose();
 			}
 		}
 	}

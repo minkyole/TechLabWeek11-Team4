@@ -161,7 +161,49 @@ namespace
 
 		BuildMeshTangentSpace(RenderVertices, RenderIndices);
 
-		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(RenderVertices.GetData(), sizeof(FVertex) * static_cast<uint32>(RenderVertices.size()), sizeof(FVertex));
+		// GPU 스키닝용 정점: 탄젠트까지 계산한 FVertex에 본 행렬 버퍼 Index와 가중치를 붙인다.
+		// 파트마다 본 행렬 BoneStride칸을 쓰고, 마지막 칸(+ NumBones)은 가중치 없는 정점용 MeshTransform이다.
+		const uint32 NumBones = static_cast<uint32>(MeshData->Bones.Num());
+		const uint32 BoneStride = NumBones + 1;
+		TArray<FSkeletalVertex> GPUVertices;
+		GPUVertices.Reserve(RenderVertices.Num());
+		for (int i = 0; i < MeshData->Meshes.Num(); i++)
+		{
+			const uint32 PartOffset = static_cast<uint32>(i) * BoneStride;
+			for (const FSkeletalVertex& Source : MeshData->Meshes[i].Vertices)
+			{
+				FSkeletalVertex& Out = GPUVertices.AddDefaulted_GetRef();
+				Out.Vertex = RenderVertices[GPUVertices.Num() - 1];
+
+				// CPU 스키닝처럼 유효한 영향만 남기고 합이 1이 되게 다시 나눈다.
+				float TotalWeight = 0.0f;
+				int32 Count = 0;
+				for (int32 Slot = 0; Slot < 4; ++Slot)
+				{
+					if (!IsValidBoneInfluence(Source, Slot, NumBones))
+					{
+						continue;
+					}
+					Out.BoneIndices[Count] = PartOffset + Source.BoneIndices[Slot];
+					Out.BoneWeights[Count] = Source.BoneWeights[Slot];
+					TotalWeight += Source.BoneWeights[Slot];
+					++Count;
+				}
+
+				if (TotalWeight > 0.0f)
+				{
+					for (int32 Slot = 0; Slot < Count; ++Slot)
+						Out.BoneWeights[Slot] /= TotalWeight;
+				}
+				else
+				{
+					Out.BoneIndices[0] = PartOffset + NumBones;
+					Out.BoneWeights[0] = 1.0f;
+				}
+			}
+		}
+
+		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(GPUVertices.GetData(), sizeof(FSkeletalVertex) * static_cast<uint32>(GPUVertices.Num()), sizeof(FSkeletalVertex));
 		TUniquePtr<FIndexBuffer> IB = RenderCommand::CreateStaticIndexBuffer(RenderIndices.GetData(), static_cast<uint32>(RenderIndices.size()));
 		
 		if (VB == nullptr || IB == nullptr) return nullptr;
@@ -173,6 +215,7 @@ namespace
 		Mesh->VertexBuffer = std::move(VB);
 		Mesh->IndexBuffer = std::move(IB);
 		Mesh->Sections = std::move(RenderSections);	// Section 정보 저장
+		Mesh->BoneStride = BoneStride;
 
 		UMaterial* DefaultMaterial = UAssetManager::GetAssetByPath<UMaterial>("DefaultMaterial");
 		if (!DefaultMaterial)

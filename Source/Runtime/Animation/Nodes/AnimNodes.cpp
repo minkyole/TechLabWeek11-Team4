@@ -44,7 +44,7 @@ void FAnimNode_SequencePlayer::Evaluate(FPoseContext& Output)
 
 void FAnimNode_TwoWayBlend::Update(const FAnimationUpdateContext& Context)
 {
-	A.Update(Context); // °¢ ÀÔ·ÂÀÌ ÀÚ±â Àç»ı ½Ã°£À» Èê¸°´Ù
+	A.Update(Context); // ê° ì…ë ¥ì´ ìê¸° ì¬ìƒ ì‹œê°„ì„ í˜ë¦°ë‹¤
 	B.Update(Context);
 }
 
@@ -55,21 +55,21 @@ void FAnimNode_TwoWayBlend::Evaluate(FPoseContext& Output)
 	A.Evaluate(PoseA);
 	B.Evaluate(PoseB);
 
-	// º»¸¶´Ù À§Ä¡ / ½ºÄÉÀÏÀº Lerp, È¸ÀüÀº Quaternion Slerp
+	// ë³¸ë§ˆë‹¤ ìœ„ì¹˜ / ìŠ¤ì¼€ì¼ì€ Lerp, íšŒì „ì€ Quaternion Slerp
 	FAnimationRuntime::BlendTwoPosesTogether(
 	    PoseA.Pose, PoseB.Pose, PoseA.Curve, PoseB.Curve,
-	    1.0f - Alpha, // Ã¹ ¹øÂ° Æ÷Áî(A) ÀÇ °¡ÁßÄ¡
+	    1.0f - Alpha, // ì²« ë²ˆì§¸ í¬ì¦ˆ(A) ì˜ ê°€ì¤‘ì¹˜
 	    Output.Pose, Output.Curve);
 }
 
 void FAnimNode_Constant::Update(const FAnimationUpdateContext& Context)
 {
-	// ¾Æ¹«°Íµµ ÇÏÁö ¾Ê´Â´Ù. ConstantPose´Â ¿ÜºÎ¿¡¼­ ¼³Á¤ÇÑ´Ù.
+	// ì•„ë¬´ê²ƒë„ í•˜ì§€ ì•ŠëŠ”ë‹¤. ConstantPoseëŠ” ì™¸ë¶€ì—ì„œ ì„¤ì •í•œë‹¤.
 }
 
 void FAnimNode_Constant::Evaluate(FPoseContext& Output)
 {
-	// Pose¿Í Curve¸¦ ±×´ë·Î º¹»çÇÑ´Ù.
+	// Poseì™€ Curveë¥¼ ê·¸ëŒ€ë¡œ ë³µì‚¬í•œë‹¤.
 	Output.Pose = ConstantPose.Pose;
 	Output.Curve = ConstantPose.Curve;
 }

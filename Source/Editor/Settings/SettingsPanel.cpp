@@ -5,6 +5,7 @@
 #include "Camera/CameraComponent.h"
 #include "Render/Renderer.h"
 #include "Render/ShadowSettings.h"
+#include "Render/SkinningSettings.h"
 #include "Render/DecalSettings.h"
 #include "Engine/World.h"
 #include "Editor/EditorUI/ShowFlagUI.h"
@@ -80,6 +81,11 @@ void FSettingsPanel::OnRender()
 	if (ImGui::Combo("Shadow Cull Mode", &ShadowCullMode, "Back\0Front\0"))
 		FShadowSettings::SetCullMode(static_cast<EShadowCullMode>(ShadowCullMode));
 	ImGui::TextDisabled("Front: fewer acne, single-sided meshes cast no shadow.");
+	// 콘솔 "skinning [cpu|gpu]"와 같은 설정을 바꾼다.
+	int SkinningMode = FSkinningSettings::IsGPU() ? 1 : 0;
+	if (ImGui::Combo("Skinning", &SkinningMode, "CPU\0GPU\0"))
+		FSkinningSettings::SetGPU(SkinningMode == 1);
+	ImGui::TextDisabled("GPU: non-UberLit materials fall back to CPU.");
 	ImGui::Combo("Light Debug", &Settings.LightDebugMode, "Off\0Cell Heatmap\0Brute Force\0Slices\0");
 	ImGui::Combo("Light Culling", &Settings.LightCullingMode, "Tiled\0Clustered\0Tiled 2.5D\0");
 	const char* Models[] = { "Gouraud", "Lambert", "Blinn-Phong" };

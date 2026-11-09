@@ -111,6 +111,62 @@ void UObject::Serialize(FArchive& Ar)
 	StructuredAr.Close();
 }
 
+// 이름 기반 일반 프로퍼티 조회와 편집값 적용
+bool UObject::ApplyPropertyValue(const FName& PropertyName, const void* NewValue)
+{
+	const UClass* Class = GetClass();
+	const FProperty* Property = Class ? Class->FindPropertyByName(PropertyName) : nullptr;
+
+	// 편집 권한과 일반 값 입력 경로의 확인
+	if (!Property || !NewValue || !Property->HasAnyFlags(CPF_Edit) || Property->HasAnyFlags(CPF_EditConst) || Property->GetObjectFunction)
+	{
+		return false;
+	}
+
+	// 기존 타입별 비교를 통한 동일 입력의 생략
+	void* ValueAddress = Property->ContainerPtrToValuePtr(this);
+	if (Property->Identical(ValueAddress, NewValue))
+	{
+		return false;
+	}
+
+	// 실제 타입의 복사 이후 공통 편집 보정·후처리 연결
+	Property->CopyCompleteValue(ValueAddress, NewValue);
+	PostEditChangeProperty(*Property);
+	return true;
+}
+
+// 이름 기반 객체 프로퍼티 조회와 호환 참조 적용
+bool UObject::ApplyObjectPropertyValue(const FName& PropertyName, UObject* NewValue)
+{
+	const UClass* Class = GetClass();
+	const FProperty* Property = Class ? Class->FindPropertyByName(PropertyName) : nullptr;
+
+	// 편집 권한과 객체 참조 연산의 확인
+	if (!Property || !Property->HasAnyFlags(CPF_Edit) || Property->HasAnyFlags(CPF_EditConst) || !Property->GetObjectFunction || !Property->SetObjectFunction || !Property->Class)
+	{
+		return false;
+	}
+
+	// 선언된 클래스와 호환되지 않는 객체 참조의 차단
+	if (NewValue && !NewValue->IsA(Property->Class))
+	{
+		return false;
+	}
+
+	// 실제 선언 타입의 저장 공간을 통한 현재 참조 조회
+	void* ValueAddress = Property->ContainerPtrToValuePtr(this);
+	if (Property->GetObjectPropertyValue(ValueAddress) == NewValue)
+	{
+		return false;
+	}
+
+	// 타입별 참조 대입 이후 공통 편집 보정·후처리 연결
+	Property->SetObjectPropertyValue(ValueAddress, NewValue);
+	PostEditChangeProperty(*Property);
+	return true;
+}
+
 // 변경 프로퍼티의 값 보정 이후 외부 상태 갱신
 void UObject::PostEditChangeProperty(const FProperty& Property)
 {

@@ -131,7 +131,9 @@ public:
 
 	virtual void Serialize(FArchive& Ar);
 	virtual void Serialize(FStructuredArchive::FRecord Record);
-
+	
+	bool ApplyPropertyValue(const FName& PropertyName, const void* NewValue);
+	bool ApplyObjectPropertyValue(const FName& PropertyName, UObject* NewValue);
 	// 지정 프로퍼티 또는 전체 복원값의 보정
 	// ChangedProperty가 nullptr이면 전체 값 보정 대상
 	virtual void NormalizeProperties(const FProperty* ChangedProperty = nullptr) {}

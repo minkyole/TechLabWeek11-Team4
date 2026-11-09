@@ -13,6 +13,8 @@
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	AnimationMode = EAnimationMode::AnimationBlueprint;
+	AnimClass = UTestAnimInstance::StaticClass();
 }
 
 USkeletalMeshComponent::~USkeletalMeshComponent()
@@ -62,51 +64,39 @@ void USkeletalMeshComponent::InitializeAnimInstance()
 
 	if (!AnimInstance)
 	{
-		AnimInstance.reset(
-		    //    NewObject<UAnimSingleNodeInstance>(this));
-		    NewObject<UTestAnimInstance>(this)); // Debug
+		if (AnimationMode == EAnimationMode::AnimationSingleNode)
+		{
+			AnimInstance.reset(NewObject<UAnimSingleNodeInstance>(this));
+		}
+		else
+		{
+			UClass* ClassToSpawn =
+			    (AnimClass && AnimClass->IsChildOf(UAnimInstance::StaticClass()))
+			        ? AnimClass
+			        : UAnimInstance::StaticClass();
+
+			AnimInstance.reset(NewObject<UAnimInstance>(this, ClassToSpawn));
+		}
 	}
 
-	if (AnimInstance && !AnimInstance->IsInitialized())
+	if (!AnimInstance->IsInitialized())
 	{
 		AnimInstance->InitializeAnimation(this);
-	}
 
-	// ---- [TEMP 2-5] 샘플링 확인용. 확인 후 삭제 ----
-	{
-		UAnimSingleNodeInstance* SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance.get());
-		const TArray<FSkeletalBone>& Bones = GetSkeletalMesh()->MeshData.Bones;
-		if (SingleNode && Bones.Num() > 1)
+		// InitializeAnimation이 CurrentTime을 0으로 되돌리므로 그 뒤에 요청을 덮어쓴다.
+		// 이미 초기화된 인스턴스에는 적용하지 않는다. 진행 중인 재생 시간을 저장값으로 되감게 된다.
+		if (UAnimSingleNodeInstance* SingleNode =
+		        Cast<UAnimSingleNodeInstance>(AnimInstance.get()))
 		{
-			UAnimSequence* TestClip = NewObject<UAnimSequence>();
-			TestClip->SetSkeletalMesh(GetSkeletalMesh());
+			AnimationData.Initialize(SingleNode);
+		}
 
-			UAnimDataModel* Model = TestClip->GetDataModel();
-			Model->SetFrameRate(FFrameRate(30, 1));
-			Model->SetNumberOfFrames(30); // 키 31개, 1초
-
-			const int32 TestBoneIndex = 1;
-			const int32 TrackIndex = Model->AddBoneTrack(FName(Bones[TestBoneIndex].Name));
-
-			const FQuat RefRot = FQuat(Bones[TestBoneIndex].RefPoseTransform.Rotation).Normalized();
-			const FQuat EndRot = (RefRot * FQuat::MakeFromAxisAngle(FVector(0.0f, 0.0f, 1.0f), 3.14159265f * 0.5f)).Normalized();
-
-			TArray<FQuat> RotKeys;
-			const int32 NumKeys = Model->GetNumberOfKeys();
-			for (int32 Key = 0; Key < NumKeys; ++Key)
-			{
-				const float T = static_cast<float>(Key) / static_cast<float>(NumKeys - 1);
-				RotKeys.Add(FMath::SlerpShortestPath(RefRot, EndRot, T));
-			}
-			Model->SetBoneTrackKeys(TrackIndex, {}, RotKeys, {});
-
-			SingleNode->SetAnimationAsset(TestClip);
-			SingleNode->SetPosition(0.5f); // 기대: 45°
-			RefreshAnimationPose();
+		// Tick이 돌지 않는 에디터 월드·뷰어에서도 첫 화면이 RefPose가 아니라 요청한 포즈가 되게 한다.
+		if (RefreshAnimationPose())
+		{
 			FlushPendingPose();
 		}
 	}
-	// ---- [TEMP 2-5] 끝 ----
 }
 
 void USkeletalMeshComponent::ClearAnimInstance()

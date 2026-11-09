@@ -19,7 +19,7 @@ public:
 
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime) override;
-
+	void PostApplyProperties(const FProperty* ChangedProperty = nullptr) override;
 	virtual const FStaticMeshData* GetMeshData() const override;
 
 

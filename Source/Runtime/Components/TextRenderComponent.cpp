@@ -26,6 +26,16 @@ void UTextRenderComponent::TickComponent(float DeltaTime)
 	Super::TickComponent(DeltaTime);
 }
 
+void UTextRenderComponent::PostApplyProperties(const FProperty* ChangedProperty)
+{
+	Super::PostApplyProperties(ChangedProperty);
+	if (ChangedProperty && (ChangedProperty->Name == "Text" || ChangedProperty->Name == "TextSize" 
+		|| ChangedProperty->Name == "Font"))
+	{
+		OnTransformDirty();
+	}
+}
+
 const FStaticMeshData* UTextRenderComponent::GetMeshData() const
 {
 	if (!Font) return nullptr;

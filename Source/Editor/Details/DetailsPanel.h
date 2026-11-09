@@ -11,7 +11,8 @@ struct FTransform;
 class FRenderer;
 class ULightComponent;
 class USkeletalMesh;
-
+class UFont;
+class UTexture2D;
 using DetailsSelectionCallback = std::function<void(UActorComponent*)>;
 using DetailsDeleteComponentCallback = std::function<void(UActorComponent*)>;
 using DetailsMakeRootCallback = std::function<void(USceneComponent*)>;
@@ -59,6 +60,8 @@ public:
 private:
 	void DrawProperty(UObject* Object, const FProperty& Property, ImFont* CustomFont);
 	void DrawProperties(UObject* Object, ImFont* CustomFont);
+	bool DrawTextureProperty(UTexture2D*& Value);
+	bool DrawFontSlot(UFont*& Value);
 	void DrawObjectLabel(UObject* Object);
 	void DrawSceneComponentNode(USceneComponent* Component, USceneComponent* Root, UActorComponent*& OutSelectedComponent);
 	void TryReparent(USceneComponent* DroppedComponent, USceneComponent* DragComponent);

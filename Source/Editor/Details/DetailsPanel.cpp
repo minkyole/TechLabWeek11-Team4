@@ -213,54 +213,6 @@ namespace
 		ImGui::PopID();
 	}
 
-	bool DrawTextureProperty(UTexture2D** TexturePtr)
-	{
-		const float ThumbnailSize = 64.0f;
-		bool bChanged = false;
-
-		UTexture2D* Texture = *TexturePtr;
-
-		ImGui::PushID("TextureProperty");
-
-		if (Texture && Texture->GetResource())
-		{
-			ImGui::Image(
-				(ImTextureID)Texture->GetResource()->GetSRV(),
-				{ ThumbnailSize, ThumbnailSize });
-		}
-		else
-		{
-			ImGui::Button("Empty", { ThumbnailSize, ThumbnailSize });
-		}
-
-		if (ImGui::BeginDragDropTarget())
-		{
-			if (const ImGuiPayload* Payload = ImGui::AcceptDragDropPayload(EditorDragDrop::Texture))
-			{
-				Texture = *static_cast<UTexture2D**>(Payload->Data);
-				*TexturePtr = Texture;
-				bChanged = true;
-			}
-			ImGui::EndDragDropTarget();
-		}
-
-		ImGui::SameLine();
-
-		ImGui::BeginGroup();
-		if (Texture)
-		{
-			ImGui::TextWrapped("%s", Texture->GetPath().c_str());
-		}
-		else
-		{
-			ImGui::TextDisabled("(비어 있음)");
-		}
-		ImGui::EndGroup();
-
-		ImGui::PopID();
-		return bChanged;
-	}
-
 	FString GetAssetDisplayName(const FString& Path)
 	{
 		if (Path.find("#Static/") != FString::npos)
@@ -272,55 +224,6 @@ namespace
 			return AssetPath.parent_path().filename().string();
 		}
 		return AssetPath.stem().string();
-	}
-
-	void DrawFontSlot(UObject* Owner, UFont** FontPtr)
-	{
-		UFont* Current = *FontPtr;
-
-		FString CurrentPath = Current ? Current->GetPath() : "";
-		FString CurrentFileName = Current ? GetAssetDisplayName(CurrentPath) : "None";
-
-		ImGui::SetNextItemWidth(-1.0f);
-
-		bool bOpen = ImGui::BeginCombo("##Font", CurrentFileName.c_str());
-		if (ImGui::IsItemHovered() && Current)
-		{
-			ImGui::SetTooltip("%s", CurrentPath.c_str());
-		}
-
-		if (bOpen)
-		{
-			for (TObjectIterator<UFont> Itr; Itr; ++Itr)
-			{
-				bool bSelected = (*Itr == Current);
-
-				FString ItemPath = Itr->GetPath();
-				FString ItemFileName = GetAssetDisplayName(ItemPath);
-
-				ImGui::PushID(*Itr);
-
-				const bool bClicked = ImGui::Selectable(ItemFileName.c_str(), bSelected);
-				// 클릭한 프레임이 아니라 올려 둔 동안 계속 경로를 보여준다
-				if (ImGui::IsItemHovered())
-				{
-					ImGui::SetTooltip("%s", ItemPath.c_str());
-				}
-
-				if (bClicked)
-				{
-					// 메모리를 직접 바꾸지 않고 SetFont를 거친다
-					if (UTextRenderComponent* TextComponent = Cast<UTextRenderComponent>(Owner))
-						TextComponent->SetFont(*Itr);
-					else
-						*FontPtr = *Itr;
-				}
-				ImGui::PopID();
-				if (bSelected)
-					ImGui::SetItemDefaultFocus();
-			}
-			ImGui::EndCombo();
-		}
 	}
 
 	void DrawMeshSlot(UObject* Owner, UStaticMesh** StaticMeshPtr)
@@ -974,6 +877,95 @@ namespace
 	}
 }
 
+bool FDetailsPanel::DrawFontSlot(UFont*& Value)
+{
+	UFont* Current = Value;
+
+	const FString CurrentPath = Current ? Current->GetPath() : "";
+	const FString CurrentFileName = Current ? GetAssetDisplayName(CurrentPath) : "None";
+	bool bSelectionChanged = false;
+
+	ImGui::SetNextItemWidth(-1.0f);
+
+	bool bOpen = ImGui::BeginCombo("##Font", CurrentFileName.c_str());
+	if (ImGui::IsItemHovered() && Current)
+	{
+		ImGui::SetTooltip("%s", CurrentPath.c_str());
+	}
+
+	if (bOpen)
+	{
+		for (TObjectIterator<UFont> Itr; Itr; ++Itr)
+		{
+			UFont* Font = *Itr;
+			const bool bSelected = Font == Current;
+			FString ItemPath = Itr->GetPath();
+			FString ItemFileName = GetAssetDisplayName(ItemPath);
+
+			ImGui::PushID(Font);
+
+			const bool bClicked = ImGui::Selectable(ItemFileName.c_str(), bSelected);
+			// 클릭한 프레임이 아니라 올려 둔 동안 계속 경로를 보여준다
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("%s", ItemPath.c_str());
+			}
+			if (bClicked)
+			{
+				Value = Font;
+				bSelectionChanged = true;
+			}
+			if (bSelected)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+			ImGui::PopID();
+		}
+		ImGui::EndCombo();
+	}
+	return bSelectionChanged;
+}
+bool FDetailsPanel::DrawTextureProperty(UTexture2D*& Value)
+{
+	const float ThumbnailSize = 64.0f;
+	bool bSelectionChanged = false;
+	ImGui::PushID("TextureProperty");
+	if (Value && Value->GetResource())
+	{
+		ImGui::Image((ImTextureID)Value->GetResource()->GetSRV(), { ThumbnailSize, ThumbnailSize });
+	}
+	else
+	{
+		ImGui::Button("Empty", { ThumbnailSize, ThumbnailSize });
+	}
+
+	// 드롭된 에셋의 선택 후보 반영
+	if (ImGui::BeginDragDropTarget())
+	{
+		if (const ImGuiPayload* Payload = ImGui::AcceptDragDropPayload(EditorDragDrop::Texture))
+		{
+			Value = *static_cast<UTexture2D**>(Payload->Data);
+			bSelectionChanged = true;
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	ImGui::SameLine();
+	ImGui::BeginGroup();
+	if (Value)
+	{
+		ImGui::TextWrapped("%s", Value->GetPath().c_str());
+	}
+	else
+	{
+		ImGui::TextDisabled("(비어 있음)");
+	}
+	ImGui::EndGroup();
+
+	ImGui::PopID();
+	return bSelectionChanged;
+}
+
 // UClass에 등록된 프로퍼티를 타입에 맞는 위젯으로 그린다
 void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImFont* CustomFont)
 {
@@ -995,8 +987,6 @@ void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImF
 		ImGui::SameLine(StartX + LabelWidth);
 
 	ImGui::SetNextItemWidth(-1.0f);
-
-	bool bChanged = false;
 
 	switch (Property.Type)
 	{
@@ -1105,39 +1095,42 @@ void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImF
 	}
 	case EPropertyType::Object:
 	{
-		UObject** ObjPtr = static_cast<UObject**>(ValuePtr);
-
 		if (Property.Class == UMaterial::StaticClass())
 		{
-			DrawTextureSlot(reinterpret_cast<UMaterial**>(ObjPtr), 0);
+			DrawTextureSlot(static_cast<UMaterial**>(ValuePtr), 0);
 		}
 		else if (Property.Class == UTexture2D::StaticClass())
 		{
-			bChanged = DrawTextureProperty(reinterpret_cast<UTexture2D**>(ObjPtr));
+			UTexture2D* Value = static_cast<UTexture2D*>(Property.GetObjectPropertyValue(ValuePtr));
+			if (DrawTextureProperty(Value))
+			{
+				Object->ApplyObjectPropertyValue(Property.Name, Value);
+			}
 		}
 		else if (Property.Class == UFont::StaticClass())
 		{
-			DrawFontSlot(Object, reinterpret_cast<UFont**>(ObjPtr));
+			UFont* Value = static_cast<UFont*>(Property.GetObjectPropertyValue(ValuePtr));
+			if (DrawFontSlot(Value))
+			{
+				Object->ApplyObjectPropertyValue(Property.Name, Value);
+			}
 		}
 		else if (Property.Class == UStaticMesh::StaticClass())
 		{
-			DrawMeshSlot(Object, reinterpret_cast<UStaticMesh**>(ObjPtr));
+			DrawMeshSlot(Object, static_cast<UStaticMesh**>(ValuePtr));
 		}
 		else if (Property.Class == USkeletalMesh::StaticClass())
 		{
-			DrawSkeletalMeshSlot(Object, reinterpret_cast<USkeletalMesh**>(ObjPtr));
+			DrawSkeletalMeshSlot(Object, static_cast<USkeletalMesh**>(ValuePtr));
 		}
 		break;
+
 	}
 	default:
 		ImGui::TextDisabled("(Unsupported)");
 		break;
 	}
 
-	if (bChanged)
-	{
-		Object->PostEditChangeProperty(Property);
-	}
 	ImGui::PopID();
 }
 

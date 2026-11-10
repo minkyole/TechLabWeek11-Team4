@@ -5,13 +5,15 @@
 #include "Animation/BlendSpace.h"
 #include "Asset/AssetManager.h"
 
+#include "Engine/Engine.h"
+#include "Scripting/LuaVM.h"
+
 #include <cmath>
 #include <utility>
 
 ULuaAnimInstance::~ULuaAnimInstance()
 {
-	UpdateCallback = {};
-	ResetGraph();
+	ReleaseAnimationScript();
 }
 
 bool ULuaAnimInstance::Fail(const FString& Message)
@@ -126,161 +128,225 @@ void ULuaAnimInstance::NativeInitializeAnimation()
 		if (!BeginBuild())
 			return;
 
-		FAnimPlayerOptions Looping;
-		Looping.bLoop = true;
-
-		FAnimPlayerOptions OneShot;
-		OneShot.bLoop = false;
-
-		const FAnimNodeId LocomotionPlayer =
-		    CreateBlendSpacePlayer("Locomotion", Looping);
-
-		const FAnimNodeId AttackPlayer =
-		    CreateSequencePlayer("Attack", OneShot);
-
-		const FAnimNodeId HitPlayer =
-		    CreateSequencePlayer("Hit", OneShot);
-
-		if (LocomotionPlayer == InvalidAnimNodeId ||
-		    AttackPlayer == InvalidAnimNodeId ||
-		    HitPlayer == InvalidAnimNodeId)
+		if (!LoadAnimationScript(AnimationScriptPath))
 		{
+			ReleaseAnimationScript();
 			return;
 		}
 
-		const FAnimStateId Locomotion =
-		    AddState("Locomotion", LocomotionPlayer);
-
-		const FAnimStateId Attack =
-		    AddState("Attack", AttackPlayer);
-
-		const FAnimStateId Hit =
-		    AddState("Hit", HitPlayer);
-
-		if (Locomotion == InvalidAnimStateId ||
-		    Attack == InvalidAnimStateId ||
-		    Hit == InvalidAnimStateId)
+		// 함수와 결과의 Lua 참조가 정리된 뒤 실패 정리를 수행한다.
+		const bool bInitialized = [this]()
 		{
-			return;
-		}
+			sol::protected_function_result Result =
+			    LuaInitializeFunction(this);
 
-		if (!SetEntryState(Locomotion) ||
-		    !SetFloat("Speed", 0.0f) ||
-		    !SetBool("IsGrounded", true) ||
-		    !DefineTrigger("AttackRequested") ||
-			!DefineTrigger("HitRequested"))
+			if (!Result.valid())
+			{
+				const sol::error Error = Result;
+
+				HTR_LOG(
+				    Error,
+				    "[LuaAnim] InitializeAnimation failed: {}",
+				    Error.what());
+
+				return Fail(Error.what());
+			}
+
+			return true;
+		}();
+
+		if (!bInitialized)
 		{
-			return;
-		}
-
-		const FAnimConditionId CanAttack =
-		    AddCustomCondition(
-		        [](const FAnimConditionContext& Context)
-		        {
-			        bool bGrounded = false;
-			        bool bRequested = false;
-
-			        return Context.Parameters.TryGetBool(
-			                   FName("IsGrounded"), bGrounded) &&
-			               Context.Parameters.TryGetTrigger(
-			                   FName("AttackRequested"), bRequested) &&
-			               bGrounded &&
-			               bRequested;
-		        });
-
-		FAnimConditionDefinition HitRequested;
-		HitRequested.Type = EAnimConditionType::TriggerActive;
-		HitRequested.ParameterName = FName("HitRequested");
-
-		const FAnimConditionId HitConditionId =
-		    AddCondition(HitRequested);
-
-		if (HitConditionId == InvalidAnimConditionId ||
-		    CanAttack == InvalidAnimConditionId)
-		{
-			return;
-		}
-
-		FAnimConditionDefinition Finished;
-		Finished.Type = EAnimConditionType::SourceFinished;
-
-		const FAnimConditionId FinishedId =
-		    AddCondition(Finished);
-
-		FLuaAnimTransitionOptions AttackOptions;
-		AttackOptions.Condition = CanAttack;
-		AttackOptions.Priority = 50;
-		AttackOptions.Blend.Duration = 0.2f;
-		AttackOptions.ConsumeTriggers.Add(FName("AttackRequested"));
-
-		FLuaAnimTransitionOptions ReturnOptions;
-		ReturnOptions.Condition = FinishedId;
-		ReturnOptions.Blend.Duration = 0.2f;
-
-		// 어느 상태에서든 피격으로 전환.
-		// 피격 중 다시 맞으면 Hit 애니메이션 재시작.
-		FLuaAnimTransitionOptions HitOptions;
-		HitOptions.Condition = HitConditionId;
-		HitOptions.Priority = 100;
-		HitOptions.Blend.Duration = 0.1f;
-		HitOptions.bRestartIfSameState = true;
-		HitOptions.InterruptPolicy = EAnimTransitionInterruptPolicy::Always;
-		HitOptions.ConsumeTriggers.Add(FName("HitRequested"));
-
-		// 피격 재생 완료 후 이동 상태로 복귀.
-		FLuaAnimTransitionOptions HitReturnOptions;
-		HitReturnOptions.Condition = FinishedId;
-		HitReturnOptions.Priority = 0;
-		HitReturnOptions.Blend.Duration = 0.2f;
-
-		if (AddTransition(Locomotion, Attack, AttackOptions) ==
-		        InvalidAnimTransitionId ||
-		    AddTransition(Attack, Locomotion, ReturnOptions) ==
-		        InvalidAnimTransitionId ||
-		    AddAnyStateTransition(Hit, HitOptions) ==
-		        InvalidAnimTransitionId ||
-		    AddTransition(Hit, Locomotion, HitReturnOptions) ==
-		        InvalidAnimTransitionId)
-		{
+			ReleaseAnimationScript();
 			return;
 		}
 
 		if (!Commit())
+		{
+			HTR_LOG(
+			    Error,
+			    "[LuaAnim] Commit failed: {}",
+			    GetLastError());
+
+			ReleaseAnimationScript();
 			return;
+		}
 
-		SetUpdateCallback(
-		    [LocomotionPlayer](ULuaAnimInstance& Instance, float)
-		    {
-			    float Speed = 0.0f;
+		//FAnimPlayerOptions Looping;
+		//Looping.bLoop = true;
 
-			    if (Instance.TryGetFloat("Speed", Speed))
-				    Instance.SetBlendSpaceInput(LocomotionPlayer, Speed);
-		    });
+		//FAnimPlayerOptions OneShot;
+		//OneShot.bLoop = false;
 
-		return;
+		//const FAnimNodeId LocomotionPlayer =
+		//    CreateBlendSpacePlayer("Locomotion", Looping);
+
+		//const FAnimNodeId AttackPlayer =
+		//    CreateSequencePlayer("Attack", OneShot);
+
+		//const FAnimNodeId HitPlayer =
+		//    CreateSequencePlayer("Hit", OneShot);
+
+		//if (LocomotionPlayer == InvalidAnimNodeId ||
+		//    AttackPlayer == InvalidAnimNodeId ||
+		//    HitPlayer == InvalidAnimNodeId)
+		//{
+		//	return;
+		//}
+
+		//const FAnimStateId Locomotion =
+		//    AddState("Locomotion", LocomotionPlayer);
+
+		//const FAnimStateId Attack =
+		//    AddState("Attack", AttackPlayer);
+
+		//const FAnimStateId Hit =
+		//    AddState("Hit", HitPlayer);
+
+		//if (Locomotion == InvalidAnimStateId ||
+		//    Attack == InvalidAnimStateId ||
+		//    Hit == InvalidAnimStateId)
+		//{
+		//	return;
+		//}
+
+		//if (!SetEntryState(Locomotion) ||
+		//    !SetFloat("Speed", 0.0f) ||
+		//    !SetBool("IsGrounded", true) ||
+		//    !DefineTrigger("AttackRequested") ||
+		//	!DefineTrigger("HitRequested"))
+		//{
+		//	return;
+		//}
+
+		//const FAnimConditionId CanAttack =
+		//    AddCustomCondition(
+		//        [](const FAnimConditionContext& Context)
+		//        {
+		//	        bool bGrounded = false;
+		//	        bool bRequested = false;
+
+		//	        return Context.Parameters.TryGetBool(
+		//	                   FName("IsGrounded"), bGrounded) &&
+		//	               Context.Parameters.TryGetTrigger(
+		//	                   FName("AttackRequested"), bRequested) &&
+		//	               bGrounded &&
+		//	               bRequested;
+		//        });
+
+		//FAnimConditionDefinition HitRequested;
+		//HitRequested.Type = EAnimConditionType::TriggerActive;
+		//HitRequested.ParameterName = FName("HitRequested");
+
+		//const FAnimConditionId HitConditionId =
+		//    AddCondition(HitRequested);
+
+		//if (HitConditionId == InvalidAnimConditionId ||
+		//    CanAttack == InvalidAnimConditionId)
+		//{
+		//	return;
+		//}
+
+		//FAnimConditionDefinition Finished;
+		//Finished.Type = EAnimConditionType::SourceFinished;
+
+		//const FAnimConditionId FinishedId =
+		//    AddCondition(Finished);
+
+		//FLuaAnimTransitionOptions AttackOptions;
+		//AttackOptions.Condition = CanAttack;
+		//AttackOptions.Priority = 50;
+		//AttackOptions.Blend.Duration = 0.2f;
+		//AttackOptions.ConsumeTriggers.Add(FName("AttackRequested"));
+
+		//FLuaAnimTransitionOptions ReturnOptions;
+		//ReturnOptions.Condition = FinishedId;
+		//ReturnOptions.Blend.Duration = 0.2f;
+
+		//// 어느 상태에서든 피격으로 전환.
+		//// 피격 중 다시 맞으면 Hit 애니메이션 재시작.
+		//FLuaAnimTransitionOptions HitOptions;
+		//HitOptions.Condition = HitConditionId;
+		//HitOptions.Priority = 100;
+		//HitOptions.Blend.Duration = 0.1f;
+		//HitOptions.bRestartIfSameState = true;
+		//HitOptions.InterruptPolicy = EAnimTransitionInterruptPolicy::Always;
+		//HitOptions.ConsumeTriggers.Add(FName("HitRequested"));
+
+		//// 피격 재생 완료 후 이동 상태로 복귀.
+		//FLuaAnimTransitionOptions HitReturnOptions;
+		//HitReturnOptions.Condition = FinishedId;
+		//HitReturnOptions.Priority = 0;
+		//HitReturnOptions.Blend.Duration = 0.2f;
+
+		//if (AddTransition(Locomotion, Attack, AttackOptions) ==
+		//        InvalidAnimTransitionId ||
+		//    AddTransition(Attack, Locomotion, ReturnOptions) ==
+		//        InvalidAnimTransitionId ||
+		//    AddAnyStateTransition(Hit, HitOptions) ==
+		//        InvalidAnimTransitionId ||
+		//    AddTransition(Hit, Locomotion, HitReturnOptions) ==
+		//        InvalidAnimTransitionId)
+		//{
+		//	return;
+		//}
+
+		//if (!Commit())
+		//	return;
+
+		//SetUpdateCallback(
+		//    [LocomotionPlayer](ULuaAnimInstance& Instance, float)
+		//    {
+		//	    float Speed = 0.0f;
+
+		//	    if (Instance.TryGetFloat("Speed", Speed))
+		//		    Instance.SetBlendSpaceInput(LocomotionPlayer, Speed);
+		//    });
+
+		//return;
 	}
 }
 
 void ULuaAnimInstance::NativeUnInitializeAnimation()
 {
-	// 향후 Lua 함수 참조도 VM 종료 전에 해제해야 한다.
-	UpdateCallback = {};
-
-	ResetGraph();
+	ReleaseAnimationScript();
 }
 
-void ULuaAnimInstance::SetUpdateCallback(
-    FUpdateCallback Callback)
-{
-	UpdateCallback = std::move(Callback);
-}
+//void ULuaAnimInstance::SetUpdateCallback(
+//    FUpdateCallback Callback)
+//{
+//	UpdateCallback = std::move(Callback);
+//}
 
 void ULuaAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
-	if (!bGraphReady || !UpdateCallback)
+	if (!bGraphReady || !LuaUpdateFunction.valid())
 		return;
 
-	UpdateCallback(*this, DeltaSeconds);
+	bool bFailed = false;
+
+	{
+		sol::protected_function_result Result =
+		    LuaUpdateFunction(this, DeltaSeconds);
+
+		if (!Result.valid())
+		{
+			const sol::error Error = Result;
+
+			HTR_LOG(
+			    Error,
+			    "[LuaAnim] UpdateAnimation failed: {}",
+			    Error.what());
+
+			Fail(Error.what());
+			bFailed = true;
+		}
+	}
+
+	if (bFailed)
+		LuaUpdateFunction = {};
+
+	//UpdateCallback(*this, DeltaSeconds);
 }
 
 bool ULuaAnimInstance::RegisterAssetAlias(
@@ -881,4 +947,70 @@ UAnimSequence* ULuaAnimInstance::CreateRootTestClip(
 	// 회전/스케일과 나머지 본의 로컬 변환은 기준 포즈를 유지한다.
 	Model->SetBoneTrackKeys(TrackIndex, Positions, {}, {});
 	return Clip;
+}
+
+bool ULuaAnimInstance::LoadAnimationScript(const FString& Path)
+{
+	FLuaVM* VM = GEngine ? GEngine->GetLuaVM() : nullptr;
+	sol::state* State = VM ? VM->GetState() : nullptr;
+
+	if (!State)
+		return Fail("Lua VM is not initialized.");
+
+	ScriptEnvironment = sol::environment(
+	    *State, sol::create, State->globals());
+
+	sol::protected_function_result Loaded =
+	    State->safe_script_file(
+	        Path,
+	        ScriptEnvironment,
+	        sol::script_pass_on_error);
+
+	if (!Loaded.valid())
+	{
+		const sol::error Error = Loaded;
+
+		HTR_LOG(
+		    Error,
+		    "[LuaAnim] Failed to load '{}': {}",
+		    Path,
+		    Error.what());
+
+		return Fail(Error.what());
+	}
+
+	sol::object Initialize =
+	    ScriptEnvironment["InitializeAnimation"];
+
+	if (Initialize.get_type() != sol::type::function)
+		return Fail("InitializeAnimation function is required.");
+
+	sol::object Update =
+	    ScriptEnvironment["UpdateAnimation"];
+
+	if (Update.get_type() != sol::type::nil &&
+	    Update.get_type() != sol::type::function)
+	{
+		return Fail("UpdateAnimation must be a function.");
+	}
+
+	LuaInitializeFunction =
+	    Initialize.as<sol::protected_function>();
+
+	if (Update.get_type() == sol::type::function)
+		LuaUpdateFunction = Update.as<sol::protected_function>();
+
+	return true;
+}
+
+void ULuaAnimInstance::ReleaseAnimationScript()
+{
+	UpdateCallback = {};
+
+	// Definition의 Custom 콜백에 캡처된 Lua 함수도 해제한다.
+	ResetGraph();
+
+	LuaInitializeFunction = {};
+	LuaUpdateFunction = {};
+	ScriptEnvironment = {};
 }

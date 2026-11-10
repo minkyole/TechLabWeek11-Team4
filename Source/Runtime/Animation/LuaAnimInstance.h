@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <sol/sol.hpp>
 
 using FAnimNodeId = int32;
 
@@ -46,7 +47,7 @@ public:
 	// 호스트 측 구성
 	bool BeginBuild();
 	bool RegisterAssetAlias(const FString& Name, const FString& AssetKey);
-	void SetUpdateCallback(FUpdateCallback Callback);
+	//void SetUpdateCallback(FUpdateCallback Callback);
 
 	// 노드 구성
 	FAnimNodeId CreateSequencePlayer(
@@ -146,6 +147,10 @@ private:
 	    bool bAnyState,
 	    const FLuaAnimTransitionOptions& Options);
 
+	bool LoadAnimationScript(const FString& Path);
+	void ReleaseAnimationScript();
+
+
 private:
 	// 에셋 키만 보관한다. 실제 에셋 수명은 외부에서 보장한다.
 	TArray<FAssetAlias> AssetAliases;
@@ -162,6 +167,13 @@ private:
 	bool bGraphReady = false;
 
 	FString LastError;
+
+	sol::environment ScriptEnvironment;
+	sol::protected_function LuaInitializeFunction;
+	sol::protected_function LuaUpdateFunction;
+
+	FString AnimationScriptPath =
+	    "Assets/Scripts/Animation/CharacterAnim.lua";
 
 	// Debug
 	UAnimSequence* CreateRootTestClip(

@@ -270,7 +270,7 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 	{
 		if (!LuaInstance->IsGraphReady())
 		{
-			assert(false);
+			//assert(false);
 			return;
 		}
 

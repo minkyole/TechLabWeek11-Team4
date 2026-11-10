@@ -18,6 +18,16 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimNotifyFile.h"
+#include "Animation/AnimNotifies/AnimNotify.h"
+#include "Animation/AnimNotifies/AnimNotify_CameraShake.h"
+#include "Camera/CameraModifier_CameraShake.h"
+#include "Engine/Engine.h"
+#include "Audio/AudioSystem.h"
+#include "Camera/Shake/CameraShakePattern.h"
+#include "UObject/UObjectHash.h"
+#include "UObject/UObjectGlobals.h"
+#include "Core/Misc/FileHelper.h"
 
 #include <algorithm>
 #include <cmath>
@@ -36,6 +46,31 @@ namespace
 	{
 		return FVector(SRGBToLinear(C.X), SRGBToLinear(C.Y), SRGBToLinear(C.Z));
 	}
+
+	FAnimNotifyEvent* FindPreviewNotify(UAnimSequence* Sequence, int32 Index)
+	{
+		if (!Sequence || Index < 0 || Index >= Sequence->Notifies.Num())
+		{
+			return nullptr;
+		}
+		return &Sequence->Notifies[Index];
+	}
+
+	FString GetNotifyLabel(const FAnimNotifyEvent& Notify)
+	{
+		return Notify.Notify ? Notify.Notify->GetNotifyName() : Notify.NotifyName.ToString();
+	}
+
+	float SnapNotifyTimeToFrame(const UAnimSequence& Sequence, float Time)
+	{
+		const UAnimDataModel* Model = Sequence.GetDataModel();
+		const float FPS = Model ? Model->GetFrameRate().AsDecimal() : 0.0f;
+		if (FPS <= 0.0f)
+		{
+			return Time;
+		}
+		return std::round(Time * FPS) / FPS;
+	}
 }
 
 FSkeletalMeshViewerPanel::FSkeletalMeshViewerPanel()
@@ -52,6 +87,9 @@ bool FSkeletalMeshViewerPanel::Init()
 {
 	PreviewComponent = NewObject<USkeletalMeshComponent>();
 	PreviewComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	PreviewNotifyHandle = PreviewComponent->OnAnimNotify.AddDynamic(this, &FSkeletalMeshViewerPanel::HandlePreviewNotify);
+	PreviewNotifyStateBeginHandle = PreviewComponent->OnAnimNotifyStateBegin.AddDynamic(this, &FSkeletalMeshViewerPanel::HandlePreviewNotifyStateBegin);
+	PreviewNotifyStateEndHandle = PreviewComponent->OnAnimNotifyStateEnd.AddDynamic(this, &FSkeletalMeshViewerPanel::HandlePreviewNotifyStateEnd);
 	BoneGizmoTarget = NewObject<USceneComponent>();
 	PreviewComponent->SetFlags(EObjectFlags::RF_Transient);
 	BoneGizmoTarget->SetFlags(EObjectFlags::RF_Transient);
@@ -103,6 +141,17 @@ void FSkeletalMeshViewerPanel::ReleaseResources()
 	BoneGizmo.SetTarget(nullptr, false);
 	ClearPreviewClips();
 	SelectedClipIndex = -1;
+	if (PreviewComponent)
+	{
+		PreviewComponent->OnAnimNotify.RemoveHandler(PreviewNotifyHandle);
+		PreviewComponent->OnAnimNotifyStateBegin.RemoveHandler(PreviewNotifyStateBeginHandle);
+		PreviewComponent->OnAnimNotifyStateEnd.RemoveHandler(PreviewNotifyStateEndHandle);
+	}
+	PreviewNotifyHandle = 0;
+	PreviewNotifyStateBeginHandle = 0;
+	PreviewNotifyStateEndHandle = 0;
+	FiredNotifies.Empty();
+	PreviewShake.reset();
 	delete PreviewComponent;
 	PreviewComponent = nullptr;
 	delete BoneGizmoTarget;
@@ -787,6 +836,20 @@ void FSkeletalMeshViewerPanel::UpdateCamera(float DeltaTime)
 	ViewInfo.SetAspectRatio((ViewportHeight > 0) ? (static_cast<float>(ViewportWidth) / static_cast<float>(ViewportHeight)) : (16.0f / 9.0f));
 	ViewInfo.SetNearZ(std::max(MeshRadius * 0.001f, 0.00001f));
 	ViewInfo.SetFarZ(std::max(CameraDistance, (TargetPosition - CameraLocation).Length()) + MeshRadius * 100.0f);
+
+	if (PreviewShake)
+	{
+		FCameraShakeUpdateParams Params;
+		Params.DeltaTime = DeltaTime;
+		Params.POV = ViewInfo;
+		FCameraShakeUpdateResult Result;
+		PreviewShake->UpdateShakePattern(Params, Result);
+		UCameraModifier_CameraShake::ApplyResult(Result, PreviewShakeScale, ECameraShakePlaySpace::CameraLocal, FRotator{}, ViewInfo);
+		if (PreviewShake->IsFinished())
+		{
+			PreviewShake.reset();
+		}
+	}
 
 	CachedViewMatrix = ViewInfo.GetViewMatrix();
 	CachedProjMatrix = ViewInfo.GetPerspectiveMatrix();
@@ -2137,7 +2200,23 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 			ImGui::TextDisabled("No animation clip selected (edit mode)");
 		}
 
+		if (Model)
+		{
+			ImGui::SameLine(0.0f, 16.0f);
+			const char* SaveLabel = bNotifyDirty ? "Save Notifies *###SaveNotifies" : "Save Notifies###SaveNotifies";
+			if (ImGui::Button(SaveLabel))
+			{
+				SavePreviewNotifies();
+			}
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Write notifies of this FBX to <fbx>.notify");
+			}
+		}
+
 		DrawPreviewTimeline(Model);
+		DrawNotifyProperties(Model);
+		DrawFiredNotifies();
 
 		ImGui::Separator();
 		ImGui::BeginDisabled(Model == nullptr);
@@ -2294,6 +2373,8 @@ void FSkeletalMeshViewerPanel::DrawPreviewTimeline(const UAnimDataModel* Model)
 	ImGui::InvisibleButton("##PreviewTimeline", Size);
 	const bool bHovered = ImGui::IsItemHovered();
 	const bool bActive = ImGui::IsItemActive();
+	const bool bActivated = ImGui::IsItemActivated();
+	const bool bDeactivated = ImGui::IsItemDeactivated();
 
 	ImDrawList* DrawList = ImGui::GetWindowDrawList();
 	DrawList->AddRectFilled(Origin, ImVec2(Max.x, RulerBottom), ImGui::GetColorU32(ImGuiCol_FrameBg));
@@ -2316,10 +2397,94 @@ void FSkeletalMeshViewerPanel::DrawPreviewTimeline(const UAnimDataModel* Model)
 
 	auto FrameToX = [&](float Frame) { return X0 + (Frame / static_cast<float>(NumFrames)) * Span; };
 	auto XToTime = [&](float X) { return std::clamp((X - X0) / Span, 0.0f, 1.0f) * Length; };
+	auto TimeToX = [&](float Time)
+	{
+		return X0 + (Length > 0.0f ? std::clamp(Time / Length, 0.0f, 1.0f) : 0.0f) * Span;
+	};
+
+	const ImVec2 MousePos = ImGui::GetIO().MousePos;
+	const float TrackTop = RulerBottom + 4.0f;
+	const float TrackBottom = Max.y - 4.0f;
+	const float TrackMidY = (TrackTop + TrackBottom) * 0.5f;
+	const bool bMouseInTrack = bHovered && MousePos.y >= TrackTop && MousePos.y <= TrackBottom;
+	constexpr float DiamondRadius = 5.0f;
+
+	const UAnimSequence* Sequence = GetSelectedPreviewSequence();
+	const TArray<FAnimNotifyEvent>* Notifies = Sequence ? &Sequence->Notifies : nullptr;
+	const int32 NotifyCount = Notifies ? Notifies->Num() : 0;
+	if (SelectedNotifyIndex >= NotifyCount)
+	{
+		SelectPreviewNotify(-1);
+		bDraggingNotify = false;
+	}
+
+	int32 HoveredNotify = -1;
+	if (bMouseInTrack)
+	{
+		for (int32 i = NotifyCount - 1; i >= 0 && HoveredNotify < 0; --i)
+		{
+			const FAnimNotifyEvent& Notify = (*Notifies)[i];
+			const float XStart = TimeToX(Notify.TriggerTime);
+			if (Notify.Duration > 0.0f)
+			{
+				const float XEnd = std::max(TimeToX(Notify.TriggerTime + Notify.Duration), XStart + 2.0f);
+				if (MousePos.x >= XStart - DiamondRadius && MousePos.x <= XEnd)
+				{
+					HoveredNotify = i;
+				}
+			}
+			else if (std::fabs(MousePos.x - XStart) <= DiamondRadius + 1.0f)
+			{
+				HoveredNotify = i;
+			}
+		}
+	}
+
+	if (bActivated)
+	{
+		if (HoveredNotify >= 0)
+		{
+			SelectPreviewNotify(HoveredNotify);
+			bDraggingNotify = true;
+			NotifyDragOffset = XToTime(MousePos.x) - (*Notifies)[HoveredNotify].TriggerTime;
+		}
+		else
+		{
+			SelectPreviewNotify(-1);
+			bDraggingNotify = false;
+		}
+	}
 
 	if (bActive)
 	{
-		ScrubPreviewToTime(XToTime(ImGui::GetIO().MousePos.x));
+		if (bDraggingNotify && SelectedNotifyIndex >= 0)
+		{
+			SetPreviewNotifyTime(SelectedNotifyIndex, XToTime(MousePos.x) - NotifyDragOffset, !ImGui::GetIO().KeyShift);
+		}
+		else
+		{
+			ScrubPreviewToTime(XToTime(MousePos.x));
+		}
+	}
+
+	if (bDeactivated && bDraggingNotify)
+	{
+		bDraggingNotify = false;
+		if (SelectedNotifyIndex >= 0)
+		{
+			SelectPreviewNotify(SortPreviewNotifies(SelectedNotifyIndex));
+		}
+	}
+
+	if (bMouseInTrack && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+	{
+		NotifyPopupIndex = HoveredNotify;
+		NotifyPopupTime = XToTime(MousePos.x);
+		if (HoveredNotify >= 0)
+		{
+			SelectPreviewNotify(HoveredNotify);
+		}
+		ImGui::OpenPopup("##NotifyContext");
 	}
 
 	const float MinLabelSpacing = ImGui::CalcTextSize(std::to_string(NumFrames).c_str()).x + 12.0f;
@@ -2357,68 +2522,67 @@ void FSkeletalMeshViewerPanel::DrawPreviewTimeline(const UAnimDataModel* Model)
 	}
 	DrawList->AddLine(ImVec2(X1, Origin.y), ImVec2(X1, Max.y), TickCol);
 
-	const ImVec2 MousePos = ImGui::GetIO().MousePos;
 	const float CurrentTime = AnimInstance->GetPosition();
-	const float TrackTop = RulerBottom + 4.0f;
-	const float TrackBottom = Max.y - 4.0f;
-	const float TrackMidY = (TrackTop + TrackBottom) * 0.5f;
-	const bool bMouseInTrack = bHovered && MousePos.y >= TrackTop && MousePos.y <= TrackBottom;
-	constexpr float DiamondRadius = 5.0f;
-
-	auto TimeToX = [&](float Time)
-	{
-		return X0 + (Length > 0.0f ? std::clamp(Time / Length, 0.0f, 1.0f) : 0.0f) * Span;
-	};
 	auto DrawDiamond = [&](float X, ImU32 Col)
 	{
 		DrawList->AddQuadFilled(
 			ImVec2(X, TrackMidY - DiamondRadius), ImVec2(X + DiamondRadius, TrackMidY),
 			ImVec2(X, TrackMidY + DiamondRadius), ImVec2(X - DiamondRadius, TrackMidY), Col);
 	};
+	auto DrawDiamondOutline = [&](float X, ImU32 Col)
+	{
+		const float R = DiamondRadius + 2.0f;
+		DrawList->AddQuad(
+			ImVec2(X, TrackMidY - R), ImVec2(X + R, TrackMidY),
+			ImVec2(X, TrackMidY + R), ImVec2(X - R, TrackMidY), Col, 2.0f);
+	};
 
 	const ImU32 PointCol = IM_COL32(235, 200, 60, 255);
 	const ImU32 RangeCol = IM_COL32(70, 150, 220, 170);
 	const ImU32 RangeActiveCol = IM_COL32(120, 200, 255, 240);
 	const ImU32 NotifyTextCol = IM_COL32(15, 15, 20, 255);
+	const ImU32 SelectedCol = IM_COL32(255, 255, 255, 255);
+	const ImU32 FiredCol = IM_COL32(255, 120, 60, 255);
 
 	DrawList->PushClipRect(Origin, Max, true);
-	const TArray<FPreviewNotifyStub>& Notifies = PreviewClips[SelectedClipIndex].Notifies;
-	int32 HoveredNotify = -1;
-	for (int32 i = 0; i < Notifies.Num(); ++i)
+	for (int32 i = 0; i < NotifyCount; ++i)
 	{
-		const FPreviewNotifyStub& Notify = Notifies[i];
-		const float XStart = TimeToX(Notify.StartTime);
-		const ImVec2 NameSize = ImGui::CalcTextSize(Notify.Name.c_str());
+		const FAnimNotifyEvent& Notify = (*Notifies)[i];
+		const FString NotifyName = GetNotifyLabel(Notify);
+		const float XStart = TimeToX(Notify.TriggerTime);
+		const ImVec2 NameSize = ImGui::CalcTextSize(NotifyName.c_str());
+		const bool bSelected = (i == SelectedNotifyIndex);
 
 		if (Notify.Duration > 0.0f)
 		{
-			const float EndTime = Notify.StartTime + Notify.Duration;
+			const float EndTime = Notify.TriggerTime + Notify.Duration;
 			const float XEnd = std::max(TimeToX(EndTime), XStart + 2.0f);
-			const bool bActiveNow = CurrentTime >= Notify.StartTime && CurrentTime <= EndTime;
+			const bool bActiveNow = (CurrentTime >= Notify.TriggerTime && CurrentTime <= EndTime) || IsPreviewNotifyFlashing(Notify);
 
 			DrawList->AddRectFilled(ImVec2(XStart, TrackTop), ImVec2(XEnd, TrackBottom),
 				bActiveNow ? RangeActiveCol : RangeCol, 4.0f);
+			if (bSelected)
+			{
+				DrawList->AddRect(ImVec2(XStart, TrackTop), ImVec2(XEnd, TrackBottom), SelectedCol, 4.0f, 0, 2.0f);
+			}
 			DrawDiamond(XStart, PointCol);
 			if (NameSize.x < XEnd - XStart - DiamondRadius * 2.0f - 4.0f)
 			{
 				DrawList->AddText(ImVec2(XStart + DiamondRadius + 4.0f, TrackMidY - NameSize.y * 0.5f),
-					NotifyTextCol, Notify.Name.c_str());
-			}
-			if (bMouseInTrack && MousePos.x >= XStart - DiamondRadius && MousePos.x <= XEnd)
-			{
-				HoveredNotify = i;
+					NotifyTextCol, NotifyName.c_str());
 			}
 		}
 		else
 		{
-			DrawList->AddLine(ImVec2(XStart, TrackTop), ImVec2(XStart, TrackBottom), PointCol);
-			DrawDiamond(XStart, PointCol);
-			DrawList->AddText(ImVec2(XStart + DiamondRadius + 3.0f, TrackMidY - NameSize.y * 0.5f),
-				LabelCol, Notify.Name.c_str());
-			if (bMouseInTrack && std::fabs(MousePos.x - XStart) <= DiamondRadius + 1.0f)
+			const ImU32 MarkerCol = IsPreviewNotifyFlashing(Notify) ? FiredCol : PointCol;
+			DrawList->AddLine(ImVec2(XStart, TrackTop), ImVec2(XStart, TrackBottom), MarkerCol);
+			DrawDiamond(XStart, MarkerCol);
+			if (bSelected)
 			{
-				HoveredNotify = i;
+				DrawDiamondOutline(XStart, SelectedCol);
 			}
+			DrawList->AddText(ImVec2(XStart + DiamondRadius + 3.0f, TrackMidY - NameSize.y * 0.5f),
+				LabelCol, NotifyName.c_str());
 		}
 	}
 	DrawList->PopClipRect();
@@ -2438,16 +2602,17 @@ void FSkeletalMeshViewerPanel::DrawPreviewTimeline(const UAnimDataModel* Model)
 	{
 		if (HoveredNotify >= 0)
 		{
-			const FPreviewNotifyStub& Notify = Notifies[HoveredNotify];
-			const int32 StartFrame = static_cast<int32>(std::floor(Notify.StartTime * FPS));
+			const FAnimNotifyEvent& Notify = (*Notifies)[HoveredNotify];
+			const FString NotifyName = GetNotifyLabel(Notify);
+			const int32 StartFrame = static_cast<int32>(std::floor(Notify.TriggerTime * FPS));
 			if (Notify.Duration > 0.0f)
 			{
 				ImGui::SetTooltip("%s\nStart %.2fs (frame %d)\nDuration %.2fs",
-					Notify.Name.c_str(), Notify.StartTime, StartFrame, Notify.Duration);
+					NotifyName.c_str(), Notify.TriggerTime, StartFrame, Notify.Duration);
 			}
 			else
 			{
-				ImGui::SetTooltip("%s\nTime %.2fs (frame %d)", Notify.Name.c_str(), Notify.StartTime, StartFrame);
+				ImGui::SetTooltip("%s\nTime %.2fs (frame %d)", NotifyName.c_str(), Notify.TriggerTime, StartFrame);
 			}
 		}
 		else
@@ -2457,6 +2622,686 @@ void FSkeletalMeshViewerPanel::DrawPreviewTimeline(const UAnimDataModel* Model)
 			ImGui::SetTooltip("Frame %d  (%.2fs)", HoverFrame, HoverTime);
 		}
 	}
+
+	if (ImGui::BeginPopup("##NotifyContext"))
+	{
+		if (NotifyPopupIndex >= 0)
+		{
+			if (ImGui::MenuItem("Delete Notify"))
+			{
+				RemovePreviewNotify(NotifyPopupIndex);
+				SelectPreviewNotify(-1);
+			}
+		}
+		else
+		{
+			if (ImGui::MenuItem("Add Notify"))
+			{
+				SelectPreviewNotify(AddPreviewNotify(NotifyPopupTime, 0.0f));
+			}
+			if (ImGui::MenuItem("Add Notify State"))
+			{
+				SelectPreviewNotify(AddPreviewNotify(NotifyPopupTime, 0.2f));
+			}
+		}
+		ImGui::EndPopup();
+	}
+}
+
+void FSkeletalMeshViewerPanel::DrawNotifyProperties(const UAnimDataModel* Model)
+{
+	const UAnimSequence* Sequence = GetSelectedPreviewSequence();
+	if (!Model || !Sequence)
+	{
+		return;
+	}
+
+	const int32 NotifyCount = Sequence->Notifies.Num();
+	if (SelectedNotifyIndex < 0 || SelectedNotifyIndex >= NotifyCount)
+	{
+		ImGui::TextDisabled("Notifies: %d    Right-click the timeline to add a notify.", NotifyCount);
+		return;
+	}
+
+	const float Length = Model->GetPlayLength();
+	const float FPS = Model->GetFrameRate().AsDecimal();
+
+	ImGui::PushID("##NotifyProperties");
+
+	UAnimNotify* NotifyObject = Sequence->Notifies[SelectedNotifyIndex].Notify;
+
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextUnformatted("Notify");
+	ImGui::SameLine();
+	const FString TypeLabel = NotifyObject ? UAnimNotify::GetDisplayNameForClass(NotifyObject->GetClass()) : FString("Name Notify");
+
+	TArray<UClass*> NotifyClasses;
+	GetDerivedClasses(UAnimNotify::StaticClass(), NotifyClasses);
+	float TypeTextWidth = ImGui::CalcTextSize("Name Notify").x;
+	for (const UClass* NotifyClass : NotifyClasses)
+	{
+		TypeTextWidth = std::max(TypeTextWidth, ImGui::CalcTextSize(UAnimNotify::GetDisplayNameForClass(NotifyClass).c_str()).x);
+	}
+	ImGui::SetNextItemWidth(TypeTextWidth + ImGui::GetFrameHeight() + ImGui::GetStyle().FramePadding.x * 2.0f);
+	if (ImGui::BeginCombo("##NotifyType", TypeLabel.c_str()))
+	{
+		if (ImGui::Selectable("Name Notify", NotifyObject == nullptr) && NotifyObject)
+		{
+			SetPreviewNotifyClass(SelectedNotifyIndex, nullptr);
+		}
+
+		for (UClass* NotifyClass : NotifyClasses)
+		{
+			const bool bSelected = NotifyObject && NotifyObject->GetClass() == NotifyClass;
+			const FString Label = UAnimNotify::GetDisplayNameForClass(NotifyClass);
+			if (ImGui::Selectable(Label.c_str(), bSelected) && !bSelected)
+			{
+				SetPreviewNotifyClass(SelectedNotifyIndex, NotifyClass);
+			}
+		}
+		ImGui::EndCombo();
+	}
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("Notify type");
+	}
+
+	if (SelectedNotifyIndex >= 0 && SelectedNotifyIndex < Sequence->Notifies.Num())
+	{
+		NotifyObject = Sequence->Notifies[SelectedNotifyIndex].Notify;
+	}
+
+	if (!NotifyObject)
+	{
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(150.0f);
+		ImGui::InputText("##NotifyName", NotifyNameBuffer, sizeof(NotifyNameBuffer));
+		if (ImGui::IsItemDeactivatedAfterEdit())
+		{
+			RenamePreviewNotify(SelectedNotifyIndex, NotifyNameBuffer);
+			SelectPreviewNotify(SelectedNotifyIndex);
+		}
+
+		ImGui::SameLine();
+		if (ImGui::BeginCombo("##NotifyPreset", nullptr, ImGuiComboFlags_NoPreview))
+		{
+			const TArray<FString> UsedNames = CollectUsedNotifyNames();
+			if (UsedNames.IsEmpty())
+			{
+				ImGui::TextDisabled("No names used yet");
+			}
+			for (const FString& UsedName : UsedNames)
+			{
+				if (ImGui::Selectable(UsedName.c_str(), UsedName == NotifyNameBuffer))
+				{
+					RenamePreviewNotify(SelectedNotifyIndex, UsedName);
+					SelectPreviewNotify(SelectedNotifyIndex);
+				}
+			}
+			ImGui::EndCombo();
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("Names already used in this FBX");
+		}
+	}
+
+	if (SelectedNotifyIndex >= 0 && SelectedNotifyIndex < Sequence->Notifies.Num())
+	{
+		ImGui::SameLine(0.0f, 16.0f);
+		ImGui::TextUnformatted("Time");
+		ImGui::SameLine();
+		float Time = Sequence->Notifies[SelectedNotifyIndex].TriggerTime;
+		ImGui::SetNextItemWidth(90.0f);
+		if (ImGui::DragFloat("##NotifyTime", &Time, 0.01f, 0.0f, Length, "%.3fs"))
+		{
+			SetPreviewNotifyTime(SelectedNotifyIndex, Time, false);
+		}
+		if (ImGui::IsItemDeactivatedAfterEdit())
+		{
+			SelectPreviewNotify(SortPreviewNotifies(SelectedNotifyIndex));
+		}
+		ImGui::SameLine();
+		ImGui::TextDisabled("frame %d", static_cast<int32>(std::floor(Time * FPS)));
+	}
+
+	if (SelectedNotifyIndex >= 0 && SelectedNotifyIndex < Sequence->Notifies.Num())
+	{
+		const FAnimNotifyEvent& Current = Sequence->Notifies[SelectedNotifyIndex];
+		ImGui::SameLine(0.0f, 16.0f);
+		ImGui::TextUnformatted("Duration");
+		ImGui::SameLine();
+		float Duration = Current.Duration;
+		ImGui::SetNextItemWidth(90.0f);
+		if (ImGui::DragFloat("##NotifyDuration", &Duration, 0.01f, 0.0f, std::max(0.0f, Length - Current.TriggerTime), "%.3fs"))
+		{
+			SetPreviewNotifyDuration(SelectedNotifyIndex, Duration);
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("0 = single notify, > 0 = notify state");
+		}
+
+		ImGui::SameLine(0.0f, 16.0f);
+		if (ImGui::Button("Delete"))
+		{
+			RemovePreviewNotify(SelectedNotifyIndex);
+			SelectPreviewNotify(-1);
+		}
+	}
+
+	if (SelectedNotifyIndex >= 0 && SelectedNotifyIndex < Sequence->Notifies.Num() && Sequence->Notifies[SelectedNotifyIndex].Notify)
+	{
+		DrawNotifyObjectProperties(SelectedNotifyIndex, Sequence->Notifies[SelectedNotifyIndex].Notify);
+	}
+
+	ImGui::PopID();
+}
+
+void FSkeletalMeshViewerPanel::DrawNotifyObjectProperties(int32 Index, UAnimNotify* NotifyObject)
+{
+	ImGui::Indent(ImGui::GetFontSize());
+	bool bFirst = true;
+	for (const UClass* Class = NotifyObject->GetClass(); Class; Class = Class->Super)
+	{
+		for (const FProperty& Property : Class->GetProperties())
+		{
+			if (!Property.HasAnyFlags(CPF_Edit))
+			{
+				continue;
+			}
+
+			const FString Name = Property.Name.ToString();
+			void* Ptr = reinterpret_cast<uint8*>(NotifyObject) + Property.Offset;
+			const bool bReadOnly = Property.HasAnyFlags(CPF_EditConst);
+
+			if (!bFirst)
+			{
+				ImGui::SameLine(0.0f, 16.0f);
+			}
+			bFirst = false;
+
+			ImGui::PushID(Name.c_str());
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextUnformatted(Name.c_str());
+			ImGui::SameLine();
+			ImGui::BeginDisabled(bReadOnly);
+
+			bool bChanged = false;
+			switch (Property.Type)
+			{
+			case EPropertyType::Float:
+				ImGui::SetNextItemWidth(70.0f);
+				bChanged = ImGui::DragFloat("##Value", static_cast<float*>(Ptr), 0.01f, 0.0f, 0.0f, "%.2f");
+				break;
+			case EPropertyType::Int:
+				ImGui::SetNextItemWidth(70.0f);
+				bChanged = ImGui::DragInt("##Value", static_cast<int32*>(Ptr));
+				break;
+			case EPropertyType::Bool:
+				bChanged = ImGui::Checkbox("##Value", static_cast<bool*>(Ptr));
+				break;
+			case EPropertyType::String:
+			{
+				FString& Value = *static_cast<FString*>(Ptr);
+				if (const char* AssetFolder = NotifyObject->GetPropertyAssetFolder(Property))
+				{
+					bChanged = DrawAudioFilePicker(AssetFolder, Value);
+					break;
+				}
+
+				char Buffer[260];
+				snprintf(Buffer, sizeof(Buffer), "%s", Value.c_str());
+				ImGui::SetNextItemWidth(240.0f);
+				ImGui::InputText("##Value", Buffer, sizeof(Buffer));
+				if (ImGui::IsItemDeactivatedAfterEdit())
+				{
+					Value = Buffer;
+					bChanged = true;
+				}
+				break;
+			}
+			default:
+				ImGui::TextDisabled("(unsupported)");
+				break;
+			}
+
+			ImGui::EndDisabled();
+			ImGui::PopID();
+
+			if (bChanged)
+			{
+				OnPreviewNotifyPropertyChanged(Index, Property);
+			}
+		}
+	}
+	ImGui::Unindent(ImGui::GetFontSize());
+}
+
+void FSkeletalMeshViewerPanel::HandlePreviewNotify(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence)
+{
+	AddFiredPreviewNotify(Event, GetNotifyLabel(Event));
+
+	if (bPreviewCameraShake)
+	{
+		if (const UAnimNotify_CameraShake* Shake = Cast<UAnimNotify_CameraShake>(Event.Notify))
+		{
+			PreviewShake = Shake->CreateShakePattern();
+			PreviewShakeScale = Shake->ShakeScale;
+			if (PreviewShake)
+			{
+				PreviewShake->StartShakePattern();
+			}
+		}
+	}
+}
+
+void FSkeletalMeshViewerPanel::AddFiredPreviewNotify(const FAnimNotifyEvent& Event, const FString& Label)
+{
+	constexpr int32 MaxFiredNotifies = 8;
+
+	FFiredPreviewNotify& Fired = FiredNotifies.AddDefaulted_GetRef();
+	Fired.Event = Event;
+	Fired.Label = Label;
+	Fired.FiredAt = ImGui::GetTime();
+	while (FiredNotifies.Num() > MaxFiredNotifies)
+	{
+		FiredNotifies.RemoveAt(0);
+	}
+}
+
+void FSkeletalMeshViewerPanel::HandlePreviewNotifyStateBegin(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence)
+{
+	AddFiredPreviewNotify(Event, GetNotifyLabel(Event) + " [Begin]");
+}
+
+void FSkeletalMeshViewerPanel::HandlePreviewNotifyStateEnd(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence)
+{
+	AddFiredPreviewNotify(Event, GetNotifyLabel(Event) + " [End]");
+}
+
+bool FSkeletalMeshViewerPanel::IsPreviewNotifyFlashing(const FAnimNotifyEvent& Event) const
+{
+	constexpr double FlashSeconds = 0.3;
+	const double Now = ImGui::GetTime();
+	for (const FFiredPreviewNotify& Fired : FiredNotifies)
+	{
+		if (Now - Fired.FiredAt <= FlashSeconds &&
+			Fired.Event.Notify == Event.Notify &&
+			Fired.Event.TriggerTime == Event.TriggerTime &&
+			Fired.Event.NotifyName == Event.NotifyName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void FSkeletalMeshViewerPanel::DrawFiredNotifies()
+{
+	if (!HasPreviewClip())
+	{
+		return;
+	}
+
+	ImGui::Checkbox("Preview Camera Shake", &bPreviewCameraShake);
+	ImGui::SameLine(0.0f, 16.0f);
+	ImGui::TextDisabled("Fired:");
+	for (int32 i = FiredNotifies.Num() - 1; i >= 0; --i)
+	{
+		const FFiredPreviewNotify& Fired = FiredNotifies[i];
+		ImGui::SameLine();
+		ImGui::Text("%s (%.2fs)", Fired.Label.c_str(), Fired.Event.TriggerTime);
+	}
+}
+
+TArray<FString> FSkeletalMeshViewerPanel::CollectUsedNotifyNames() const
+{
+	TArray<FString> Names;
+	const FFbxAssetSet* Assets = SelectedMesh ? UAssetManager::Get().FindFbxAssets(SelectedMesh->GetPath()) : nullptr;
+	if (!Assets)
+	{
+		return Names;
+	}
+
+	for (const UAnimSequence* Sequence : Assets->Animations)
+	{
+		if (!Sequence)
+		{
+			continue;
+		}
+		for (const FAnimNotifyEvent& Event : Sequence->Notifies)
+		{
+			if (Event.Notify)
+			{
+				continue;
+			}
+			const FString Name = Event.NotifyName.ToString();
+			if (!Name.empty() && Name != "None" && Names.Find(Name) == INDEX_NONE)
+			{
+				Names.Add(Name);
+			}
+		}
+	}
+
+	std::sort(Names.begin(), Names.end());
+	return Names;
+}
+
+bool FSkeletalMeshViewerPanel::DrawAudioFilePicker(const char* Folder, FString& InOutPath)
+{
+	bool bChanged = false;
+	const FString Preview = InOutPath.empty() ? FString("None") : FFileHelper::ToUtf8Path(FFileHelper::ToNativePath(InOutPath).filename());
+
+	ImGui::SetNextItemWidth(220.0f);
+	if (ImGui::BeginCombo("##AudioFile", Preview.c_str()))
+	{
+		if (ImGui::IsWindowAppearing())
+		{
+			RefreshAudioFileList(Folder);
+		}
+
+		if (ImGui::Selectable("None", InOutPath.empty()) && !InOutPath.empty())
+		{
+			InOutPath.clear();
+			bChanged = true;
+		}
+		if (AudioFileList.IsEmpty())
+		{
+			ImGui::TextDisabled("No audio files in %s", Folder);
+		}
+		for (const FString& File : AudioFileList)
+		{
+			const FString Label = FFileHelper::ToUtf8Path(FFileHelper::ToNativePath(File).lexically_relative(FFileHelper::ToNativePath(Folder)));
+			const bool bSelected = File == InOutPath;
+			if (ImGui::Selectable(Label.c_str(), bSelected) && !bSelected)
+			{
+				InOutPath = File;
+				bChanged = true;
+			}
+			if (bSelected)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+	if (!InOutPath.empty() && ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("%s", InOutPath.c_str());
+	}
+
+	ImGui::SameLine();
+	ImGui::BeginDisabled(InOutPath.empty());
+	if (ImGui::SmallButton("Play"))
+	{
+		if (FAudioSystem* Audio = GEngine ? GEngine->GetAudioSystem() : nullptr)
+		{
+			Audio->Play(InOutPath, false, 1.0f);
+		}
+	}
+	ImGui::EndDisabled();
+
+	return bChanged;
+}
+
+void FSkeletalMeshViewerPanel::RefreshAudioFileList(const char* Folder)
+{
+	AudioFileList.Reset();
+
+	std::error_code Error;
+	const std::filesystem::path Root = FFileHelper::ToNativePath(Folder);
+	if (!std::filesystem::is_directory(Root, Error))
+	{
+		return;
+	}
+
+	for (const std::filesystem::directory_entry& Entry : std::filesystem::recursive_directory_iterator(Root, Error))
+	{
+		if (!Entry.is_regular_file())
+		{
+			continue;
+		}
+
+		FString Extension = FFileHelper::ToUtf8Path(Entry.path().extension());
+		std::transform(Extension.begin(), Extension.end(), Extension.begin(),
+			[](unsigned char C) { return static_cast<char>(std::tolower(C)); });
+		if (Extension == ".wav" || Extension == ".mp3" || Extension == ".flac" || Extension == ".ogg")
+		{
+			const std::u8string GenericPath = Entry.path().lexically_normal().generic_u8string();
+			AudioFileList.Add(FString(GenericPath.begin(), GenericPath.end()));
+		}
+	}
+	std::sort(AudioFileList.begin(), AudioFileList.end());
+}
+
+void FSkeletalMeshViewerPanel::SelectPreviewNotify(int32 Index)
+{
+	SelectedNotifyIndex = Index;
+	NotifyNameBuffer[0] = '\0';
+
+	const UAnimSequence* Sequence = GetSelectedPreviewSequence();
+	if (Sequence && Index >= 0 && Index < Sequence->Notifies.Num())
+	{
+		const FString Name = Sequence->Notifies[Index].NotifyName.ToString();
+		snprintf(NotifyNameBuffer, sizeof(NotifyNameBuffer), "%s", Name.c_str());
+	}
+}
+
+UAnimSequence* FSkeletalMeshViewerPanel::GetSelectedPreviewSequence() const
+{
+	if (SelectedClipIndex < 0 || SelectedClipIndex >= PreviewClips.Num())
+	{
+		return nullptr;
+	}
+	return PreviewClips[SelectedClipIndex].Sequence;
+}
+
+int32 FSkeletalMeshViewerPanel::AddPreviewNotify(float Time, float Duration)
+{
+	UAnimSequence* Sequence = GetSelectedPreviewSequence();
+	if (!Sequence)
+	{
+		return -1;
+	}
+
+	const float Length = Sequence->GetPlayLength();
+	FAnimNotifyEvent Notify;
+	Notify.NotifyName = FName("NewNotify");
+	Notify.TriggerTime = std::clamp(SnapNotifyTimeToFrame(*Sequence, Time), 0.0f, Length);
+	Notify.Duration = std::clamp(Duration, 0.0f, Length - Notify.TriggerTime);
+	Sequence->Notifies.Add(Notify);
+	bNotifyDirty = true;
+
+	return SortPreviewNotifies(Sequence->Notifies.Num() - 1);
+}
+
+void FSkeletalMeshViewerPanel::RemovePreviewNotify(int32 Index)
+{
+	UAnimSequence* Sequence = GetSelectedPreviewSequence();
+	if (!FindPreviewNotify(Sequence, Index))
+	{
+		return;
+	}
+
+	Sequence->RemoveNotifyAt(Index);
+	bNotifyDirty = true;
+}
+
+void FSkeletalMeshViewerPanel::SetPreviewNotifyTime(int32 Index, float Time, bool bSnapToFrame)
+{
+	UAnimSequence* Sequence = GetSelectedPreviewSequence();
+	FAnimNotifyEvent* Notify = FindPreviewNotify(Sequence, Index);
+	if (!Notify)
+	{
+		return;
+	}
+
+	if (bSnapToFrame)
+	{
+		Time = SnapNotifyTimeToFrame(*Sequence, Time);
+	}
+	const float MaxTime = std::max(0.0f, Sequence->GetPlayLength() - Notify->Duration);
+	Time = std::clamp(Time, 0.0f, MaxTime);
+
+	if (Time != Notify->TriggerTime)
+	{
+		Notify->TriggerTime = Time;
+		bNotifyDirty = true;
+	}
+}
+
+int32 FSkeletalMeshViewerPanel::SortPreviewNotifies(int32 KeepIndex)
+{
+	UAnimSequence* Sequence = GetSelectedPreviewSequence();
+	if (!Sequence)
+	{
+		return -1;
+	}
+
+	TArray<FAnimNotifyEvent>& Notifies = Sequence->Notifies;
+	TArray<int32> Order;
+	for (int32 i = 0; i < Notifies.Num(); ++i)
+	{
+		Order.Add(i);
+	}
+	std::stable_sort(Order.begin(), Order.end(), [&Notifies](int32 A, int32 B)
+	{
+		return Notifies[A].TriggerTime < Notifies[B].TriggerTime;
+	});
+
+	TArray<FAnimNotifyEvent> Sorted;
+	int32 NewKeepIndex = -1;
+	for (int32 i = 0; i < Order.Num(); ++i)
+	{
+		Sorted.Add(Notifies[Order[i]]);
+		if (Order[i] == KeepIndex)
+		{
+			NewKeepIndex = i;
+		}
+	}
+	Notifies = std::move(Sorted);
+	return NewKeepIndex;
+}
+
+void FSkeletalMeshViewerPanel::SetPreviewNotifyDuration(int32 Index, float Duration)
+{
+	UAnimSequence* Sequence = GetSelectedPreviewSequence();
+	FAnimNotifyEvent* Notify = FindPreviewNotify(Sequence, Index);
+	if (!Notify)
+	{
+		return;
+	}
+
+	const float MaxDuration = std::max(0.0f, Sequence->GetPlayLength() - Notify->TriggerTime);
+	Duration = std::clamp(Duration, 0.0f, MaxDuration);
+
+	if (Duration != Notify->Duration)
+	{
+		Notify->Duration = Duration;
+		bNotifyDirty = true;
+	}
+}
+
+void FSkeletalMeshViewerPanel::RenamePreviewNotify(int32 Index, const FString& Name)
+{
+	FAnimNotifyEvent* Notify = FindPreviewNotify(GetSelectedPreviewSequence(), Index);
+	if (!Notify || Name.empty())
+	{
+		return;
+	}
+
+	const FName NewName(Name);
+	if (!(NewName == Notify->NotifyName))
+	{
+		Notify->NotifyName = NewName;
+		bNotifyDirty = true;
+	}
+}
+
+void FSkeletalMeshViewerPanel::SetPreviewNotifyClass(int32 Index, UClass* NotifyClass)
+{
+	UAnimSequence* Sequence = GetSelectedPreviewSequence();
+	FAnimNotifyEvent* Notify = FindPreviewNotify(Sequence, Index);
+	if (!Notify)
+	{
+		return;
+	}
+
+	const UClass* CurrentClass = Notify->Notify ? Notify->Notify->GetClass() : nullptr;
+	if (CurrentClass == NotifyClass)
+	{
+		return;
+	}
+
+	UAnimNotify* NewNotify = nullptr;
+	if (NotifyClass)
+	{
+		if (!NotifyClass->IsChildOf(UAnimNotify::StaticClass()))
+		{
+			return;
+		}
+		NewNotify = NewObject<UAnimNotify>(Sequence, NotifyClass);
+		if (!NewNotify)
+		{
+			return;
+		}
+		NewNotify->NormalizeProperties();
+	}
+
+	Sequence->SetNotifyObject(Index, NewNotify);
+	bNotifyDirty = true;
+}
+
+void FSkeletalMeshViewerPanel::OnPreviewNotifyPropertyChanged(int32 Index, const FProperty& Property)
+{
+	FAnimNotifyEvent* Notify = FindPreviewNotify(GetSelectedPreviewSequence(), Index);
+	if (!Notify || !Notify->Notify)
+	{
+		return;
+	}
+
+	Notify->Notify->NormalizeProperties(&Property);
+	bNotifyDirty = true;
+}
+
+bool FSkeletalMeshViewerPanel::SavePreviewNotifies()
+{
+	if (!SelectedMesh)
+	{
+		return false;
+	}
+
+	const FFbxAssetSet* Assets = UAssetManager::Get().FindFbxAssets(SelectedMesh->GetPath());
+	if (!Assets)
+	{
+		SaveStatusMessage = "Cannot save notifies: mesh was not loaded from an FBX.";
+		SaveStatusTimer = 3.0f;
+		return false;
+	}
+
+	std::filesystem::path FbxFile = FFileHelper::ToNativePath(SelectedMesh->GetPath());
+	if (FbxFile.extension() == ".bin")
+	{
+		FbxFile.replace_extension();
+	}
+	if (!std::filesystem::exists(FbxFile))
+	{
+		FbxFile = std::filesystem::path("Assets") / FbxFile;
+	}
+
+	const FString FbxPath = FFileHelper::ToUtf8Path(FbxFile);
+	if (!FAnimNotifyFile::Save(FbxPath, Assets->Animations))
+	{
+		SaveStatusMessage = "Failed to save notifies.";
+		SaveStatusTimer = 3.0f;
+		return false;
+	}
+
+	bNotifyDirty = false;
+	SaveStatusMessage = "Saved notifies: " + FAnimNotifyFile::GetNotifyPath(FbxPath);
+	SaveStatusTimer = 3.0f;
+	return true;
 }
 
 void FSkeletalMeshViewerPanel::DrawToolbarUI()
@@ -3031,6 +3876,7 @@ void FSkeletalMeshViewerPanel::ClearPreviewClips()
 void FSkeletalMeshViewerPanel::BuildPreviewClips()
 {
 	ClearPreviewClips();
+	bNotifyDirty = false;
 
 	if (!SelectedMesh)
 	{
@@ -3093,6 +3939,11 @@ void FSkeletalMeshViewerPanel::SelectPreviewClip(int32 ClipIndex)
 		PreviewComponent->RefreshAnimationPose();
 	}
 	SelectedClipIndex = ClipIndex;
+	FiredNotifies.Empty();
+	PreviewShake.reset();
+	SelectedNotifyIndex = -1;
+	bDraggingNotify = false;
+	NotifyNameBuffer[0] = '\0';
 }
 
 bool FSkeletalMeshViewerPanel::HasPreviewClip() const
@@ -3224,6 +4075,11 @@ void FSkeletalMeshViewerPanel::HandlePreviewShortcuts()
 	if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
 	{
 		StepPreviewFrame(+1);
+	}
+	if (bAnimationWindowFocused && SelectedNotifyIndex >= 0 && ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+	{
+		RemovePreviewNotify(SelectedNotifyIndex);
+		SelectPreviewNotify(-1);
 	}
 }
 

@@ -219,18 +219,10 @@ private:
 	//BoneWeightHeatmap 관련 변수
 	FBoneWeightHeatmap BoneWeightHeatmap;
 
-	struct FPreviewNotifyStub
-	{
-		FString Name;
-		float StartTime = 0.0f;
-		float Duration = 0.0f; // 0 = 점 Notify
-	};
-
 	struct FPreviewClip
 	{
 		FString Name;
 		UAnimSequence* Sequence = nullptr;
-		TArray<FPreviewNotifyStub> Notifies;
 	};
 
 	UAnimSingleNodeInstance* GetPreviewAnimInstance() const;
@@ -250,6 +242,55 @@ private:
 	void StepPreviewFrame(int32 Delta);
 	void SetPreviewPlaySpeed(float Speed);
 	void HandlePreviewShortcuts();
+
+	void DrawNotifyProperties(const UAnimDataModel* Model);
+	void DrawNotifyObjectProperties(int32 Index, class UAnimNotify* NotifyObject);
+	void SelectPreviewNotify(int32 Index);
+	TArray<FString> CollectUsedNotifyNames() const;
+	bool DrawAudioFilePicker(const char* Folder, FString& InOutPath);
+	void RefreshAudioFileList(const char* Folder);
+	TArray<FString> AudioFileList;
+
+	UAnimSequence* GetSelectedPreviewSequence() const;
+	int32 AddPreviewNotify(float Time, float Duration);
+	void RemovePreviewNotify(int32 Index);
+	void SetPreviewNotifyTime(int32 Index, float Time, bool bSnapToFrame);
+	int32 SortPreviewNotifies(int32 KeepIndex);
+	void SetPreviewNotifyDuration(int32 Index, float Duration);
+	void RenamePreviewNotify(int32 Index, const FString& Name);
+	void SetPreviewNotifyClass(int32 Index, class UClass* NotifyClass);
+	void OnPreviewNotifyPropertyChanged(int32 Index, const struct FProperty& Property);
+	bool SavePreviewNotifies();
+
+	struct FFiredPreviewNotify
+	{
+		FAnimNotifyEvent Event;
+		FString Label;
+		double FiredAt = 0.0;
+	};
+
+	void HandlePreviewNotify(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence);
+	void HandlePreviewNotifyStateBegin(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence);
+	void HandlePreviewNotifyStateEnd(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence);
+	void AddFiredPreviewNotify(const FAnimNotifyEvent& Event, const FString& Label);
+	bool IsPreviewNotifyFlashing(const FAnimNotifyEvent& Event) const;
+	void DrawFiredNotifies();
+
+	uint32 PreviewNotifyHandle = 0;
+	uint32 PreviewNotifyStateBeginHandle = 0;
+	uint32 PreviewNotifyStateEndHandle = 0;
+	TArray<FFiredPreviewNotify> FiredNotifies;
+	std::unique_ptr<class FCameraShakePattern> PreviewShake;
+	float PreviewShakeScale = 1.0f;
+	bool bPreviewCameraShake = true;
+
+	int32 SelectedNotifyIndex = -1;
+	bool bDraggingNotify = false;
+	float NotifyDragOffset = 0.0f;
+	int32 NotifyPopupIndex = -1;
+	float NotifyPopupTime = 0.0f;
+	char NotifyNameBuffer[64] = "";
+	bool bNotifyDirty = false;
 
 	TArray<FPreviewClip> PreviewClips;
 	int32 SelectedClipIndex = -1; // -1 = None

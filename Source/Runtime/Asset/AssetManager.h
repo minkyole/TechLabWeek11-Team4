@@ -74,6 +74,7 @@ public:
 	bool SaveBlendSpace(const FString& Path, const UBlendSpace1D& Definition, FString& Error, bool bCreateOnly = false);
 	TArray<UAnimSequence*> GetAnimationAssets(const USkeletalMesh* Mesh = nullptr) const;
 	TArray<USkeletalMesh*> GetSkeletalMeshAssets() const;
+	TArray<UBlendSpace1D*> GetBlendSpaceAssets(const USkeletalMesh* Mesh = nullptr) const;
 
 	//UStaticMesh* GetMesh(FString InName);
 	//UStaticMesh* GetMesh(EPrimitiveType Type); // 오버로드(수정 중)

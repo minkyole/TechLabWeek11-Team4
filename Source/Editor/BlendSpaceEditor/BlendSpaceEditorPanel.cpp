@@ -28,7 +28,23 @@ namespace
 }
 
 FBlendSpaceEditorPanel::FBlendSpaceEditorPanel() = default;
-FBlendSpaceEditorPanel::~FBlendSpaceEditorPanel() = default;
+FBlendSpaceEditorPanel::~FBlendSpaceEditorPanel()
+{
+	ReleaseResources();
+}
+
+void FBlendSpaceEditorPanel::ReleaseResources()
+{
+	// NewObject registers the draft in GUObjectArray. Delete it while the
+	// UObject registry is alive, before DestroyAllObjectsExceptEngine runs.
+	Working.reset();
+	Rows.clear();
+	SelectedId = DragId = 0;
+	Dirty = PendingClose = GraphFocused = KeyboardFocused = false;
+	Path.clear();
+	PendingPath.clear();
+	IEditorPanel::SetOpen(false);
+}
 
 void FBlendSpaceEditorPanel::SetOpen(bool Open)
 {

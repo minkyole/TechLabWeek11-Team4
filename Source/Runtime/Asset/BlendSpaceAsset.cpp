@@ -199,3 +199,18 @@ bool UAssetManager::SaveBlendSpace(const FString& Path, const UBlendSpace1D& Def
 	AssetPathMap.Add(Key, FFileHelper::ToUtf8Path(Native));
 	return true;
 }
+
+TArray<UBlendSpace1D*> UAssetManager::GetBlendSpaceAssets(const USkeletalMesh* Mesh) const
+{
+	TArray<UBlendSpace1D*> Result;
+	for (const auto& Entry : AssetMap)
+	{
+		if (Entry.second && Entry.second->IsA<UBlendSpace1D>())
+		{
+			auto* Asset = Cast<UBlendSpace1D>(Entry.second);
+			if (!Mesh || Asset->GetSkeletalMesh() == Mesh) Result.Add(Asset);
+		}
+	}
+	std::sort(Result.begin(), Result.end(), [](const auto* A, const auto* B) { return A->GetPath() < B->GetPath(); });
+	return Result;
+}

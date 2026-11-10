@@ -12,6 +12,8 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "BoneWeightHeatmap.h"
+#include <functional>
+#include <utility>
 
 #include "Render/ViewMode.h"
 #include "Render/ToneMapRenderer.h"
@@ -20,6 +22,7 @@ class FGridRenderer;
 class UAnimSequence;
 class UAnimSingleNodeInstance;
 class UAnimDataModel;
+class UBlendSpace1D;
 
 class FSkeletalMeshViewerPanel : public IEditorPanel
 {
@@ -52,6 +55,7 @@ public:
 	bool IsHoveredOrInteracting() const { return bViewportHovered || bIsInteracting; }
 
 	void RequestFocus() { bNeedFocus = true; }
+	void SetOpenBlendSpaceEditorCallback(std::function<void(const FString&)> Callback) { OnOpenBlendSpaceEditor = std::move(Callback); }
 
 	// 현재 프리뷰에서 수정한 본 Transform을 RefPose로 확정하고 .bin 파일에 저장
 	bool SaveCurrentMesh();
@@ -81,6 +85,8 @@ private:
 	void DrawSkeletonTreeWindow(const struct ImGuiWindowClass& WindowClass);
 	void DrawAssetDetailsWindow(const struct ImGuiWindowClass& WindowClass);
 	void DrawPreviewSettingsWindow(const struct ImGuiWindowClass& WindowClass);
+	void DrawBlendSpaceWindow(const struct ImGuiWindowClass& WindowClass);
+	void DrawBlendSpaceGraph();
 	void DrawAnimationWindow(const struct ImGuiWindowClass& WindowClass);
 	void DrawPreviewTimeline(const UAnimDataModel* Model);
 	void DrawMeshDetailsUI();
@@ -137,6 +143,12 @@ private:
 	bool bAssetDetailsOpen = true;
 	bool bPreviewSettingsOpen = true;
 	bool bAnimationOpen = true;
+	bool bBlendSpaceOpen = true;
+	bool bBlendSpaceDockInitialized = false;
+	bool bViewportFocused = false;
+	bool bBlendSpaceWindowFocused = false;
+	bool bAnimationWasVisible = false;
+	bool bBlendSpaceWasVisible = false;
 	bool bResetLayout = false;
 
 	// 레벨 에디터와 같은 공전 및 자유 이동 카메라 조작을 사용한다.
@@ -237,6 +249,29 @@ private:
 	void BuildPreviewTestClips();
 	void SelectPreviewClip(int32 ClipIndex);
 
+
+	enum class EPreviewMode { None, Sequence, BlendSpace };
+	struct FPreviewPlaybackState
+	{
+		float NormalizedTime = 0.0f;
+		float Rate = 1.0f;
+		bool Playing = true;
+		bool Looping = true;
+	};
+	EPreviewMode PreviewMode = EPreviewMode::None;
+	FPreviewPlaybackState SequencePlayback, BlendSpacePlayback;
+	UBlendSpace1D* SelectedBlendSpace = nullptr; // Registered asset, non-owning.
+	float BlendSpaceInput = 0.0f;
+	FString BlendSpaceMessage;
+	std::function<void(const FString&)> OnOpenBlendSpaceEditor;
+	void CapturePreviewPlayback();
+	void ActivatePreviewMode(EPreviewMode Mode);
+	void ResetPreviewModes();
+	bool HasActivePreview() const;
+	bool IsBlendSpacePlayable() const;
+	void SelectPreviewBlendSpace(UBlendSpace1D* Asset);
+	void ApplyBlendSpaceInput(float Value);
+	void RefreshPreviewPose();
 	bool HasPreviewClip() const;
 	bool BlockEditDuringAnimationPreview();
 	bool IsPreviewAtEnd() const;

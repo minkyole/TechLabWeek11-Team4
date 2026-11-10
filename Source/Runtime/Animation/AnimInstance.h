@@ -45,6 +45,9 @@ class UAnimSingleNodeInstance : public UAnimInstance
 public:
 	void SetAnimationAsset(UAnimSequence* InSequence);
 	UAnimSequence* GetAnimationAsset() const;
+	void SetBlendSpaceAsset(UBlendSpace1D* InBlendSpace);
+	UBlendSpace1D* GetBlendSpaceAsset() const;
+	void SetBlendSpaceInput(float X);
 
 	void SetPlaying(bool bInPlaying);
 	bool IsPlaying() const;
@@ -63,5 +66,8 @@ protected:
 	void NativeInitializeAnimation() override;
 
 private:
+	FAnimNode_AssetPlayerBase& ActivePlayer();
+	const FAnimNode_AssetPlayerBase& ActivePlayer() const;
 	FAnimNode_SequencePlayer SequencePlayer;
+	FAnimNode_BlendSpacePlayer BlendSpacePlayer;
 };

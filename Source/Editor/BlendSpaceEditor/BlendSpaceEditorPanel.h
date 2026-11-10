@@ -14,6 +14,8 @@ public:
 	void OnRender() override;
 	const char* GetPanelName() const override { return "Blend Space Editor"; }
 	void OpenAsset(const FString& Path);
+	// Must run before the engine's global UObject teardown; safe to call again.
+	void ReleaseResources();
 	void SetOpen(bool Open) override;
 	bool IsKeyboardFocused() const { return IsOpen() && KeyboardFocused; }
 private:

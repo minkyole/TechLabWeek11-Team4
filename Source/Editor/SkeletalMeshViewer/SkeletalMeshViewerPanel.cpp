@@ -18,6 +18,8 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/BlendSpace.h"
+#include "Core/Misc/FileHelper.h"
 
 #include <algorithm>
 #include <cmath>
@@ -86,6 +88,7 @@ bool FSkeletalMeshViewerPanel::OpenAsset(const FString& Path)
 
 void FSkeletalMeshViewerPanel::ReleaseResources()
 {
+	ResetPreviewModes();
 	BoneGizmo.SetTarget(nullptr, false);
 	// 클립을 지우기 전에 인스턴스에서 먼저 떼어 낸다.
 	if (UAnimSingleNodeInstance* AnimInstance = GetPreviewAnimInstance())
@@ -153,6 +156,7 @@ void FSkeletalMeshViewerPanel::OpenMesh(USkeletalMesh* Mesh)
 
 void FSkeletalMeshViewerPanel::SetSelectedMesh(USkeletalMesh* Mesh)
 {
+	ResetPreviewModes();
 	if (SelectedMesh != Mesh)
 	{
 		PreviewMaterials.Reset();
@@ -620,7 +624,22 @@ void FSkeletalMeshViewerPanel::Tick(float DeltaTime)
 		}
 	}
 
-	if (PreviewComponent && SelectedClipIndex >= 0)
+	if (PreviewMode == EPreviewMode::BlendSpace)
+	{
+		if (!IsBlendSpacePlayable())
+		{
+			BlendSpaceMessage = "BlendSpace is empty or incompatible. Select a valid asset to preview.";
+			ActivatePreviewMode(EPreviewMode::None);
+			BlendSpacePlayback.Playing = false;
+		}
+		else if (auto* Instance = GetPreviewAnimInstance())
+		{
+			const auto& Axis = *SelectedBlendSpace->GetBlendParameter(0);
+			BlendSpaceInput = std::clamp(BlendSpaceInput, Axis.Min, Axis.Max);
+			Instance->SetBlendSpaceInput(BlendSpaceInput);
+		}
+	}
+	if (PreviewComponent && HasActivePreview() && bViewportOpen && bViewportVisible)
 	{
 		PreviewComponent->TickComponent(std::min(DeltaTime, 0.1f));
 		UpdatePreviewPlaybackEnd();
@@ -675,7 +694,7 @@ void FSkeletalMeshViewerPanel::HandleInput(float DeltaTime)
 		{
 			BoneGizmo.SetMode(EGizmoMode::Scale);
 		}
-		if (!HasPreviewClip() && ImGui::IsKeyPressed(ImGuiKey_Space))
+		if (!HasActivePreview() && ImGui::IsKeyPressed(ImGuiKey_Space))
 		{
 			const EGizmoMode Cur = BoneGizmo.GetMode();
 			if (Cur == EGizmoMode::Location) BoneGizmo.SetMode(EGizmoMode::Rotation);
@@ -1005,7 +1024,7 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 		Render3DBones(ViewProj);
 
 		// 3단계: 에디터와 100% 동일한 3D 기즈모(FGizmoRenderer)를 선택된 본 위치에 렌더링
-		if (bShowBoneGizmo && !HasPreviewClip() && GizmoRenderer && BoneGizmoTarget && SelectedBoneIndex >= 0 && SelectedBoneIndex < static_cast<int32>(SelectedMesh->MeshData.Bones.Num()))
+		if (bShowBoneGizmo && !HasActivePreview() && GizmoRenderer && BoneGizmoTarget && SelectedBoneIndex >= 0 && SelectedBoneIndex < static_cast<int32>(SelectedMesh->MeshData.Bones.Num()))
 		{
 			if (!BoneGizmo.IsUsing())
 			{
@@ -1107,19 +1126,36 @@ void FSkeletalMeshViewerPanel::OnRender()
 		ImGui::DockBuilderDockWindow("Asset Details", RightNode);
 		ImGui::DockBuilderDockWindow("Preview Scene Settings", RightBottomNode);
 		ImGui::DockBuilderDockWindow("Animation", CenterBottomNode);
+		ImGui::DockBuilderDockWindow("Blend Space", CenterBottomNode);
+		bBlendSpaceDockInitialized = true;
 		ImGui::DockBuilderDockWindow("Skeletal Mesh Viewport", CenterNode);
 		ImGui::DockBuilderFinish(DockSpaceID);
 	}
 
+	// Migrate only the new tab into saved layouts, preserving every existing split.
+	if (!bBlendSpaceDockInitialized)
+	{
+		if (!ImGui::FindWindowSettingsByID(ImHashStr("Blend Space")))
+		{
+			ImGuiID Target = 0;
+			if (const auto* Animation = ImGui::FindWindowByName("Animation")) Target = Animation->DockId;
+			if (!Target)
+				if (const auto* Settings = ImGui::FindWindowSettingsByID(ImHashStr("Animation"))) Target = Settings->DockId;
+			if (Target) ImGui::DockBuilderDockWindow("Blend Space", Target);
+		}
+		bBlendSpaceDockInitialized = true;
+	}
 	const bool bHasActiveMesh = (OpenedMeshes.Num() > 0 && SelectedMesh != nullptr);
 	ImGuiDockNodeFlags InnerDockFlags = (bHasActiveMesh && bVisible && bOpen) ? ImGuiDockNodeFlags_None : ImGuiDockNodeFlags_KeepAliveOnly;
 	ImGui::DockSpace(DockSpaceID, ImVec2(0.0f, 0.0f), InnerDockFlags, &SkelViewerClass);
 	ImGui::End(); // Skeletal Mesh Viewer 메인 창 끝
 
 	bAnimationWindowFocused = false;
+	bBlendSpaceWindowFocused = false;
+	bViewportFocused = false;
 	if (bHasActiveMesh && bVisible && bOpen)
 	{
-		// 5개의 내부 도킹 서브 패널 렌더링
+		// 뷰어 전용 도킹 서브 패널 렌더링
 		if (bViewportOpen)
 		{
 			DrawViewportWindow(SkelViewerClass);
@@ -1136,10 +1172,10 @@ void FSkeletalMeshViewerPanel::OnRender()
 		{
 			DrawPreviewSettingsWindow(SkelViewerClass);
 		}
-		if (bAnimationOpen)
-		{
-			DrawAnimationWindow(SkelViewerClass);
-		}
+		if (bAnimationOpen) DrawAnimationWindow(SkelViewerClass);
+		else bAnimationWasVisible = false;
+		if (bBlendSpaceOpen) DrawBlendSpaceWindow(SkelViewerClass);
+		else bBlendSpaceWasVisible = false;
 	}
 	else
 	{
@@ -1229,6 +1265,7 @@ void FSkeletalMeshViewerPanel::DrawViewportWindow(const ImGuiWindowClass& Window
 			const ImVec2 CursorPos = ImGui::GetCursorScreenPos();
 			const ImVec2 ImageSize(static_cast<float>(ViewportWidth), static_cast<float>(ViewportHeight));
 			bViewportVisible = true;
+			bViewportFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 			CachedViewportOrigin = CursorPos;
 			CachedViewportSize = ImageSize;
 			ImGui::Image(ColorTarget->GetSRV(), ImageSize);
@@ -1246,9 +1283,9 @@ void FSkeletalMeshViewerPanel::DrawViewportWindow(const ImGuiWindowClass& Window
 				IM_COL32(0, 0, 0, 160), 4.0f);
 			DrawList->AddText(ImVec2(CursorPos.x + 12, CursorPos.y + 10), IM_COL32(230, 230, 230, 240), HintText);
 
-			if (HasPreviewClip())
+			if (HasActivePreview())
 			{
-				const char* LockText = "ANIMATION PREVIEW  -  editing locked (select None in Animation to edit)";
+				const char* LockText = "ANIMATION PREVIEW  -  editing locked (select None in the active playback tab to edit)";
 				const ImVec2 LockSize = ImGui::CalcTextSize(LockText);
 				const float LockY = CursorPos.y + TextSize.y + 20;
 				DrawList->AddRectFilled(
@@ -1368,7 +1405,7 @@ void FSkeletalMeshViewerPanel::UpdateBoneInteraction()
 		|| ImGui::IsKeyDown(ImGuiKey_L);
 
 	bool bGizmoBlocksPick = false;
-	if (bShowBoneGizmo && !HasPreviewClip() && PreviewComponent && BoneGizmoTarget && SelectedBoneIndex >= 0 && SelectedBoneIndex < NumBones)
+	if (bShowBoneGizmo && !HasActivePreview() && PreviewComponent && BoneGizmoTarget && SelectedBoneIndex >= 0 && SelectedBoneIndex < NumBones)
 	{
 		if (!BoneGizmo.IsUsing())
 		{
@@ -2061,10 +2098,11 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 {
 	ImGui::SetNextWindowClass(&WindowClass);
 	// 키보드 내비게이션을 끈다. 켜 두면 Space가 포커스된 버튼도 눌러 재생 토글이 두 번 일어난다.
-	if (ImGui::Begin("Animation", &bAnimationOpen, ImGuiWindowFlags_NoNavInputs))
+	const bool Visible = ImGui::Begin("Animation", &bAnimationOpen, ImGuiWindowFlags_NoNavInputs);
+	if (Visible)
 	{
-		bAnimationWindowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)
-			|| ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
+		bAnimationWindowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+		if (bAnimationWindowFocused || (!bAnimationWasVisible && ImGui::IsWindowDocked())) ActivatePreviewMode(EPreviewMode::Sequence);
 
 		UAnimSingleNodeInstance* AnimInstance = GetPreviewAnimInstance();
 
@@ -2117,6 +2155,13 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 			ImGui::EndCombo();
 		}
 
+		if (PreviewMode == EPreviewMode::BlendSpace)
+		{
+			ImGui::TextDisabled("BlendSpace preview is active. Focus this tab to use sequence playback.");
+			bAnimationWasVisible = Visible;
+			ImGui::End();
+			return;
+		}
 		// 콤보에서 선택이 바뀌었을 수 있어 다시 확인한다.
 		ImGui::SameLine();
 		const UAnimSequence* Clip = (SelectedClipIndex >= 0 && SelectedClipIndex < PreviewClips.Num())
@@ -2269,6 +2314,7 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 		}
 		ImGui::TextDisabled("%s", SkinningText);
 	}
+	bAnimationWasVisible = Visible;
 	ImGui::End();
 }
 
@@ -2466,7 +2512,7 @@ void FSkeletalMeshViewerPanel::DrawToolbarUI()
 		{
 			if (SelectedMesh)
 			{
-				const bool bEditLocked = HasPreviewClip();
+				const bool bEditLocked = HasActivePreview();
 				if (ImGui::MenuItem("Save Asset (.bin)", "Ctrl+S", false, !bEditLocked))
 				{
 					SaveCurrentMesh();
@@ -2542,6 +2588,7 @@ void FSkeletalMeshViewerPanel::DrawToolbarUI()
 			ImGui::MenuItem("Asset Details", nullptr, &bAssetDetailsOpen);
 			ImGui::MenuItem("Preview Scene Settings", nullptr, &bPreviewSettingsOpen);
 			ImGui::MenuItem("Animation", nullptr, &bAnimationOpen);
+			ImGui::MenuItem("Blend Space", nullptr, &bBlendSpaceOpen);
 			ImGui::Separator();
 			if (ImGui::MenuItem("Reset Layout"))
 			{
@@ -2551,6 +2598,7 @@ void FSkeletalMeshViewerPanel::DrawToolbarUI()
 				bAssetDetailsOpen = true;
 				bPreviewSettingsOpen = true;
 				bAnimationOpen = true;
+				bBlendSpaceOpen = true;
 			}
 			ImGui::EndMenu();
 		}
@@ -2559,7 +2607,7 @@ void FSkeletalMeshViewerPanel::DrawToolbarUI()
 		if (SelectedMesh)
 		{
 			ImGui::Separator();
-			const bool bEditLocked = HasPreviewClip();
+			const bool bEditLocked = HasActivePreview();
 
 			ImGui::BeginDisabled(bEditLocked);
 			if (ImGui::Button("Save Asset"))
@@ -2770,7 +2818,7 @@ void FSkeletalMeshViewerPanel::DrawBoneHierarchyUI()
 		return;
 	}
 
-	const bool bEditLocked = HasPreviewClip();
+	const bool bEditLocked = HasActivePreview();
 	ImGui::BeginDisabled(bEditLocked);
 	if (ImGui::Button("Reset All Bones to Bind Pose", ImVec2(-1.0f, 0.0f)))
 	{
@@ -2840,7 +2888,7 @@ void FSkeletalMeshViewerPanel::DrawBoneHierarchyUI()
 			ImGui::Text("Parent: None (Root Bone)");
 		}
 
-		const bool bEditLocked = HasPreviewClip();
+		const bool bEditLocked = HasActivePreview();
 		ImGui::BeginDisabled(bEditLocked);
 		if (PreviewComponent)
 		{
@@ -3123,57 +3171,42 @@ void FSkeletalMeshViewerPanel::BuildPreviewTestClips()
 	}
 }
 
+
 void FSkeletalMeshViewerPanel::SelectPreviewClip(int32 ClipIndex)
 {
-	if (ClipIndex < 0 || ClipIndex >= PreviewClips.Num())
+	CapturePreviewPlayback();
+	SelectedClipIndex = ClipIndex >= 0 && ClipIndex < PreviewClips.Num() &&
+		IsPlayableClip(PreviewClips[ClipIndex].Sequence.get()) ? ClipIndex : -1;
+	SequencePlayback = FPreviewPlaybackState();
+	SequencePlayback.Rate = PreviewPlaySpeed;
+	if (auto* Instance = GetPreviewAnimInstance())
 	{
-		ClipIndex = -1;
+		Instance->SetAnimationAsset(nullptr);
+		Instance->SetPlaying(false);
 	}
-	else if (!IsPlayableClip(PreviewClips[ClipIndex].Sequence.get()))
+	// Force reapplication even when replacing a clip within the same mode.
+	PreviewMode = EPreviewMode::None;
+	ActivatePreviewMode(EPreviewMode::Sequence);
+	if (SelectedClipIndex < 0 && PreviewComponent)
 	{
-		SaveStatusMessage = "Clip has no frames.";
-		SaveStatusTimer = 3.0f;
-		ClipIndex = -1;
-	}
-
-	UAnimSingleNodeInstance* AnimInstance = GetPreviewAnimInstance();
-	if (!AnimInstance)
-	{
-		SelectedClipIndex = -1;
-		return;
-	}
-
-	if (ClipIndex == -1)
-	{
-		AnimInstance->SetAnimationAsset(nullptr);
-		AnimInstance->SetPlaying(false);
 		PreviewComponent->ResetPoseToBindPose();
+		PreviewComponent->FlushPendingPose();
 	}
-	else
-	{
-		AnimInstance->SetAnimationAsset(PreviewClips[ClipIndex].Sequence.get());
-		AnimInstance->SetLooping(true);
-		PreviewPlayDirection = 1;
-		ApplyPreviewPlayRate();
-		AnimInstance->SetPlaying(true);
-		PreviewComponent->RefreshAnimationPose();
-	}
-	SelectedClipIndex = ClipIndex;
 }
 
 bool FSkeletalMeshViewerPanel::HasPreviewClip() const
 {
-	return (SelectedClipIndex >= 0 && SelectedClipIndex < PreviewClips.Num());
+	return PreviewMode == EPreviewMode::Sequence && SelectedClipIndex >= 0 && SelectedClipIndex < PreviewClips.Num();
 }
 
 bool FSkeletalMeshViewerPanel::BlockEditDuringAnimationPreview()
 {
-	if (!HasPreviewClip())
+	if (!HasActivePreview())
 	{
 		return (false);
 	}
 
-	SaveStatusMessage = "Animation preview: select None in the Animation window to edit or save.";
+	SaveStatusMessage = "Animation preview: select None in the active playback tab to edit or save.";
 	SaveStatusTimer = 3.5f;
 	return (true);
 }
@@ -3181,7 +3214,7 @@ bool FSkeletalMeshViewerPanel::BlockEditDuringAnimationPreview()
 bool FSkeletalMeshViewerPanel::IsPreviewAtEnd() const
 {
 	UAnimSingleNodeInstance* AnimSingleNodeInstance = GetPreviewAnimInstance();
-	if (!AnimSingleNodeInstance || !HasPreviewClip())
+	if (!AnimSingleNodeInstance || !HasActivePreview())
 	{
 		return (false);
 	}
@@ -3196,7 +3229,7 @@ bool FSkeletalMeshViewerPanel::IsPreviewAtEnd() const
 void FSkeletalMeshViewerPanel::UpdatePreviewPlaybackEnd()
 {
 	UAnimSingleNodeInstance* AnimSingleNodeInstance = GetPreviewAnimInstance();
-	if (!AnimSingleNodeInstance || !HasPreviewClip() || !AnimSingleNodeInstance->IsPlaying() || AnimSingleNodeInstance->IsLooping() || !IsPreviewAtEnd())
+	if (!AnimSingleNodeInstance || !HasActivePreview() || !AnimSingleNodeInstance->IsPlaying() || AnimSingleNodeInstance->IsLooping() || !IsPreviewAtEnd())
 	{
 		return;
 	}
@@ -3206,7 +3239,7 @@ void FSkeletalMeshViewerPanel::UpdatePreviewPlaybackEnd()
 void FSkeletalMeshViewerPanel::TogglePreviewPlayback() 
 {
 	UAnimSingleNodeInstance* AnimSingleNodeInstance = GetPreviewAnimInstance();
-	if (!AnimSingleNodeInstance || !HasPreviewClip())
+	if (!AnimSingleNodeInstance || !HasActivePreview())
 	{
 		return;
 	}
@@ -3242,7 +3275,7 @@ int32 FSkeletalMeshViewerPanel::GetPreviewCurrentFrame() const
 void FSkeletalMeshViewerPanel::ScrubPreviewToTime(float Seconds)
 {
 	UAnimSingleNodeInstance* AnimSingleNodeInstance = GetPreviewAnimInstance();
-	if (!AnimSingleNodeInstance || !HasPreviewClip())
+	if (!AnimSingleNodeInstance || !HasActivePreview())
 	{
 		return;
 	}
@@ -3268,28 +3301,19 @@ void FSkeletalMeshViewerPanel::SetPreviewPlaySpeed(float Speed)
 	ApplyPreviewPlayRate();
 }
 
+
 void FSkeletalMeshViewerPanel::HandlePreviewShortcuts()
 {
-	if (!HasPreviewClip() || ImGui::GetIO().WantTextInput)
+	const ImGuiIO& IO = ImGui::GetIO();
+	if (!HasActivePreview() || IO.WantTextInput || IO.KeyCtrl || IO.KeyAlt ||
+		ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) ||
+		ImGui::IsMouseDown(ImGuiMouseButton_Right) || ImGui::IsMouseDown(ImGuiMouseButton_Middle) || bIsInteracting) return;
+	if (!bViewportFocused && !(PreviewMode == EPreviewMode::Sequence ? bAnimationWindowFocused : bBlendSpaceWindowFocused)) return;
+	if (ImGui::IsKeyPressed(ImGuiKey_Space, false)) TogglePreviewPlayback();
+	if (HasPreviewClip())
 	{
-		return;
-	}
-	if (!bViewportHovered && !bAnimationWindowFocused)
-	{
-		return;
-	}
-
-	if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
-	{
-		TogglePreviewPlayback();
-	}
-	if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
-	{
-		StepPreviewFrame(-1);
-	}
-	if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
-	{
-		StepPreviewFrame(+1);
+		if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) StepPreviewFrame(-1);
+		if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) StepPreviewFrame(+1);
 	}
 }
 
@@ -3348,4 +3372,283 @@ void FSkeletalMeshViewerPanel::StepPreviewFrame(int32 Delta)
 
 	TargetFrame = std::clamp(TargetFrame, 0, Model->GetNumberOfFrames());
 	ScrubPreviewToTime(static_cast<float>(TargetFrame) / ClipFPS);
+}
+void FSkeletalMeshViewerPanel::CapturePreviewPlayback()
+{
+	auto* Instance = GetPreviewAnimInstance();
+	if (!Instance || PreviewMode == EPreviewMode::None) return;
+	auto& State = PreviewMode == EPreviewMode::Sequence ? SequencePlayback : BlendSpacePlayback;
+	const float Length = Instance->GetLength();
+	State.NormalizedTime = Length > 0 ? std::clamp(Instance->GetPosition() / Length, 0.0f, 1.0f) : 0.0f;
+	State.Playing = Instance->IsPlaying();
+	State.Looping = Instance->IsLooping();
+	State.Rate = Instance->GetPlayRate();
+}
+
+void FSkeletalMeshViewerPanel::ResetPreviewModes()
+{
+	if (auto* Instance = GetPreviewAnimInstance())
+	{
+		Instance->SetAnimationAsset(nullptr);
+		Instance->SetPlaying(false);
+	}
+	PreviewMode = EPreviewMode::None;
+	SelectedClipIndex = -1;
+	SelectedBlendSpace = nullptr;
+	SequencePlayback = FPreviewPlaybackState();
+	BlendSpacePlayback = FPreviewPlaybackState();
+	BlendSpaceInput = 0.0f;
+	BlendSpaceMessage.clear();
+	PreviewPlayDirection = 1;
+	PreviewPlaySpeed = PreviewCustomSpeed = 1.0f;
+}
+
+bool FSkeletalMeshViewerPanel::HasActivePreview() const
+{
+	return HasPreviewClip() || (PreviewMode == EPreviewMode::BlendSpace && SelectedBlendSpace);
+}
+
+bool FSkeletalMeshViewerPanel::IsBlendSpacePlayable() const
+{
+	if (!SelectedBlendSpace || SelectedBlendSpace->GetSkeletalMesh() != SelectedMesh || SelectedBlendSpace->GetNumSamples() == 0) return false;
+	const auto* Axis = SelectedBlendSpace->GetBlendParameter(0);
+	if (!Axis || !std::isfinite(Axis->Min) || !std::isfinite(Axis->Max) || Axis->Min >= Axis->Max) return false;
+	for (const auto& Sample : SelectedBlendSpace->GetSamples())
+	{
+		if (!Sample.Animation || Sample.Animation->GetSkeletalMesh() != SelectedMesh || !Sample.Animation->GetDataModel()) return false;
+		const float Length = Sample.Animation->GetPlayLength();
+		if (!std::isfinite(Length) || Length <= 0.0f || !std::isfinite(Sample.SampleValue.X) ||
+			Sample.SampleValue.X < Axis->Min || Sample.SampleValue.X > Axis->Max) return false;
+	}
+	return true;
+}
+
+void FSkeletalMeshViewerPanel::RefreshPreviewPose()
+{
+	// Zero delta updates BlendSpace weights, evaluates the pose, and flushes skinning.
+	if (PreviewComponent) PreviewComponent->TickComponent(0.0f);
+}
+
+void FSkeletalMeshViewerPanel::ActivatePreviewMode(EPreviewMode Mode)
+{
+	auto* Instance = GetPreviewAnimInstance();
+	if (!Instance) return;
+	if (Mode == EPreviewMode::Sequence && (SelectedClipIndex < 0 || SelectedClipIndex >= PreviewClips.Num())) Mode = EPreviewMode::None;
+	if (Mode == EPreviewMode::BlendSpace && !IsBlendSpacePlayable()) Mode = EPreviewMode::None;
+	if (PreviewMode == Mode) return;
+	CapturePreviewPlayback();
+	PreviewMode = Mode;
+	if (Mode == EPreviewMode::None)
+	{
+		Instance->SetAnimationAsset(nullptr);
+		Instance->SetPlaying(false);
+		PreviewComponent->ResetPoseToBindPose();
+		PreviewComponent->FlushPendingPose();
+		return;
+	}
+	const auto& State = Mode == EPreviewMode::Sequence ? SequencePlayback : BlendSpacePlayback;
+	if (Mode == EPreviewMode::Sequence)
+	{
+		Instance->SetAnimationAsset(PreviewClips[SelectedClipIndex].Sequence.get());
+		PreviewPlayDirection = State.Rate < 0 ? -1 : 1;
+		PreviewPlaySpeed = std::abs(State.Rate);
+		PreviewCustomSpeed = PreviewPlaySpeed;
+	}
+	else
+	{
+		Instance->SetBlendSpaceAsset(SelectedBlendSpace);
+		const auto& Axis = *SelectedBlendSpace->GetBlendParameter(0);
+		BlendSpaceInput = std::clamp(BlendSpaceInput, Axis.Min, Axis.Max);
+		Instance->SetBlendSpaceInput(BlendSpaceInput);
+	}
+	Instance->SetLooping(State.Looping);
+	Instance->SetPlayRate(State.Rate);
+	Instance->SetPosition(State.NormalizedTime * Instance->GetLength());
+	Instance->SetPlaying(State.Playing);
+	RefreshPreviewPose();
+}
+
+void FSkeletalMeshViewerPanel::SelectPreviewBlendSpace(UBlendSpace1D* Asset)
+{
+	CapturePreviewPlayback();
+	SelectedBlendSpace = Asset;
+	BlendSpacePlayback = FPreviewPlaybackState();
+	BlendSpaceMessage.clear();
+	const auto* Axis = Asset ? Asset->GetBlendParameter(0) : nullptr;
+	BlendSpaceInput = Axis ? Axis->Min : 0.0f;
+	// Detach even on a same-mode selection so time and weights are reinitialized.
+	if (auto* Instance = GetPreviewAnimInstance()) { Instance->SetAnimationAsset(nullptr); Instance->SetPlaying(false); }
+	PreviewMode = EPreviewMode::None;
+	if (Asset && !IsBlendSpacePlayable())
+	{
+		BlendSpaceMessage = "BlendSpace has no playable samples for this mesh. Use Edit Asset to configure it.";
+		BlendSpacePlayback.Playing = false;
+	}
+	ActivatePreviewMode(EPreviewMode::BlendSpace);
+	if (PreviewMode == EPreviewMode::None && PreviewComponent)
+	{
+		PreviewComponent->ResetPoseToBindPose();
+		PreviewComponent->FlushPendingPose();
+	}
+}
+
+void FSkeletalMeshViewerPanel::ApplyBlendSpaceInput(float Value)
+{
+	if (!std::isfinite(Value) || !IsBlendSpacePlayable()) return;
+	ActivatePreviewMode(EPreviewMode::BlendSpace);
+	const auto& Axis = *SelectedBlendSpace->GetBlendParameter(0);
+	BlendSpaceInput = std::clamp(Value, Axis.Min, Axis.Max);
+	if (auto* Instance = GetPreviewAnimInstance()) Instance->SetBlendSpaceInput(BlendSpaceInput);
+	RefreshPreviewPose();
+}
+
+void FSkeletalMeshViewerPanel::DrawBlendSpaceGraph()
+{
+	if (!SelectedBlendSpace) return;
+	const auto* Axis = SelectedBlendSpace->GetBlendParameter(0);
+	if (!Axis || !std::isfinite(Axis->Min) || !std::isfinite(Axis->Max) || Axis->Min >= Axis->Max) return;
+	const ImVec2 Origin = ImGui::GetCursorScreenPos();
+	const ImVec2 Size(std::max(ImGui::GetContentRegionAvail().x, 120.0f), std::max(ImGui::GetContentRegionAvail().y - 50.0f, 100.0f));
+	ImGui::InvisibleButton("##BlendSpacePreviewGraph", Size);
+	const bool Hovered = ImGui::IsItemHovered();
+	const float Left = Origin.x + 24, Width = std::max(Size.x - 48, 1.0f), Y = Origin.y + Size.y * .45f;
+	const double Range = static_cast<double>(Axis->Max) - Axis->Min;
+	auto ScreenX = [&](float X) { return Left + static_cast<float>((static_cast<double>(X) - Axis->Min) / Range) * Width; };
+	if (Hovered && ImGui::GetIO().KeyCtrl && IsBlendSpacePlayable())
+	{
+		const double Alpha = std::clamp(static_cast<double>((ImGui::GetMousePos().x - Left) / Width), 0.0, 1.0);
+		ApplyBlendSpaceInput(static_cast<float>(Axis->Min + Alpha * Range));
+	}
+	TArray<FBlendSampleWeight> Weights;
+	SelectedBlendSpace->GetSampleWeights(FVector(BlendSpaceInput, 0, 0), Weights);
+	auto* Draw = ImGui::GetWindowDrawList();
+	Draw->AddRectFilled(Origin, ImVec2(Origin.x + Size.x, Origin.y + Size.y), IM_COL32(25, 27, 30, 255));
+	for (int I = 0; I <= 10; ++I)
+	{
+		const float X = Left + Width * I / 10.0f;
+		Draw->AddLine(ImVec2(X, Origin.y + 8), ImVec2(X, Origin.y + Size.y - 28), IM_COL32(55, 57, 62, 255));
+		char Label[32]; snprintf(Label, sizeof(Label), "%.3g", Axis->Min + Range * I / 10.0);
+		Draw->AddText(ImVec2(X - ImGui::CalcTextSize(Label).x * .5f, Origin.y + Size.y - 22), IM_COL32(180, 183, 190, 255), Label);
+	}
+	Draw->AddLine(ImVec2(Left, Y), ImVec2(Left + Width, Y), IM_COL32(120, 125, 130, 255));
+	const bool Influence = Hovered && ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyAlt;
+	for (int I = 0; I < SelectedBlendSpace->GetNumSamples(); ++I)
+	{
+		const auto& Sample = *SelectedBlendSpace->GetSample(I);
+		const float X = ScreenX(Sample.SampleValue.X);
+		float Weight = 0;
+		for (const auto& Entry : Weights) if (Entry.SampleIndex == I) Weight = Entry.Weight;
+		const ImU32 Color = Influence && Weight > 0 ? IM_COL32(255, 180, 65, 255) : IM_COL32(105, 180, 220, 255);
+		Draw->AddQuadFilled(ImVec2(X, Y-6), ImVec2(X+6, Y), ImVec2(X, Y+6), ImVec2(X-6, Y), Color);
+		if (Influence && Weight > 0)
+		{
+			char Label[24]; snprintf(Label, sizeof(Label), "%.1f%%", Weight * 100.0f);
+			Draw->AddText(ImVec2(X-16, Y+12), Color, Label);
+			Draw->AddLine(ImVec2(X,Y), ImVec2(ScreenX(BlendSpaceInput),Y), Color, 2);
+		}
+		if (Hovered && std::abs(ImGui::GetMousePos().x-X) < 10 && std::abs(ImGui::GetMousePos().y-Y) < 10)
+		{
+			ImGui::BeginTooltip();
+			ImGui::TextUnformatted(Sample.Animation ? Sample.Animation->GetPath().c_str() : "Missing animation");
+			ImGui::Text("X: %.6g | Weight: %.1f%%", Sample.SampleValue.X, Weight*100);
+			ImGui::EndTooltip();
+		}
+	}
+	const float X = ScreenX(std::clamp(BlendSpaceInput, Axis->Min, Axis->Max));
+	const ImU32 Green = IM_COL32(80, 235, 120, 255);
+	Draw->AddLine(ImVec2(X-9,Y), ImVec2(X+9,Y), Green, 2);
+	Draw->AddLine(ImVec2(X,Y-9), ImVec2(X,Y+9), Green, 2);
+	ImGui::TextDisabled("Ctrl: preview input | Ctrl+Alt: show sample influences");
+	for (const auto& Entry : Weights)
+	{
+		const auto* Sample = SelectedBlendSpace->GetSample(Entry.SampleIndex);
+		if (Sample && Sample->Animation) ImGui::Text("%.1f%%  %s", Entry.Weight*100, Sample->Animation->GetPath().c_str());
+	}
+}
+
+void FSkeletalMeshViewerPanel::DrawBlendSpaceWindow(const ImGuiWindowClass& WindowClass)
+{
+	ImGui::SetNextWindowClass(&WindowClass);
+	const bool Visible = ImGui::Begin("Blend Space", &bBlendSpaceOpen, ImGuiWindowFlags_NoNavInputs);
+	if (Visible)
+	{
+		bBlendSpaceWindowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+		if (bBlendSpaceWindowFocused || (!bBlendSpaceWasVisible && ImGui::IsWindowDocked())) ActivatePreviewMode(EPreviewMode::BlendSpace);
+		const auto Assets = UAssetManager::Get().GetBlendSpaceAssets(SelectedMesh);
+		ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x * .65f, 450.0f));
+		if (ImGui::BeginCombo("##PreviewBlendSpace", SelectedBlendSpace ? SelectedBlendSpace->GetPath().c_str() : "None"))
+		{
+			if (ImGui::Selectable("None", !SelectedBlendSpace)) SelectPreviewBlendSpace(nullptr);
+			for (auto* Asset : Assets)
+				if (ImGui::Selectable(Asset->GetPath().c_str(), Asset == SelectedBlendSpace)) SelectPreviewBlendSpace(Asset);
+			ImGui::EndCombo();
+		}
+		ImGui::SameLine();
+		ImGui::BeginDisabled(!SelectedBlendSpace || !OnOpenBlendSpaceEditor);
+		if (ImGui::Button("Edit Asset"))
+		{
+			const FString Path = FFileHelper::ToUtf8Path(fs::path("Assets") / FFileHelper::ToNativePath(SelectedBlendSpace->GetPath()));
+			OnOpenBlendSpaceEditor(Path);
+		}
+		ImGui::EndDisabled();
+		if (!SelectedBlendSpace)
+		{
+			ImGui::TextDisabled(Assets.IsEmpty() ? "No compatible BlendSpace 1D assets. Create one in the Content Drawer." : "Select a BlendSpace 1D asset to preview.");
+		}
+		else
+		{
+			const bool Playable = IsBlendSpacePlayable();
+			if (!Playable && BlendSpaceMessage.empty()) BlendSpaceMessage = "No playable samples for this mesh.";
+			if (Playable) BlendSpaceMessage.clear();
+			if (!BlendSpaceMessage.empty()) ImGui::TextWrapped("%s", BlendSpaceMessage.c_str());
+			auto* Instance = GetPreviewAnimInstance();
+			ImGui::BeginDisabled(!Playable || !Instance);
+			const auto* Axis = SelectedBlendSpace->GetBlendParameter(0);
+			if (Axis && std::isfinite(Axis->Min) && std::isfinite(Axis->Max) && Axis->Min < Axis->Max)
+			{
+				float Input = BlendSpaceInput;
+				ImGui::SetNextItemWidth(std::min(260.0f, ImGui::GetContentRegionAvail().x*.45f));
+				const FString AxisLabel = Axis->Name.ToString() + "###BlendSpacePreviewAxis";
+				if (ImGui::SliderFloat(AxisLabel.c_str(), &Input, Axis->Min, Axis->Max, "%.3f", ImGuiSliderFlags_AlwaysClamp)) ApplyBlendSpaceInput(Input);
+				ImGui::SameLine(); ImGui::SetNextItemWidth(100);
+				if (ImGui::InputFloat("##PreviewInput", &Input, 0, 0, "%.4f")) ApplyBlendSpaceInput(Input);
+			}
+			if (DrawTransportButton("##BlendFront", ETransportIcon::ToFirst, false))
+			{
+				ActivatePreviewMode(EPreviewMode::BlendSpace);
+				Instance->SetPlaying(false); Instance->SetPosition(0); RefreshPreviewPose();
+			}
+			ImGui::SameLine();
+			const bool Playing = PreviewMode == EPreviewMode::BlendSpace && Instance && Instance->IsPlaying();
+			if (DrawTransportButton("##BlendPlay", Playing ? ETransportIcon::Pause : ETransportIcon::Play, false))
+			{
+				ActivatePreviewMode(EPreviewMode::BlendSpace); TogglePreviewPlayback();
+			}
+			ImGui::SameLine();
+			bool Loop = PreviewMode == EPreviewMode::BlendSpace && Instance ? Instance->IsLooping() : BlendSpacePlayback.Looping;
+			if (ImGui::Checkbox("Loop", &Loop)) { ActivatePreviewMode(EPreviewMode::BlendSpace); Instance->SetLooping(Loop); }
+			ImGui::SameLine(); ImGui::SetNextItemWidth(80);
+			float Rate = PreviewMode == EPreviewMode::BlendSpace && Instance ? Instance->GetPlayRate() : BlendSpacePlayback.Rate;
+			if (ImGui::DragFloat("Speed###BlendSpacePlaybackRate", &Rate, .05f, .01f, 10.0f, "%.2fx", ImGuiSliderFlags_AlwaysClamp))
+			{
+				ActivatePreviewMode(EPreviewMode::BlendSpace); Instance->SetPlayRate(std::clamp(Rate, .01f, 10.0f));
+			}
+			const bool Active = PreviewMode == EPreviewMode::BlendSpace && Instance;
+			TArray<FBlendSampleWeight> Weights;
+			SelectedBlendSpace->GetSampleWeights(FVector(BlendSpaceInput,0,0), Weights);
+			const float Length = Active ? Instance->GetLength() : SelectedBlendSpace->GetEffectivePlayLength(Weights);
+			float Progress = Active && Length > 0 ? Instance->GetPosition()/Length : BlendSpacePlayback.NormalizedTime;
+			ImGui::SetNextItemWidth(std::min(400.0f, ImGui::GetContentRegionAvail().x*.6f));
+			if (ImGui::SliderFloat("Progress", &Progress, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp))
+			{
+				ActivatePreviewMode(EPreviewMode::BlendSpace); Instance->SetPlaying(false);
+				Instance->SetPosition(Progress*Instance->GetLength()); RefreshPreviewPose();
+			}
+			ImGui::SameLine(); ImGui::Text("%.2fs / %.2fs", Progress*Length, Length);
+			ImGui::EndDisabled();
+			DrawBlendSpaceGraph();
+		}
+	}
+	bBlendSpaceWasVisible = Visible;
+	ImGui::End();
 }

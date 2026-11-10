@@ -35,3 +35,19 @@ Tools\Tests\RunBlendSpaceTests.cmd
 테스트는 Assets 아래에 프로세스별 임시 폴더를 만들고 성공 후 제거한다. 실패한 테스트의 `_BlendSpaceTests_숫자` 또는 `_BlendSpaceUITests_숫자` 폴더는 실패 조사 후 제거할 수 있다.
 
 검증 환경의 C1902 디버그 정보 도구 충돌은 로컬 빌드 옵션에서 `/Z7`과 PCH 비활성화를 사용해 우회했다. 저장소의 공통 빌드 설정은 변경하지 않았다.
+
+## Skeletal Mesh Viewer에서 Blend Space 미리보기
+
+1. Content Drawer에서 기준 Skeletal Mesh의 FBX를 열고 **Animation 옆의 Blend Space 탭**을 선택한다. 닫힌 탭은 Viewer의 **Window > Blend Space**에서 다시 연다.
+2. 현재 메시와 호환되는 저장된 BlendSpace 1D를 선택한다. 새로 선택한 에셋은 축 최솟값·진행률 0에서 반복 재생한다.
+3. 그래프에서 **Ctrl을 누른 채 마우스를 움직여** 입력값을 바꾼다. Ctrl을 놓으면 값을 유지한다. 슬라이더와 숫자 입력도 사용할 수 있다.
+4. 초록색 십자는 현재 입력을 나타낸다. 그래프 아래에서 기여 샘플의 AssetKey와 가중치를 확인한다. **Ctrl+Alt**는 그래프에서 기여 샘플과 가중치를 강조한다.
+5. 처음으로, 재생·일시정지, Loop, Speed, Progress로 재생을 제어한다. Progress는 모든 샘플에 공통인 정규화 진행률이며 초 단위 길이는 현재 입력의 가중치에 따라 바뀐다. 일시정지 중에도 입력을 바꾸면 포즈를 갱신한다.
+6. 해당 탭 또는 공유 Viewport에 포커스가 있을 때 **Space**로 재생을 토글한다. 텍스트 입력, 팝업, 카메라 조작 중에는 적용하지 않는다.
+7. 샘플 수정은 **Edit Asset**으로 기존 Blend Space Editor를 열어 수행한다. 저장한 수정은 동일 등록 객체를 통해 Viewer에 반영된다.
+
+Sequence와 BlendSpace는 같은 Skeletal Mesh Viewport를 사용하며 각 모드의 재생 위치·재생 여부·속도·반복 설정을 별도로 보관한다. None을 선택하면 기준 포즈로 돌아간다. 메시를 바꾸면 이전 미리보기 선택을 해제한다. 미리보기 에셋이 선택된 동안에는 본 변형과 메시 저장을 차단한다.
+
+Viewer가 닫히거나 Viewport가 표시되지 않으면 시간 진행을 멈춘다. 빈 샘플이나 호환되지 않는 데이터는 기준 포즈와 안내를 표시한다. 미리보기 입력과 재생 상태는 `.blendspace` 파일에 저장하지 않는다. 독립 Blend Space Editor의 샘플 편집과 Viewer의 3D 미리보기를 구분하여 사용한다.
+
+이 미리보기 탭 추가 작업은 Debug x64 Runtime·Editor 빌드만 확인하며, 테스트 실행·추가 또는 에디터 실행을 통한 동작 검증은 포함하지 않는다.

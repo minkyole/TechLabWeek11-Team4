@@ -193,6 +193,7 @@ bool UEditorEngine::Init()
 	BlendSpaceEditorPanel = EditorUI->AddEditorPanel<FBlendSpaceEditorPanel>();
 	ContentDrawerPanel->SetOpenBlendSpaceCallback([this](const FString& Path) { BlendSpaceEditorPanel->OpenAsset(Path); });
 	SkeletalMeshViewerPanel = EditorUI->AddEditorPanel<FSkeletalMeshViewerPanel>();
+	SkeletalMeshViewerPanel->SetOpenBlendSpaceEditorCallback([this](const FString& Path) { BlendSpaceEditorPanel->OpenAsset(Path); });
 	SkeletalMeshViewerPanel->SetRenderer(Renderer);
 	SkeletalMeshViewerPanel->SetGridRenderer(GridRenderer.get());
 	SkeletalMeshViewerPanel->SetGizmoRenderer(GizmoRenderer.get());
@@ -1543,6 +1544,9 @@ void UEditorEngine::PreExit()
 	// PIE 창이 열린 채 종료하면 Device가 살아 있을 때 Swapchain과 타깃을 먼저 정리한다.
 	DestroyPIEWindow();
 	SkeletalMeshViewerPanel->ReleaseResources();
+	// Panels outlive the global UObject sweep. Release the owned draft first
+	// so its unique_ptr cannot delete an already-destroyed UObject later.
+	if (BlendSpaceEditorPanel) BlendSpaceEditorPanel->ReleaseResources();
 	ImGuiRenderer->Shutdown();
 
 	Super::PreExit();

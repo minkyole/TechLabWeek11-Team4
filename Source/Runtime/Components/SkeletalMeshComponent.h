@@ -61,6 +61,9 @@ public:
 	// SingleNode 모드가 아니면 nullptr.
 	UAnimSingleNodeInstance* GetSingleNodeInstance() const;
 
+	// 이번 프레임 루트 이동을 월드 기준으로 꺼낸다. 꺼내면 비워지니 이동 쪽 한 곳에서만 부른다
+	bool ConsumeRootMotionWorld(FVector& OutWorldDelta, FQuat& OutWorldRotation);
+
 	// ---- 재생 입구 ----
 	// 모드나 클래스가 바뀌면 인스턴스를 버리고 설계도로 다시 만든다.
 	void SetAnimationMode(EAnimationMode InMode);

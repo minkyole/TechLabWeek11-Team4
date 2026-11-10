@@ -7,6 +7,8 @@
 #include "Collision/CollisionShape.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
+#include "GameFramework/Actor/Character.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include <algorithm>
 #include <cmath>
@@ -134,8 +136,28 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime)
 	    TargetHorizontal,
 	    ChangeRate * DeltaTime);
 
-	const FVector HorizontalDelta =
-	    NextHorizontal * DeltaTime;
+	// 메시가 언제 Tick했든 Consume이 비워 주니 이번 프레임 이동은 여기서 한 번만 쓰인다
+	FVector RootMotionDelta = FVector::ZeroVector;
+	FQuat RootMotionRotation = FQuat::Identity();
+	bool bHasRootMotion = false;
+	if (ACharacter* Character = Cast<ACharacter>(Owner))
+	{
+		if (USkeletalMeshComponent* Mesh = Character->GetMesh())
+		{
+			bHasRootMotion = Mesh->ConsumeRootMotionWorld(RootMotionDelta, RootMotionRotation);
+		}
+	}
+
+	// 입력 속도와 더하면 두 번 움직이니, Root Motion이 있으면 입력 속도를 버리고 같은 Sweep 경로로 보낸다
+	// Z는 중력과 점프가 맡고 있어서 수평 성분만 쓴다
+	const FVector HorizontalDelta = bHasRootMotion
+	                                    ? FVector(RootMotionDelta.X, RootMotionDelta.Y, 0.0f)
+	                                    : NextHorizontal * DeltaTime;
+
+	// 캡슐이 기울면 안 되니 회전도 Yaw만 받는다
+	FRotator NewRotation = UpdatedComponent->GetWorldRotation();
+	const float RootMotionYaw = bHasRootMotion ? RootMotionRotation.ToFRotator().Yaw : 0.0f;
+	NewRotation.Yaw += RootMotionYaw;
 
 	if (!std::isfinite(HorizontalDelta.X) ||
 	    !std::isfinite(HorizontalDelta.Y))
@@ -147,14 +169,13 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime)
 	const FVector PreviousLocation =
 	    UpdatedComponent->GetWorldLocation();
 
-	if (HorizontalDelta.X != 0.0f ||
-	    HorizontalDelta.Y != 0.0f)
+	if (HorizontalDelta.X != 0.0f || HorizontalDelta.Y != 0.0f || RootMotionYaw != 0.0f)
 	{
 		FHitResult HorizontalHit;
 
 		MoveUpdatedComponent(
 		    HorizontalDelta,
-		    UpdatedComponent->GetWorldRotation(),
+		    NewRotation,
 		    true,
 		    &HorizontalHit);
 

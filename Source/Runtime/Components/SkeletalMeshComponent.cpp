@@ -298,6 +298,45 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 	RefreshAnimationPose();
 }
 
+bool USkeletalMeshComponent::ConsumeRootMotionWorld(FVector& OutWorldDelta, FQuat& OutWorldRotation)
+{
+	OutWorldDelta = FVector::ZeroVector;
+	OutWorldRotation = FQuat::Identity();
+
+	const USkeletalMesh* Mesh = GetSkeletalMesh();
+	if (!Mesh || !AnimInstance || !AnimInstance->IsInitialized())
+	{
+		return false;
+	}
+
+	const FRootMotionParams Local = AnimInstance->ConsumeRootMotion();
+	if (!Local.bHasRootMotion)
+	{
+		return false;
+	}
+
+	// 이동량은 "루트가 바라보던 방향" 기준이고, Lock 덕분에 루트는 늘 RefPose 방향이라 그 회전을 곱하면 컴포넌트 공간이 된다
+	FQuat RootRefRot = FQuat::Identity();
+	for (const FSkeletalBone& Bone : Mesh->MeshData.Bones)
+	{
+		if (Bone.ParentIndex == -1)
+		{
+			RootRefRot = FQuat(Bone.RefPoseTransform.Rotation);
+			break;
+		}
+	}
+	const FVector ComponentDelta = RootRefRot.RotateVector(Local.Translation);
+	const FQuat ComponentRot = RootRefRot * Local.Rotation * RootRefRot.Inverse();
+
+	// 월드 행렬은 스케일 → 회전 순이라 같은 순서로 적용한다. FBX 단위 보정 스케일이 여기서 반영된다
+	const FQuat WorldQuat = GetWorldRotation().Quaternion();
+	OutWorldDelta = WorldQuat.RotateVector(ComponentDelta * GetWorldScale3D());
+
+	// 회전 축도 컴포넌트 공간 기준이라 월드 회전으로 감싸서 월드 축으로 바꾼다
+	OutWorldRotation = (WorldQuat * ComponentRot * WorldQuat.Inverse()).Normalized();
+	return true;
+}
+
 bool USkeletalMeshComponent::RefreshAnimationPose()
 {
 	if (!GetSkeletalMesh() ||

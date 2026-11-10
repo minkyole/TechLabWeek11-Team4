@@ -35,6 +35,10 @@ public:
 	void SetEnableRootMotion(bool bEnable) { bEnableRootMotion = bEnable; }
 	bool IsRootMotionEnabled() const { return bEnableRootMotion; }
 
+	// 루트가 앞으로 가는 클립을 In-place로 쓰고 싶을 때 켠다. 이동은 넘기지 않고 잠그기만 한다
+	void SetForceRootLock(bool bForce) { bForceRootLock = bForce; }
+	bool IsForceRootLock() const { return bForceRootLock; }
+
 	// 정규화 시간 StartTime에서 Delta만큼 지나간 동안의 루트 이동량. 인자는 FDeltaTimeRecord와 같은 단위다.
 	FRootMotionParams ExtractRootMotion(const USkeletalMesh& Mesh, float StartTime, float DeltaTime, bool bLoop) const;
 
@@ -55,4 +59,5 @@ private:
 	mutable int32 RootBoneIndex = -1;
 
 	bool bEnableRootMotion = false;
+	bool bForceRootLock = false;
 };

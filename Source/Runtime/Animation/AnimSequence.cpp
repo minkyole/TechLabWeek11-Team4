@@ -45,7 +45,8 @@ void UAnimSequence::GetAnimationPose(float Time, FAnimationPose& OutPose, bool b
 	}
 
 	// 루트가 간 만큼은 Actor가 대신 가므로 포즈에서는 빼야 두 번 움직이지 않는다
-	if (bRootLock && bEnableRootMotion && RootBoneIndex != -1)
+	// ForceLock 클립은 이동을 넘기지 않으니, 잠그지 않으면 메시가 캡슐 앞으로 걸어 나간다
+	if (bRootLock && (bEnableRootMotion || bForceRootLock) && RootBoneIndex != -1)
 	{
 		// 추출이 위치·회전만 넘기니 잠그는 것도 위치·회전만이다. 스케일은 클립 값을 둔다
 		const FTransform& Ref = TargetMesh->MeshData.Bones[RootBoneIndex].RefPoseTransform;

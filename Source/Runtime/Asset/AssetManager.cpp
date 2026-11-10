@@ -14,6 +14,7 @@
 #include "Asset/FBXImporter/SkeletalMeshBake.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/CommonAnimClips.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "Render/GeometryGenerator.h"
@@ -684,6 +685,13 @@ const FFbxAssetSet* UAssetManager::LoadFbxAssets(const FString& Path)
 			Sequence->SetSkeletalMesh(Assets.SkeletalMesh);
 			RegisterAsset(AnimKey, Sequence);
 		}
+		// 루트 처리 방식은 공유 에셋의 성질이라, 어떤 AnimInstance가 먼저 쓰든 등록 시점에 한 번 정해 둔다
+		if (const FCommonAnimClip* Common = CommonAnimClips::FindByAssetKey(AnimKey.c_str()))
+		{
+			Sequence->SetEnableRootMotion(Common->RootMode == ECommonClipRootMode::RootMotion);
+			Sequence->SetForceRootLock(Common->RootMode == ECommonClipRootMode::ForceLock);
+		}
+
 		// 재사용한 경우에도 넣어야 인덱스로 접근하는 코드와 순서가 맞는다.
 		Assets.Animations.Add(Sequence);
 	}

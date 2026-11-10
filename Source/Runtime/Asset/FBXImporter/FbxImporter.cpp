@@ -256,6 +256,20 @@ void FFbxImporter::ProcessMeshNode(FbxNode* Node, const TMap<FbxNode*, int32>& B
 {
 	if (!Node) return;
 
+	// LOD 0만 사용 나중에 Skeletal LOD 구현 시 수정 필요
+	for (int i = 0; i < Node->GetNodeAttributeCount(); i++)
+	{
+		FbxNodeAttribute* NodeAttri = Node->GetNodeAttributeByIndex(i);
+		if (NodeAttri && NodeAttri->GetAttributeType() == FbxNodeAttribute::EType::eLODGroup)
+		{
+			if (Node->GetChildCount() > 0)
+			{
+				ProcessMeshNode(Node->GetChild(0), BoneIndexByNode, OutResult, FbxPath);
+			}
+			return;
+		}
+	}
+
 	for (int i = 0; i < Node->GetNodeAttributeCount(); i++)	// 한 Node에 여러 Attribute가 있을 수 있으므로 전체를 순회
 	{
 		FbxNodeAttribute* NodeAttri = Node->GetNodeAttributeByIndex(i);

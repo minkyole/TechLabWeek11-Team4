@@ -401,12 +401,22 @@ void FAnimNode_StateMachine::Update(const FAnimationUpdateContext& Context)
 
 	// 일반 크로스페이드: 이전 애니메이션도 계속 진행한다.
 	// 스냅샷 전환: 이전 포즈가 고정되어 있으므로 업데이트 하지 않는다.
-	if (bTransitioning && !bUseSnapshot && PreviousNode)
+	// Evaluate는 시간을 더한 뒤의 Alpha로 섞으니, 루트 이동 비율도 같은 시점 값으로 맞춘다
+	float Alpha = 1.0f;
+	if (bTransitioning)
 	{
-		PreviousNode->Update(Context);
+		Alpha = BlendDuration > 0.0f
+		            ? EvaluateBlendAlpha(BlendCurve, (BlendElapsed + DeltaSeconds) / BlendDuration)
+		            : 1.0f;
 	}
 
-	CurrentNode->Update(Context);
+	if (bTransitioning && !bUseSnapshot && PreviousNode)
+	{
+		PreviousNode->Update(Context.FractionalWeight(1.0f - Alpha));
+	}
+
+	// 스냅샷 전환은 이전 포즈가 멈춰 있어 이동이 없으니, 현재 상태도 섞이는 비율만큼만 이동한다
+	CurrentNode->Update(Context.FractionalWeight(Alpha));
 
 	StateElpased += DeltaSeconds;
 

@@ -57,6 +57,9 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds)
 	const float SafeDeltaSeconds =
 	    DeltaSeconds > 0.0f ? DeltaSeconds : 0.0f;
 
+	// 이동 쪽이 이전 프레임 값을 안 가져갔으면 버린다. 쌓아 두면 나중에 한꺼번에 튄다
+	ExtractedRootMotion.Clear();
+
 	// 먼저 그래프에 전달할 변수를 갱신한다.
 	NativeUpdateAnimation(SafeDeltaSeconds);
 
@@ -115,6 +118,30 @@ USkeletalMeshComponent* UAnimInstance::GetSkeletalMeshComponent() const
 bool UAnimInstance::IsInitialized() const
 {
 	return bIsInitialized;
+}
+
+void UAnimInstance::AccumulateRootMotion(const FRootMotionParams& Delta, float Weight)
+{
+	if (!Delta.bHasRootMotion || !std::isfinite(Weight) || Weight <= 0.0f)
+	{
+		return;
+	}
+
+	// 비율만큼만 간 것으로 본다. 회전은 Identity에서 Weight만큼만 돌린다
+	FRootMotionParams Scaled;
+	Scaled.Translation = Delta.Translation * Weight;
+	Scaled.Rotation = FMath::SlerpShortestPath(FQuat::Identity(), Delta.Rotation, FMath::Clamp01(Weight));
+	Scaled.bHasRootMotion = true;
+
+	// 한 프레임 이동은 작아서 합치는 순서에 따른 차이는 무시할 만하다
+	ExtractedRootMotion.Accumulate(Scaled);
+}
+
+FRootMotionParams UAnimInstance::ConsumeRootMotion()
+{
+	FRootMotionParams Out = ExtractedRootMotion;
+	ExtractedRootMotion.Clear();
+	return Out;
 }
 
 

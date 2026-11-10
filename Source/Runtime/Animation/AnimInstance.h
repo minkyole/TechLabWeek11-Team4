@@ -24,6 +24,12 @@ public:
 
 	bool IsInitialized() const;
 
+	// 재생 노드가 루트 로컬 이동량을 비율과 함께 넣는다
+	void AccumulateRootMotion(const FRootMotionParams& Delta, float Weight);
+
+	// 꺼내면서 비워서, 이동 쪽이 몇 번 불러도 한 프레임 이동은 한 번만 적용된다
+	FRootMotionParams ConsumeRootMotion();
+
 protected:
 	virtual void NativeInitializeAnimation() {};               // 그래프를 만든다 (한 번)
 	virtual void NativeUnInitializeAnimation() {};             // 그래프를 정리한다 (한 번)
@@ -37,6 +43,9 @@ private:
 	// 비소유 참조. 컴포넌트가 인스턴스의 수명을 관리한다.
 	USkeletalMeshComponent* OwningComponent = nullptr;
 	bool bIsInitialized = false;
+
+	// 그래프 안의 모든 재생 노드가 모으는 곳. 노드는 여럿이라 노드에 두면 합칠 곳이 없다
+	FRootMotionParams ExtractedRootMotion;
 };
 
 class UAnimSingleNodeInstance : public UAnimInstance

@@ -11,6 +11,17 @@ struct FAnimationUpdateContext
 {
 	UAnimInstance* AnimInstance = nullptr;
 	float DeltaSeconds = 0.0f;
+
+	// 이 가지가 최종 포즈에 섞이는 비율. 블렌드 노드를 지날 때마다 곱해져 내려간다
+	float BlendWeight = 1.0f;
+
+	// Context는 const로 받으니, 자식마다 비율만 바꾼 복사본을 만들어 넘긴다
+	FAnimationUpdateContext FractionalWeight(float Weight) const
+	{
+		FAnimationUpdateContext Child = *this;
+		Child.BlendWeight = BlendWeight * Weight;
+		return Child;
+	}
 };
 
 struct FAnimationCurve

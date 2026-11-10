@@ -91,6 +91,10 @@ protected:
 	virtual void UpdateAssetPlayer(
 	    const FAnimationUpdateContext& Context) {}
 
+	// 시간을 움직인 직후 불린다. 지나간 구간의 루트 이동을 AnimInstance에 넣는다
+	virtual void ExtractRootMotion(
+	    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta) {}
+
 private:
 	float NormalizedTime = 0.0f;
 	FDeltaTimeRecord DeltaTimeRecord;
@@ -109,6 +113,9 @@ struct FAnimNode_SequencePlayer : public FAnimNode_AssetPlayerBase
 
 	bool IsFinished() const override;
 
+protected:
+	void ExtractRootMotion(
+	    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta) override;
 };
 
 struct FAnimNode_BlendSpacePlayer : public FAnimNode_AssetPlayerBase
@@ -124,6 +131,9 @@ struct FAnimNode_BlendSpacePlayer : public FAnimNode_AssetPlayerBase
 protected:
 	void UpdateAssetPlayer(
 	    const FAnimationUpdateContext& Context) override;
+
+	void ExtractRootMotion(
+	    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta) override;
 
 private:
 	TArray<FBlendSampleWeight> SampleWeights;

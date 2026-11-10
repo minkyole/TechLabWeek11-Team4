@@ -3974,16 +3974,6 @@ void FSkeletalMeshViewerPanel::SelectPreviewClip(int32 ClipIndex)
 		PreviewComponent->ResetPoseToBindPose();
 		PreviewComponent->FlushPendingPose();
 	}
-	else
-	{
-		AnimInstance->SetAnimationAsset(PreviewClips[ClipIndex].Sequence);
-		AnimInstance->SetLooping(true);
-		PreviewPlayDirection = 1;
-		ApplyPreviewPlayRate();
-		AnimInstance->SetPlaying(true);
-		PreviewComponent->RefreshAnimationPose();
-	}
-	SelectedClipIndex = ClipIndex;
 	FiredNotifies.Empty();
 	PreviewShake.reset();
 	SelectedNotifyIndex = -1;
@@ -4111,25 +4101,11 @@ void FSkeletalMeshViewerPanel::HandlePreviewShortcuts()
 	{
 		if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) StepPreviewFrame(-1);
 		if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) StepPreviewFrame(+1);
-	}
-}
-
-	if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
-	{
-		TogglePreviewPlayback();
-	}
-	if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
-	{
-		StepPreviewFrame(-1);
-	}
-	if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
-	{
-		StepPreviewFrame(+1);
-	}
-	if (bAnimationWindowFocused && SelectedNotifyIndex >= 0 && ImGui::IsKeyPressed(ImGuiKey_Delete, false))
-	{
-		RemovePreviewNotify(SelectedNotifyIndex);
-		SelectPreviewNotify(-1);
+		if (bAnimationWindowFocused && SelectedNotifyIndex >= 0 && ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+		{
+			RemovePreviewNotify(SelectedNotifyIndex);
+			SelectPreviewNotify(-1);
+		}
 	}
 }
 

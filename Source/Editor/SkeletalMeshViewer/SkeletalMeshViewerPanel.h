@@ -180,6 +180,7 @@ private:
 
 	// 골격(Bone) 표시 및 하이라이트 옵션
 	bool bShowBones = true;
+	bool bShowBoneGizmo = true;
 	bool bDrawBoneCones = true;      // true: 입체 원뿔(Cone/Pyramid) 렌더링, false: 선(Line) 렌더링
 	bool bShowAllBoneNames = false;  // 모든 본 이름 표시 여부 (선택된 본은 항상 표시)
 	float BoneConeWidthRatio = 0.10f;

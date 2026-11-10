@@ -1,5 +1,11 @@
 #pragma once
 
+#include <functional>
+
+struct FAnimConditionContext;
+using FAnimConditionCallback =
+    std::function<bool(const FAnimConditionContext&)>;
+
 using FAnimConditionId = int32;
 constexpr FAnimConditionId InvalidAnimConditionId = -1;
 
@@ -14,6 +20,8 @@ enum class EAnimConditionType : uint8
 	And,
 	Or,
 	Not,
+
+	Custom,
 };
 
 enum class EAnimCompareOp : uint8
@@ -43,4 +51,7 @@ struct FAnimConditionDefinition
 
 	// And / Or / Not
 	TArray<FAnimConditionId> Children;
+
+	// Custom
+	FAnimConditionCallback Callback;
 };

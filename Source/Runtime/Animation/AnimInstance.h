@@ -4,7 +4,7 @@
 #include "UObject/Class.h"
 #include "Animation/Nodes/AnimNodes.h"
 
-class FAnimNode_Base;
+struct FAnimNode_Base;
 class USkeletalMeshComponent;
 class UAnimSequence;
 struct FPoseContext;

@@ -149,6 +149,16 @@ namespace
 				Result = Results[Condition.Children[0]] == 0;
 				break;
 
+			case EAnimConditionType::Custom:
+			{
+
+				if (!Condition.Callback)
+					return false;
+
+				Result = Condition.Callback(Context);
+				break;
+			}
+
 			default:
 				return false;
 			}
@@ -180,6 +190,17 @@ namespace
 				if (Condition.Children.Num() != 1)
 					return false;
 				break;
+			
+			case EAnimConditionType::Custom:
+			{
+				if (Condition.Children.Num() != 0)
+					return false;
+
+				if (!Condition.Callback)
+					return false;
+
+				break;
+			}
 
 			case EAnimConditionType::Always:
 			case EAnimConditionType::BoolEquals:

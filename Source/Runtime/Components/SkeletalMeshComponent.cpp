@@ -274,7 +274,8 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 			return;
 		}
 
-		LuaInstance->SetFloat("Speed", DebugSpeed);
+		//LuaInstance->SetFloat("Speed", DebugSpeed);
+		DebugSpeed = LuaInstance->TryGetFloat("Speed", DebugSpeed) ? DebugSpeed : 0.0f;
 
 		if (bDebugAttack)
 		{

@@ -21,6 +21,8 @@
 #include "Render/Texture2D.h"
 #include "Text/Font.h"
 #include "Input/InputSystem.h"
+#include "Animation/LuaAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include <sol/sol.hpp>
 #include <luajit.h>
@@ -772,6 +774,37 @@ namespace
 						return SpotLight;
 					}
 				}
+				return nullptr;
+			},
+		    "GetAnimInstance",
+			[](const AActor& Actor, sol::optional<FString> ComponentName) -> ULuaAnimInstance*
+			{
+				// 이름을 지정했다면 해당 컴포넌트를 조회한다.
+				if (ComponentName)
+				{
+				    UActorComponent* Component =
+						Actor.FindComponentByName(
+				            FName(ComponentName->c_str()));
+
+					USkeletalMeshComponent* Mesh =
+						Cast<USkeletalMeshComponent>(Component);
+
+					return Mesh
+						? Cast<ULuaAnimInstance>(Mesh->GetAnimInstance())
+						: nullptr;
+				}
+
+				// 이름을 생략하면 첫 번째 SkeletalMeshComponent를 사용한다.
+				for (UActorComponent* Component : Actor.GetComponents())
+				{
+					if (USkeletalMeshComponent* Mesh =
+						Cast<USkeletalMeshComponent>(Component))
+					{
+					    return Cast<ULuaAnimInstance>(
+					        Mesh->GetAnimInstance());
+					}
+				}
+
 				return nullptr;
 			}
 		);

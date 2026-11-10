@@ -60,6 +60,9 @@ public:
 	void BuildMeshVerticesAndIndices(FbxMesh* Mesh, const TMap<int32, FBoneInfluence>& InfluenceByControlPoint, FSkeletalMesh& SkeletalMesh);
 	void BuildInfluenceMap(FbxMesh* Mesh, const TMap<FbxNode*, int32>& BoneIndexByNode, TMap<int32, FBoneInfluence>& InfluenceByControlPoint);
 	void BuildMaterials(FbxMesh* Mesh, FSkeletalMesh& SkeletalMesh, const FString& FbxPath);
+	void ProcessAnimations(FbxScene* Scene, const TMap<FbxNode*, int32>& BoneIndexByNode, FFbxImportResult& OutResult);
+	void SampleBoneTrack(FbxNode* BoneNode, FbxNode* ParentBoneNode, FbxAnimLayer* Layer, const FbxTime& StartTime,
+		const FFbxAnimClip& Clip, const FSkeletalBone& Bone, FRawAnimSequenceTrack& OutTrack);
 	void Cook(FFbxImportResult&& ImportResult, FFbxCookedData& Cooked);
 
 

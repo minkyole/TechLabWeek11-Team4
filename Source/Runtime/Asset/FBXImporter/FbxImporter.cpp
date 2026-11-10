@@ -219,6 +219,9 @@ FFbxImportResult FFbxImporter::ImportFBX(const FString& Path, const FString& Sce
 			{
 				ProcessMeshNode(pFbxRootNode->GetChild(i), BoneIndexByNode, FbxResult, Path);
 			}
+
+			// 축·단위 변환이 끝난 뒤, 씬을 지우기 전에 구워야 메시와 같은 규약이 된다.
+			ProcessAnimations(pFbxScene, BoneIndexByNode, FbxResult);
 		}
 	}
 	catch (const std::runtime_error& Exception)
@@ -430,6 +433,80 @@ FSkeletalBone FFbxImporter::ProcessSkeleton(FbxNode* Node, const TMap<FbxNode*, 
 			return SkeletalBone;
 		}
 	}
+}
+
+void FFbxImporter::ProcessAnimations(FbxScene* Scene, const TMap<FbxNode*, int32>& BoneIndexByNode, FFbxImportResult& OutResult)
+{
+	const int32 BoneCount = OutResult.Bones.Num();
+	if (!Scene || BoneCount == 0) return;
+
+	// 트랙 순서를 Bones[] 순서와 같게 하려고 본 인덱스로 노드를 거꾸로 찾는다.
+	TArray<FbxNode*> BoneNodes;
+	BoneNodes.SetNum(BoneCount);
+	for (const auto& [Node, BoneIndex] : BoneIndexByNode)
+	{
+		BoneNodes[BoneIndex] = Node;
+	}
+
+	// 씬의 시간 모드를 따르고, 정보가 없으면 30fps로 굽는다.
+	const FbxGlobalSettings& Settings = Scene->GetGlobalSettings();
+	const FbxTime::EMode TimeMode = Settings.GetTimeMode();
+	double Fps = TimeMode == FbxTime::eCustom ? Settings.GetCustomFrameRate() : FbxTime::GetFrameRate(TimeMode);
+	if (Fps <= 0.0) Fps = 30.0;
+	// 29.97 같은 소수 FPS도 담으려고 분모를 1000으로 둔다.
+	const FFrameRate FrameRate(static_cast<int32>(std::lround(Fps * 1000.0)), 1000);
+
+	const int StackCount = Scene->GetSrcObjectCount<FbxAnimStack>();
+	for (int StackIndex = 0; StackIndex < StackCount; ++StackIndex)
+	{
+		FbxAnimStack* Stack = Scene->GetSrcObject<FbxAnimStack>(StackIndex);
+		if (!Stack) continue;
+
+		// 평가기는 '현재 스택'만 보므로, 클립마다 바꿔 줘야 각자 다른 동작이 나온다.
+		Scene->SetCurrentAnimationStack(Stack);
+
+		FbxTimeSpan Span = Stack->GetLocalTimeSpan();
+		// 일부 익스포터는 스택 구간을 비워 두고 TakeInfo에만 기록한다.
+		if (Span.GetDuration().GetSecondDouble() <= 0.0)
+		{
+			if (FbxTakeInfo* Take = Scene->GetTakeInfo(Stack->GetName()))
+				Span = Take->mLocalTimeSpan;
+		}
+		const double DurationSeconds = Span.GetDuration().GetSecondDouble();
+
+		FFbxAnimClip Clip;
+		Clip.Name = Stack->GetName();
+		Clip.FrameRate = FrameRate;
+
+		// TODO(human): DurationSeconds와 Clip.FrameRate로 Clip.NumFrames를 정한다.
+		Clip.NumFrames = 0;
+
+		// 레이어 합성은 평가기가 해 주므로, 베이스 레이어는 '움직이는 본인가' 판정에만 쓴다.
+		FbxAnimLayer* BaseLayer = Stack->GetMember<FbxAnimLayer>(0);
+
+		Clip.Tracks.Reserve(BoneCount);
+		for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
+		{
+			const FSkeletalBone& Bone = OutResult.Bones[BoneIndex];
+			// 바인드 포즈와 같은 기준을 쓰려고 FBX 노드 부모가 아니라 본 계층 부모를 넘긴다.
+			FbxNode* ParentBoneNode = Bone.ParentIndex >= 0 ? BoneNodes[Bone.ParentIndex] : nullptr;
+
+			FBoneAnimationTrack Track;
+			Track.Name = FName(Bone.Name);
+			SampleBoneTrack(BoneNodes[BoneIndex], ParentBoneNode, BaseLayer, Span.GetStart(), Clip, Bone, Track.InternalTrack);
+			Clip.Tracks.Add(std::move(Track));
+		}
+		OutResult.Anims.Add(std::move(Clip));
+	}
+}
+
+// 4-3에서 커브 판정과 프레임별 샘플링으로 바꾼다. 지금은 바인드 포즈 1키만 넣어 둔다.
+void FFbxImporter::SampleBoneTrack(FbxNode* BoneNode, FbxNode* ParentBoneNode, FbxAnimLayer* Layer, const FbxTime& StartTime,
+	const FFbxAnimClip& Clip, const FSkeletalBone& Bone, FRawAnimSequenceTrack& OutTrack)
+{
+	OutTrack.PosKeys.Add(Bone.RefPoseTransform.Location);
+	OutTrack.RotKeys.Add(Bone.RefPoseTransform.GetOrientation());
+	OutTrack.ScaleKeys.Add(Bone.RefPoseTransform.Scale);
 }
 
 void FFbxImporter::Cook(FFbxImportResult&& ImportResult, FFbxCookedData& Cooked)

@@ -5,6 +5,16 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimInstance.h"
 
+namespace
+{
+	// None 모드는 원본 궤적을 보여 주는 게 목적이라 Lock도 같이 푼다
+	bool ShouldLockRoot(bool bUseRootMotion, const UAnimInstance* Instance)
+	{
+		return bUseRootMotion &&
+		       (!Instance || Instance->GetEffectiveRootMotionMode() != ERootMotionMode::NoRootMotionExtraction);
+	}
+}
+
 void FAnimNode_TwoWayBlend::OnEnter()
 {
 	A.OnEnter();
@@ -131,7 +141,7 @@ void FAnimNode_SequencePlayer::Evaluate(FPoseContext& Output)
 	{
 		return;
 	}
-	Sequence->GetAnimationPose(GetNormalizedTime() * Sequence->GetPlayLength(), Output.Pose, bUseRootMotion);
+	Sequence->GetAnimationPose(GetNormalizedTime() * Sequence->GetPlayLength(), Output.Pose, ShouldLockRoot(bUseRootMotion, Output.AnimInstance));
 }
 
 bool FAnimNode_SequencePlayer::IsFinished() const
@@ -303,7 +313,7 @@ void FAnimNode_BlendSpacePlayer::Evaluate(FPoseContext& Output)
 
 		// SamplePose는 Output과 같은 대상 메시를 가진다.
 		// GetAnimationPose 내부에서 본 이름 매핑과 보간을 수행한다.
-		Sequence->GetAnimationPose(TimeSeconds, SamplePose.Pose, bUseRootMotion);
+		Sequence->GetAnimationPose(TimeSeconds, SamplePose.Pose, ShouldLockRoot(bUseRootMotion, SamplePose.AnimInstance));
 
 		// 현재 시퀀스 API는 본 포즈만 평가한다.
 		SamplePose.Curve.Reset();

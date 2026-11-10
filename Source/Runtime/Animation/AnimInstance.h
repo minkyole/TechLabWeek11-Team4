@@ -30,6 +30,15 @@ public:
 	// 꺼내면서 비워서, 이동 쪽이 몇 번 불러도 한 프레임 이동은 한 번만 적용된다
 	FRootMotionParams ConsumeRootMotion();
 
+	void SetRootMotionMode(ERootMotionMode InMode) { RootMotionMode = InMode; }
+	ERootMotionMode GetRootMotionMode() const { return RootMotionMode; }
+
+	// 콘솔 강제값이 있으면 그걸 쓴다. 노드는 항상 이 값을 본다
+	ERootMotionMode GetEffectiveRootMotionMode() const;
+
+	// rootmotion [none|ignore|on|default] : 모든 인스턴스에 강제값을 건다. default는 해제
+	static bool ExecRootMotionCommand(const FString& CommandLine, FString& OutMessage);
+
 protected:
 	virtual void NativeInitializeAnimation() {};               // 그래프를 만든다 (한 번)
 	virtual void NativeUnInitializeAnimation() {};             // 그래프를 정리한다 (한 번)
@@ -46,6 +55,12 @@ private:
 
 	// 그래프 안의 모든 재생 노드가 모으는 곳. 노드는 여럿이라 노드에 두면 합칠 곳이 없다
 	FRootMotionParams ExtractedRootMotion;
+
+	ERootMotionMode RootMotionMode = ERootMotionMode::RootMotionFromEverything;
+
+	// 디버그 비교용이라 인스턴스마다 찾아다니지 않고 전역 하나로 덮어쓴다
+	inline static bool bHasRootMotionOverride = false;
+	inline static ERootMotionMode RootMotionOverride = ERootMotionMode::RootMotionFromEverything;
 };
 
 class UAnimSingleNodeInstance : public UAnimInstance

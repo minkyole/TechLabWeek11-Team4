@@ -3,6 +3,7 @@
 #include "Render/ShadowSettings.h"
 #include "Render/SkinningSettings.h"
 #include "Core/StatOverlay.h"
+#include "Animation/AnimInstance.h"
 
 static int TextEditCallbackStub(ImGuiInputTextCallbackData* data)
 {
@@ -31,6 +32,7 @@ bool FOutputLogPanel::Init()
 	Commands.Add("SHADOW_CACHE");
 	Commands.Add("SHADOW_CULL");
 	Commands.Add("SKINNING");
+	Commands.Add("ROOTMOTION");
 	// 두 이름 모두 자동완성과 같은 캐싱 설정을 사용한다.
 	Commands.Add("r.shadow.CacheWholeSceneShadows");
 
@@ -208,6 +210,14 @@ void FOutputLogPanel::ExecCommand(const FString& CommandLine)
 		return;
 	}
 
+	FString RootMotionMessage;
+	if (UAnimInstance::ExecRootMotionCommand(CommandLine, RootMotionMessage))
+	{
+		FLog::Log(ELogVerbosity::Info, "{}", RootMotionMessage);
+		ScrollToBottom = true;
+		return;
+	}
+
 	if (EqualsIgnoreCase(CommandLine, "CLEAR"))
 	{
 		ClearLog();
@@ -225,6 +235,7 @@ void FOutputLogPanel::ExecCommand(const FString& CommandLine)
 		OnLog(ELogVerbosity::Info, "- SHADOW_CULL [front|back] (no argument: toggle, alias: r.shadow.CullMode)");
 		OnLog(ELogVerbosity::Info, "- SKINNING [cpu|gpu] (no argument: toggle)");
 		OnLog(ELogVerbosity::Info, "- SKINNING FORCE [on|off] (re-skin every frame for profiling)");
+		OnLog(ELogVerbosity::Info, "- ROOTMOTION [none|ignore|on|default] (no argument: toggle on/ignore)");
 	}
 	else if (EqualsIgnoreCase(CommandLine, "HISTORY"))
 	{

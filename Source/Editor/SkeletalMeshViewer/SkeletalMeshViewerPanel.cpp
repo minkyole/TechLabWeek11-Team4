@@ -1,4 +1,5 @@
 #include "EnginePCH.h"
+#include "Animation/AssetAnimInstance.h"
 #include "SkeletalMeshViewerPanel.h"
 #include "Asset/AssetManager.h"
 #include "Camera/MinimalViewInfo.h"
@@ -2096,6 +2097,7 @@ namespace
 
 void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& WindowClass)
 {
+ if (PreviewMode == EPreviewMode::StateMachine) return;
 	ImGui::SetNextWindowClass(&WindowClass);
 	// 키보드 내비게이션을 끈다. 켜 두면 Space가 포커스된 버튼도 눌러 재생 토글이 두 번 일어난다.
 	const bool Visible = ImGui::Begin("Animation", &bAnimationOpen, ImGuiWindowFlags_NoNavInputs);
@@ -3387,6 +3389,7 @@ void FSkeletalMeshViewerPanel::CapturePreviewPlayback()
 
 void FSkeletalMeshViewerPanel::ResetPreviewModes()
 {
+ StopStateMachinePreview();
 	if (auto* Instance = GetPreviewAnimInstance())
 	{
 		Instance->SetAnimationAsset(nullptr);
@@ -3405,7 +3408,7 @@ void FSkeletalMeshViewerPanel::ResetPreviewModes()
 
 bool FSkeletalMeshViewerPanel::HasActivePreview() const
 {
-	return HasPreviewClip() || (PreviewMode == EPreviewMode::BlendSpace && SelectedBlendSpace);
+	return (PreviewMode == EPreviewMode::StateMachine && GetStateMachinePreview()) || HasPreviewClip() || (PreviewMode == EPreviewMode::BlendSpace && SelectedBlendSpace);
 }
 
 bool FSkeletalMeshViewerPanel::IsBlendSpacePlayable() const
@@ -3431,6 +3434,7 @@ void FSkeletalMeshViewerPanel::RefreshPreviewPose()
 
 void FSkeletalMeshViewerPanel::ActivatePreviewMode(EPreviewMode Mode)
 {
+ if (PreviewMode == EPreviewMode::StateMachine) { PreviewComponent->ClearAnimInstance(); PreviewComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode); PreviewComponent->InitializeAnimInstance(); PreviewMode=EPreviewMode::None; }
 	auto* Instance = GetPreviewAnimInstance();
 	if (!Instance) return;
 	if (Mode == EPreviewMode::Sequence && (SelectedClipIndex < 0 || SelectedClipIndex >= PreviewClips.Num())) Mode = EPreviewMode::None;
@@ -3568,6 +3572,7 @@ void FSkeletalMeshViewerPanel::DrawBlendSpaceGraph()
 
 void FSkeletalMeshViewerPanel::DrawBlendSpaceWindow(const ImGuiWindowClass& WindowClass)
 {
+ if (PreviewMode == EPreviewMode::StateMachine) return;
 	ImGui::SetNextWindowClass(&WindowClass);
 	const bool Visible = ImGui::Begin("Blend Space", &bBlendSpaceOpen, ImGuiWindowFlags_NoNavInputs);
 	if (Visible)
@@ -3651,4 +3656,51 @@ void FSkeletalMeshViewerPanel::DrawBlendSpaceWindow(const ImGuiWindowClass& Wind
 	}
 	bBlendSpaceWasVisible = Visible;
 	ImGui::End();
+}
+
+UAssetAnimInstance *FSkeletalMeshViewerPanel::GetStateMachinePreview() const
+{
+	return PreviewMode == EPreviewMode::StateMachine && PreviewComponent
+			   ? Cast<UAssetAnimInstance>(PreviewComponent->GetAnimInstance())
+			   : nullptr;
+}
+void FSkeletalMeshViewerPanel::StopStateMachinePreview()
+{
+	if (PreviewMode != EPreviewMode::StateMachine)
+		return;
+	PreviewMode = EPreviewMode::None;
+	if (PreviewComponent)
+	{
+		PreviewComponent->ClearAnimInstance();
+		PreviewComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		PreviewComponent->InitializeAnimInstance();
+	}
+}
+bool FSkeletalMeshViewerPanel::PreviewStateMachine(const FAnimStateMachineAssetData &Data, FString &Error)
+{
+	if (!Data.Validate(Error))
+		return false;
+	auto *mesh = UAssetManager::GetAssetByPath<USkeletalMesh>(Data.MeshKey);
+	OpenMesh(mesh);
+	if (!PreviewComponent)
+	{
+		Error = "Preview component is unavailable.";
+		return false;
+	}
+	PreviewComponent->ClearAnimInstance();
+	PreviewComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+	PreviewComponent->SetAnimInstanceClass(UAssetAnimInstance::StaticClass());
+	PreviewComponent->InitializeAnimInstance();
+	auto *instance = Cast<UAssetAnimInstance>(PreviewComponent->GetAnimInstance());
+	if (!instance || !instance->Configure(Data, false))
+	{
+		Error = instance ? instance->GetLastError() : "Cannot create preview instance.";
+		return false;
+	}
+	PreviewMode = EPreviewMode::StateMachine;
+	bViewportOpen = true;
+	SetOpen(true);
+	RequestFocus();
+	PreviewComponent->TickComponent(0);
+	return true;
 }

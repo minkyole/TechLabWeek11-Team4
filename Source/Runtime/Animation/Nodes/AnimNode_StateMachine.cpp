@@ -541,6 +541,7 @@ void FAnimNode_StateMachine::ChangeState(
 	if (bCanBlend)
 	{
 		bTransitioning = true;
+        ActiveTransitionIndex = static_cast<int32>(&Transition - &Definition->Transitions[0]);
 		BlendDuration = RequestedDuration;
 		BlendCurve = Transition.Blend.Curve;
 		bUseSnapshot = bNeedsSnapshot;
@@ -570,6 +571,7 @@ void FAnimNode_StateMachine::ChangeState(
 
 void FAnimNode_StateMachine::ClearTransition()
 {
+ ActiveTransitionIndex=-1;
 	PreviousNode = nullptr;
 	bTransitioning = false;
 	bUseSnapshot = false;

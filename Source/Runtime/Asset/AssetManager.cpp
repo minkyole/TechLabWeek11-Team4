@@ -314,7 +314,7 @@ void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgre
 		FString Key = ToUTF8String(fs::relative(Files[i], AssetRoot));
 		FString Path = ToUTF8String(Files[i]);
 		AssetPathMap.Add(Key, Path);
-		if (GetAssetExtension(Path) != ".blendspace") LoadAsset(Key, Path);
+		if (GetAssetExtension(Path) != ".blendspace" && GetAssetExtension(Path) != ".animsm") LoadAsset(Key, Path);
 
 		if (OnProgress)
 		{
@@ -327,10 +327,13 @@ void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgre
 		if (GetAssetExtension(ToUTF8String(File)) == ".blendspace")
 			LoadAsset(ToUTF8String(fs::relative(File, AssetRoot)), ToUTF8String(File));
 	}
+	for (const fs::path& File : Files)
+		if (GetAssetExtension(ToUTF8String(File)) == ".animsm") LoadAsset(ToUTF8String(fs::relative(File, AssetRoot)), ToUTF8String(File));
 }
 
 void UAssetManager::LoadAsset(const FString& Key, const FString& Path) {
 	const FString Extension{ GetAssetExtension(Path) };
+	if (Extension == ".animsm") { FString Error; if (!LoadAnimStateMachine(Path, Error)) HTR_LOG(Error, "[AnimStateMachine] {}: {}", Path, Error); return; }
 	if (Extension == ".blendspace")
 	{
 		FString Error;

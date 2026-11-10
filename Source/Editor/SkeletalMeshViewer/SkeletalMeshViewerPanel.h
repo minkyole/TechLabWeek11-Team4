@@ -24,6 +24,8 @@ class UAnimSingleNodeInstance;
 class UAnimDataModel;
 class UBlendSpace1D;
 
+struct FAnimStateMachineAssetData;
+class UAssetAnimInstance;
 class FSkeletalMeshViewerPanel : public IEditorPanel
 {
 public:
@@ -42,6 +44,9 @@ public:
 
 	// ImGui BeginRenderPass(메인 스왑체인) 시작 전에 호출되어 독립 렌더 타깃에 프리뷰 씬을 렌더링
 	void RenderPreview();
+ bool PreviewStateMachine(const FAnimStateMachineAssetData& Data, FString& Error);
+ UAssetAnimInstance* GetStateMachinePreview() const;
+ void StopStateMachinePreview();
 
 	// 다중 애셋 탭 오픈 및 선택
 	bool OpenAsset(const FString& Path);
@@ -250,7 +255,7 @@ private:
 	void SelectPreviewClip(int32 ClipIndex);
 
 
-	enum class EPreviewMode { None, Sequence, BlendSpace };
+	enum class EPreviewMode { None, Sequence, BlendSpace, StateMachine };
 	struct FPreviewPlaybackState
 	{
 		float NormalizedTime = 0.0f;

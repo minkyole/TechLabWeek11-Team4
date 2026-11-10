@@ -21,6 +21,7 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
 	DECLARE_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
 
 	REFLECT_START(USkeletalMeshComponent)
+		PROPERTY(StateMachineAssetPath)
 		PROPERTY(DebugSpeed)
 		PROPERTY(bDebugPlayTestClip)
 		PROPERTY(bDebugTestClipLoop)
@@ -35,10 +36,13 @@ public:
 	~USkeletalMeshComponent() override;
 
 	void BeginPlay() override;
+	void Serialize(FStructuredArchive::FRecord Record) override;
+	void PostEditChangeProperty(const FProperty& Property) override;
+	void PostDuplicate(bool bDuplicateForPIE) override;
 	void TickComponent(float DeltaTime) override;
 
 	void InitializeComponent() override;
-	//void TickComponent(float DeltaTime) override;
+	// void TickComponent(float DeltaTime) override;
 
 	void SetSkeletalMesh(USkeletalMesh* InMesh) override;
 
@@ -62,6 +66,8 @@ public:
 	void SetAnimationMode(EAnimationMode InMode);
 	EAnimationMode GetAnimationMode() const { return AnimationMode; }
 	void SetAnimInstanceClass(UClass* InClass);
+	void SetStateMachineAssetPath(const FString& Path);
+	const FString& GetStateMachineAssetPath() const { return StateMachineAssetPath; }
 
 	// ---- SingleNode 모드 전용 ----
 	void SetAnimation(UAnimSequence* NewAnimToPlay);
@@ -84,8 +90,9 @@ private:
 
 	EAnimationMode AnimationMode = EAnimationMode::AnimationSingleNode;
 
-	// AnimationBlueprint 모드에서 생성할 클래스. 
+	// AnimationBlueprint 모드에서 생성할 클래스.
 	UClass* AnimClass = nullptr;
+	FString StateMachineAssetPath;
 
 	// AnimationSingleNode 모드의 재생 요청.
 	FSingleAnimationPlayData AnimationData;

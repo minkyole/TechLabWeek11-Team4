@@ -778,7 +778,7 @@ namespace
 				return nullptr;
 			},
 		    "GetAnimInstance",
-			[](const AActor& Actor, sol::optional<FString> ComponentName) -> ULuaAnimInstance*
+			[](const AActor& Actor, sol::optional<FString> ComponentName) -> UStateMachineAnimInstance*
 			{
 				// 이름을 지정했다면 해당 컴포넌트를 조회한다.
 				if (ComponentName)
@@ -791,7 +791,7 @@ namespace
 						Cast<USkeletalMeshComponent>(Component);
 
 					return Mesh
-						? Cast<ULuaAnimInstance>(Mesh->GetAnimInstance())
+						? Cast<UStateMachineAnimInstance>(Mesh->GetAnimInstance())
 						: nullptr;
 				}
 
@@ -801,7 +801,7 @@ namespace
 					if (USkeletalMeshComponent* Mesh =
 						Cast<USkeletalMeshComponent>(Component))
 					{
-					    return Cast<ULuaAnimInstance>(
+					    return Cast<UStateMachineAnimInstance>(
 					        Mesh->GetAnimInstance());
 					}
 				}

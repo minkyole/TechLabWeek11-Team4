@@ -33,6 +33,7 @@
 #include "Editor/Sequence/SequencePanel.h"
 #include "Editor/SkeletalMeshViewer/SkeletalMeshViewerPanel.h"
 #include "Editor/BlendSpaceEditor/BlendSpaceEditorPanel.h"
+#include "Editor/StateMachineEditor/StateMachineEditorPanel.h"
 #include "Sequence/SequenceActor.h"
 #include "Editor/HitoriEd/EditorFileUtils.h"
 #include "Editor/HitoriEd/EditorResourcePaths.h"
@@ -191,8 +192,12 @@ bool UEditorEngine::Init()
 	ViewportsPanel = EditorUI->AddEditorPanel<FViewportsPanel>();
 	ContentDrawerPanel = EditorUI->AddEditorPanel<FContentDrawerPanel>();
 	BlendSpaceEditorPanel = EditorUI->AddEditorPanel<FBlendSpaceEditorPanel>();
+ StateMachineEditorPanel=EditorUI->AddEditorPanel<FStateMachineEditorPanel>();
+ ContentDrawerPanel->SetOpenStateMachineCallback([this](const FString& P){StateMachineEditorPanel->OpenAsset(P);});
+ ContentDrawerPanel->SetCreateStateMachineCallback([this](const FString& P){StateMachineEditorPanel->NewAsset(P);});
 	ContentDrawerPanel->SetOpenBlendSpaceCallback([this](const FString& Path) { BlendSpaceEditorPanel->OpenAsset(Path); });
 	SkeletalMeshViewerPanel = EditorUI->AddEditorPanel<FSkeletalMeshViewerPanel>();
+ StateMachineEditorPanel->SetViewer(SkeletalMeshViewerPanel);
 	SkeletalMeshViewerPanel->SetOpenBlendSpaceEditorCallback([this](const FString& Path) { BlendSpaceEditorPanel->OpenAsset(Path); });
 	SkeletalMeshViewerPanel->SetRenderer(Renderer);
 	SkeletalMeshViewerPanel->SetGridRenderer(GridRenderer.get());
@@ -556,7 +561,7 @@ void UEditorEngine::BeginFrame(const float DeltaTime)
 	FStatOverlay::Tick(DeltaTime);
 	EditorControlsPanel->FEditorControlsPanel::DeltaTime = DeltaTime;
 
-	if (!BlendSpaceEditorPanel->IsKeyboardFocused() && !ImGui::GetIO().WantTextInput && FInputSystem::IsKeyPressed(EKeyCode::Delete))
+	if (!StateMachineEditorPanel->IsKeyboardFocused() && !BlendSpaceEditorPanel->IsKeyboardFocused() && !ImGui::GetIO().WantTextInput && FInputSystem::IsKeyPressed(EKeyCode::Delete))
 		DeleteActor(OutlinerPanel->GetSelectedActor());
 }
 
@@ -1543,6 +1548,7 @@ void UEditorEngine::PreExit()
 	EditorWorld->ClearWorld();
 	// PIE 창이 열린 채 종료하면 Device가 살아 있을 때 Swapchain과 타깃을 먼저 정리한다.
 	DestroyPIEWindow();
+	if (StateMachineEditorPanel) StateMachineEditorPanel->ReleaseResources();
 	SkeletalMeshViewerPanel->ReleaseResources();
 	// Panels outlive the global UObject sweep. Release the owned draft first
 	// so its unique_ptr cannot delete an already-destroyed UObject later.

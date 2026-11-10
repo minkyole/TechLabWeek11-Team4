@@ -16,7 +16,7 @@ public:
 	void InitializeAnimation(USkeletalMeshComponent* InComponent);
 	void UnInitializeAnimation();
 
-	void UpdateAnimation(float DeltaSeconds);
+	virtual void UpdateAnimation(float DeltaSeconds);
 	void EvaluateAnimation(FPoseContext& Output);
 
 	USkeletalMeshComponent* GetSkeletalMeshComponent() const;

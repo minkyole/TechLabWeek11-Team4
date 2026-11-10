@@ -8,6 +8,7 @@ class UCharacterMovementComponent;
 class UScriptComponent;
 class UCameraComponent;
 class ULuaAnimInstance;
+class UStateMachineAnimInstance;
 
 class ACharacter : public AActor
 {
@@ -23,6 +24,7 @@ public:
 	UScriptComponent* GetScriptComponent() const;
 	UCameraComponent* GetCameraComponent() const;
 	ULuaAnimInstance* GetLuaAnimInstance() const;
+	UStateMachineAnimInstance* GetStateMachineAnimInstance() const;
 
 private:
 	// Actor의 기본 컴포넌트를 참조한다.

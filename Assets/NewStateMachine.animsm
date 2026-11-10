@@ -1,0 +1,216 @@
+{
+  "Conditions": [
+    {
+      "Bool": true,
+      "Children": [],
+      "Float": 0.0,
+      "Op": 2,
+      "Parameter": "HitRequested",
+      "Tolerance": 0.0010000000474974513,
+      "Type": 3
+    },
+    {
+      "Bool": true,
+      "Children": [],
+      "Float": 0.0,
+      "Op": 2,
+      "Parameter": "IsGrounded",
+      "Tolerance": 0.0010000000474974513,
+      "Type": 1
+    },
+    {
+      "Bool": true,
+      "Children": [],
+      "Float": 0.0,
+      "Op": 2,
+      "Parameter": "AttackRequested",
+      "Tolerance": 0.0010000000474974513,
+      "Type": 3
+    },
+    {
+      "Bool": true,
+      "Children": [
+        1,
+        2
+      ],
+      "Float": 0.0,
+      "Op": 2,
+      "Parameter": "None",
+      "Tolerance": 0.0010000000474974513,
+      "Type": 6
+    },
+    {
+      "Bool": true,
+      "Children": [
+        1
+      ],
+      "Float": 0.0,
+      "Op": 2,
+      "Parameter": "None",
+      "Tolerance": 0.0010000000474974513,
+      "Type": 8
+    },
+    {
+      "Bool": true,
+      "Children": [],
+      "Float": 0.0,
+      "Op": 2,
+      "Parameter": "None",
+      "Tolerance": 0.0010000000474974513,
+      "Type": 4
+    }
+  ],
+  "Entry": 1,
+  "Mesh": "Models/UAL1_Standard.fbx",
+  "Parameters": [
+    {
+      "Bool": false,
+      "Float": 0.0,
+      "Name": "HitRequested",
+      "Type": 2
+    },
+    {
+      "Bool": false,
+      "Float": 0.0,
+      "Name": "Speed",
+      "Type": 1
+    },
+    {
+      "Bool": false,
+      "Float": 0.0,
+      "Name": "AttackRequested",
+      "Type": 2
+    },
+    {
+      "Bool": true,
+      "Float": 0.0,
+      "Name": "IsGrounded",
+      "Type": 0
+    }
+  ],
+  "States": [
+    {
+      "Asset": "BS_Locomotion.blendspace",
+      "BlendSpace": true,
+      "Id": 1,
+      "Loop": true,
+      "Name": "Locomotion",
+      "Parameter": "Speed",
+      "Playing": true,
+      "Rate": 1.0,
+      "X": 163.0,
+      "Y": 174.0
+    },
+    {
+      "Asset": "Models/UAL1_Standard.fbx#Animation/19",
+      "BlendSpace": false,
+      "Id": 2,
+      "Loop": false,
+      "Name": "Attack",
+      "Parameter": "",
+      "Playing": true,
+      "Rate": 1.0,
+      "X": 593.091064453125,
+      "Y": 168.18179321289063
+    },
+    {
+      "Asset": "Models/UAL1_Standard.fbx#Animation/11",
+      "BlendSpace": false,
+      "Id": 3,
+      "Loop": false,
+      "Name": "Hit",
+      "Parameter": "",
+      "Playing": true,
+      "Rate": 1.0,
+      "X": 514.0,
+      "Y": -2.0
+    },
+    {
+      "Asset": "Models/UAL1_Standard.fbx#Animation/9",
+      "BlendSpace": false,
+      "Id": 4,
+      "Loop": true,
+      "Name": "Jump",
+      "Parameter": "",
+      "Playing": true,
+      "Rate": 1.0,
+      "X": 272.22222900390625,
+      "Y": 382.2222595214844
+    }
+  ],
+  "Transitions": [
+    {
+      "Condition": 0,
+      "Consume": [
+        "HitRequested"
+      ],
+      "Curve": 0,
+      "Duration": 0.10000000149011612,
+      "From": -1,
+      "Interrupt": 2,
+      "Priority": 100,
+      "Restart": true,
+      "To": 3
+    },
+    {
+      "Condition": 3,
+      "Consume": [
+        "AttackRequested"
+      ],
+      "Curve": 0,
+      "Duration": 0.20000000298023224,
+      "From": 1,
+      "Interrupt": 0,
+      "Priority": 50,
+      "Restart": false,
+      "To": 2
+    },
+    {
+      "Condition": 5,
+      "Consume": [],
+      "Curve": 0,
+      "Duration": 0.20000000298023224,
+      "From": 2,
+      "Interrupt": 0,
+      "Priority": 0,
+      "Restart": false,
+      "To": 1
+    },
+    {
+      "Condition": 5,
+      "Consume": [],
+      "Curve": 0,
+      "Duration": 0.20000000298023224,
+      "From": 3,
+      "Interrupt": 0,
+      "Priority": 0,
+      "Restart": false,
+      "To": 1
+    },
+    {
+      "Condition": 4,
+      "Consume": [],
+      "Curve": 0,
+      "Duration": 0.20000000298023224,
+      "From": 1,
+      "Interrupt": 0,
+      "Priority": 0,
+      "Restart": false,
+      "To": 4
+    },
+    {
+      "Condition": 1,
+      "Consume": [],
+      "Curve": 0,
+      "Duration": 0.20000000298023224,
+      "From": 4,
+      "Interrupt": 0,
+      "Priority": 0,
+      "Restart": false,
+      "To": 1
+    }
+  ],
+  "Type": "AnimStateMachine",
+  "UpdateScript": "",
+  "Version": 1
+}

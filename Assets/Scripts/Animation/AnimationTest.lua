@@ -40,7 +40,7 @@ end
 
 local walkSpeed = 5.0
 local runSpeed = 10.0
-local jumpSpeed = 5.0
+local jumpSpeed = 15.0
 
 function Tick(dt)
 	-- print("Tick!\n")
@@ -104,6 +104,10 @@ function Tick(dt)
 			anim:GetLastError()
 		)
 	end
+
+	-- 애니메이션 파라미터 업데이트
+	anim:SetFloat("Speed", movement:GetGroundSpeed())
+    anim:SetBool("IsGrounded", movement:IsGrounded())
 end
 
 function OnReload()

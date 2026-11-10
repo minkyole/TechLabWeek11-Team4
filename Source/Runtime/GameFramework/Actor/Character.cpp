@@ -127,7 +127,7 @@ void ACharacter::BeginPlay()
 	// Script가 Lua BeginPlay를 호출한다.
 	Super::BeginPlay();
 
-	if (ULuaAnimInstance* Anim = GetLuaAnimInstance())
+	if (UStateMachineAnimInstance* Anim = GetStateMachineAnimInstance())
 	{
 		if (!Anim->IsGraphReady())
 		{
@@ -148,3 +148,5 @@ ULuaAnimInstance* ACharacter::GetLuaAnimInstance() const
 	return Cast<ULuaAnimInstance>(
 	    SkeletalMeshComponent->GetAnimInstance());
 }
+
+UStateMachineAnimInstance* ACharacter::GetStateMachineAnimInstance() const { return SkeletalMeshComponent ? Cast<UStateMachineAnimInstance>(SkeletalMeshComponent->GetAnimInstance()) : nullptr; }

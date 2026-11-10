@@ -15,6 +15,41 @@
 namespace ed = ax::NodeEditor;
 namespace
 {
+template <typename DrawItems>
+void RuleCombo(const char* Label, const char* Preview, bool InCanvas, DrawItems Draw)
+{
+	if (!InCanvas)
+	{
+		if (ImGui::BeginCombo(Label, Preview))
+		{
+			Draw();
+			ImGui::EndCombo();
+		}
+		return;
+	}
+
+	ImGui::PushID(Label);
+	const float width = ImGui::CalcItemWidth();
+	const std::string buttonLabel = std::string(Preview) + "  v###Value";
+	const bool open = ImGui::Button(buttonLabel.c_str(), ImVec2(width, 0));
+	ImVec2 popupPosition = ed::CanvasToScreen(ImGui::GetItemRectMin());
+	popupPosition.y += ImGui::GetItemRectSize().y * ed::GetCurrentZoom();
+	ImGui::SameLine();
+	ImGui::TextUnformatted(Label);
+	// Suspend and resume in the canvas window, outside the popup's Begin/End pair.
+	ed::Suspend();
+	if (open)
+		ImGui::OpenPopup("Options");
+	ImGui::SetNextWindowPos(popupPosition, ImGuiCond_Appearing);
+	if (ImGui::BeginPopup("Options"))
+	{
+		Draw();
+		ImGui::EndPopup();
+	}
+	ed::Resume();
+	ImGui::PopID();
+}
+
 enum EGraphKind : uintptr_t
 {
 	StateNode = 1,
@@ -411,15 +446,9 @@ void FStateMachineEditorPanel::DrawGraph()
 }
 void FStateMachineEditorPanel::DrawStateGraph(FGraphSession &session)
 {
-	auto *runtime = Viewer ? Viewer->GetStateMachinePreview() : nullptr;
-	int current = runtime ? runtime->GetCurrentAssetState() : -1, activeTransition = 0;
-	if (runtime)
-	{
-		int index = runtime->GetActiveTransitionIndex();
-		const auto &data = runtime->GetAssetData();
-		if (index >= 0 && index < (int)data.Transitions.size())
-			activeTransition = data.Transitions[index].Id;
-	}
+	const bool observed=Observation.Ready && Observation.Compatible;
+	int current=observed?Observation.State:-1;
+	int activeTransition=observed?Observation.Transition:0;
 	std::map<int, FStateBox> boxes;
 	auto box = [&](int id, float x, float y, const char *name, bool special) {
 		auto node = StateId(id);
@@ -1038,11 +1067,7 @@ bool FStateMachineEditorPanel::ParameterCombo(const char* Label, FName& Name, EA
 		valid |= p.Name == Name && p.Type == Type;
 	if (!valid)
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, .4f, .3f, 1));
-	// IsActive() reports focus, not whether Begin()/End() is open.
-	bool suspended = InCanvas;
-	if (suspended)
-		ed::Suspend();
-	if (ImGui::BeginCombo(Label, valid ? Name.ToString().c_str() : "Select parameter"))
+	RuleCombo(Label, valid ? Name.ToString().c_str() : "Select parameter", InCanvas, [&]()
 	{
 		for (auto& p : Working.Parameters)
 			if (p.Type == Type && ImGui::Selectable(p.Name.ToString().c_str(), p.Name == Name))
@@ -1050,10 +1075,7 @@ bool FStateMachineEditorPanel::ParameterCombo(const char* Label, FName& Name, EA
 				Name = p.Name;
 				changed = true;
 			}
-		ImGui::EndCombo();
-	}
-	if (suspended)
-		ed::Resume();
+	});
 	if (!valid)
 		ImGui::PopStyleColor();
 	return changed;
@@ -1083,16 +1105,16 @@ void FStateMachineEditorPanel::DrawRuleProperties(FAnimRuleNode& n, bool InCanva
 	if (type == EAnimConditionType::FloatCompare || type == EAnimConditionType::StateElapsedCompare)
 	{
 		int op = (int)c.CompareOp;
-		bool suspended = InCanvas;
-		if (suspended)
-			ed::Suspend();
-		if (ImGui::Combo("Compare", &op, "<\0<=\0>\0>=\0Nearly Equal\0Not Nearly Equal\0"))
+		const char* operators[] = {"<", "<=", ">", ">=", "Nearly Equal", "Not Nearly Equal"};
+		RuleCombo("Compare", op >= 0 && op < 6 ? operators[op] : "Select comparison", InCanvas, [&]()
 		{
-			c.CompareOp = (EAnimCompareOp)op;
-			Dirty = true;
-		}
-		if (suspended)
-			ed::Resume();
+			for (int i = 0; i < 6; ++i)
+				if (ImGui::Selectable(operators[i], op == i))
+				{
+					c.CompareOp = (EAnimCompareOp)i;
+					Dirty = true;
+				}
+		});
 		Dirty |= ImGui::InputFloat("Value", &c.FloatValue);
 		if (c.CompareOp == EAnimCompareOp::NearlyEqual || c.CompareOp == EAnimCompareOp::NotNearlyEqual)
 			Dirty |= ImGui::InputFloat("Tolerance", &c.Tolerance);

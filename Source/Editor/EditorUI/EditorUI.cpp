@@ -81,6 +81,7 @@ void FEditorUI::OnRender()
 				ImGui::DockBuilderDockWindow("Level Editor", rootDockId);
 				ImGui::DockBuilderDockWindow("Skeletal Mesh Viewer", rootDockId);
 				ImGui::DockBuilderDockWindow("Blend Space Editor", rootDockId);
+				ImGui::DockBuilderDockWindow("State Machine Editor", rootDockId);
 				ImGui::DockBuilderFinish(rootDockId);
 			}
 
@@ -111,7 +112,21 @@ void FEditorUI::OnRender()
 		const bool bIsSkelViewer = (strcmp(Name, "Skeletal Mesh Viewer") == 0);
 		const bool bIsMainViewport = (strcmp(Name, "Viewports") == 0);
 
-		if (bIsMainViewport)
+		if (strcmp(Name, "State Machine Editor") == 0)
+		{
+			// Repair only this window when an old layout placed it in the locked viewport group.
+			if (ImGuiWindow* Window = ImGui::FindWindowByName(Name); Window && Window->DockNode)
+			{
+				ImGuiDockNode* Root = ImGui::DockNodeGetRootNode(Window->DockNode);
+				if ((Window->DockNode->MergedFlags & ImGuiDockNodeFlags_NoUndocking) != 0 ||
+					Root->WindowClass.ClassId == LevelEditorClass.ClassId ||
+					Window->WindowClass.ClassId == LevelEditorClass.ClassId)
+					ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
+			}
+			ImGuiWindowClass AssetEditorClass;
+			ImGui::SetNextWindowClass(&AssetEditorClass);
+		}
+		else if (bIsMainViewport)
 		{
 			ImGui::SetNextWindowClass(&LevelViewportClass);
 		}

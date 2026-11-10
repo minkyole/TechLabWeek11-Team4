@@ -953,7 +953,7 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 		Render3DBones(ViewProj);
 
 		// 3단계: 에디터와 100% 동일한 3D 기즈모(FGizmoRenderer)를 선택된 본 위치에 렌더링
-		if (!HasPreviewClip() && GizmoRenderer && BoneGizmoTarget && SelectedBoneIndex >= 0 && SelectedBoneIndex < static_cast<int32>(SelectedMesh->MeshData.Bones.Num()))
+		if (bShowBoneGizmo && !HasPreviewClip() && GizmoRenderer && BoneGizmoTarget && SelectedBoneIndex >= 0 && SelectedBoneIndex < static_cast<int32>(SelectedMesh->MeshData.Bones.Num()))
 		{
 			if (!BoneGizmo.IsUsing())
 			{
@@ -1316,7 +1316,7 @@ void FSkeletalMeshViewerPanel::UpdateBoneInteraction()
 		|| ImGui::IsKeyDown(ImGuiKey_L);
 
 	bool bGizmoBlocksPick = false;
-	if (!HasPreviewClip() && PreviewComponent && BoneGizmoTarget && SelectedBoneIndex >= 0 && SelectedBoneIndex < NumBones)
+	if (bShowBoneGizmo && !HasPreviewClip() && PreviewComponent && BoneGizmoTarget && SelectedBoneIndex >= 0 && SelectedBoneIndex < NumBones)
 	{
 		if (!BoneGizmo.IsUsing())
 		{
@@ -2857,6 +2857,7 @@ void FSkeletalMeshViewerPanel::DrawLightingSettingsUI()
 		ImGui::SliderFloat("Camera Speed", &CameraSpeed, 1.0f, 5000.0f, "%.1f");
 		ImGui::SliderFloat("Camera FOV", &FovDegrees, 20.0f, 120.0f, "%.1f deg");
 
+		ImGui::Checkbox("Show Gizmo", &bShowBoneGizmo);
 		ImGui::Text("Gizmo Mode (W / E / R):");
 		const EGizmoMode CurMode = BoneGizmo.GetMode();
 		if (ImGui::RadioButton("Rotate (E)", CurMode == EGizmoMode::Rotation))

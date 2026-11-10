@@ -52,6 +52,9 @@ struct FAnimNode_AssetPlayerBase : public FAnimNode_Base
 	bool bPlaying = true;
 	bool bLoop = true;
 
+	// 끄면 루트를 잠그지 않고 이동도 넘기지 않는다. 뷰어가 원본 궤적을 보여 줄 때 쓴다
+	bool bUseRootMotion = true;
+
 	// 파생 클래스가 재생하는 에셋을 반환한다.
 	virtual const UAnimationAsset* GetAnimationAsset() const = 0;
 

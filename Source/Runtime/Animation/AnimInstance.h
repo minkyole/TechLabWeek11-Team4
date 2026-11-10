@@ -65,6 +65,10 @@ public:
 
 	float GetLength() const;
 
+	// 뷰어는 끄고 원본 궤적을 보여 주고, 게임에서는 켜서 Actor를 움직인다
+	void SetUseRootMotion(bool bUse);
+	bool IsUsingRootMotion() const;
+
 	// 루프가 아니고 진행 방향의 끝에 닿았는지. 뷰어가 자동 정지할 때 쓴다.
 	bool IsFinished() const;
 

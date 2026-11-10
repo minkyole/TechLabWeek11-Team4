@@ -123,7 +123,7 @@ void FAnimNode_SequencePlayer::Evaluate(FPoseContext& Output)
 	{
 		return;
 	}
-	Sequence->GetAnimationPose(GetNormalizedTime() * Sequence->GetPlayLength(), Output.Pose);
+	Sequence->GetAnimationPose(GetNormalizedTime() * Sequence->GetPlayLength(), Output.Pose, bUseRootMotion);
 }
 
 bool FAnimNode_SequencePlayer::IsFinished() const
@@ -248,7 +248,7 @@ void FAnimNode_BlendSpacePlayer::Evaluate(FPoseContext& Output)
 
 		// SamplePose는 Output과 같은 대상 메시를 가진다.
 		// GetAnimationPose 내부에서 본 이름 매핑과 보간을 수행한다.
-		Sequence->GetAnimationPose(TimeSeconds, SamplePose.Pose);
+		Sequence->GetAnimationPose(TimeSeconds, SamplePose.Pose, bUseRootMotion);
 
 		// 현재 시퀀스 API는 본 포즈만 평가한다.
 		SamplePose.Curve.Reset();

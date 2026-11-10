@@ -26,7 +26,8 @@ public:
 	UAnimSequence() = default;
 	~UAnimSequence() override = default;
 
-	void GetAnimationPose(float Time, FAnimationPose& OutPose) const;
+	// bRootLock은 "이 재생이 루트 이동을 Actor로 넘기는가"다. 에셋 플래그까지 켜져 있어야 실제로 잠근다
+	void GetAnimationPose(float Time, FAnimationPose& OutPose, bool bRootLock = false) const;
 
 	void BuildFromTracks(const FFrameRate& FrameRate, int32 NumFrames, const TArray<FBoneAnimationTrack>& Tracks);
 

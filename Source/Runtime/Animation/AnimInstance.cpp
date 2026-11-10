@@ -205,6 +205,16 @@ float UAnimSingleNodeInstance::GetLength() const
 	return std::isfinite(Length) && Length > 0.0f ? Length : 0.0f;
 }
 
+void UAnimSingleNodeInstance::SetUseRootMotion(bool bUse)
+{
+	SequencePlayer.bUseRootMotion = bUse;
+}
+
+bool UAnimSingleNodeInstance::IsUsingRootMotion() const
+{
+	return SequencePlayer.bUseRootMotion;
+}
+
 bool UAnimSingleNodeInstance::IsFinished() const
 {
 	return ActivePlayer().IsFinished();

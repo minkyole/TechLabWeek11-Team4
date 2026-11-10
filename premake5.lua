@@ -131,6 +131,19 @@ function CommonSettings()
 	filter {}
 end
 
+-- 헤더툴
+project "UHT"
+    location "Source/Programs/UHT"
+    kind "ConsoleApp"
+    CommonSettings()
+    enablepch "Off"
+    objdir ("Build/Intermediate/" .. outputdir .. "/UHT")
+
+    files
+    {
+        "Source/Programs/UHT/*.h",
+        "Source/Programs/UHT/*.cpp",
+    }
 
 -- 외부 라이브러리. 별도 프로젝트로 두면 에디터의 소스 루트가 Source/Editor 하나로 좁혀져
 -- Solution Explorer의 "모든 파일 표시"에서 폴더 구조가 그대로 보인다.
@@ -273,7 +286,11 @@ project "HitoriEditor"
 		"Source/Programs/**.cpp",
 		"Source/Editor/**.rc",   -- 창·exe 아이콘
 	}
-
+	-- 에디터 빌드 대상에서 독립 헤더 도구 제외
+    	removefiles
+    	{
+        	"Source/Programs/UHT/**",
+    	}
 	includedirs
 	{
 		"Source",             -- "Editor/OutputLog/ConsolePanel.h"처럼 Source 기준 include를 쓴다

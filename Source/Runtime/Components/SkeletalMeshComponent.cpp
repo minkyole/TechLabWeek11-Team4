@@ -63,8 +63,8 @@ void USkeletalMeshComponent::InitializeAnimInstance()
 	if (!AnimInstance)
 	{
 		AnimInstance.reset(
-		    //    NewObject<UAnimSingleNodeInstance>(this));
-		    NewObject<UTestAnimInstance>(this)); // Debug
+		    NewObject<UAnimSingleNodeInstance>(this));
+		    //NewObject<UTestAnimInstance>(this)); // Debug
 	}
 
 	if (AnimInstance && !AnimInstance->IsInitialized())
@@ -73,39 +73,39 @@ void USkeletalMeshComponent::InitializeAnimInstance()
 	}
 
 	// ---- [TEMP 2-5] 샘플링 확인용. 확인 후 삭제 ----
-	{
-		UAnimSingleNodeInstance* SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance.get());
-		const TArray<FSkeletalBone>& Bones = GetSkeletalMesh()->MeshData.Bones;
-		if (SingleNode && Bones.Num() > 1)
-		{
-			UAnimSequence* TestClip = NewObject<UAnimSequence>();
-			TestClip->SetSkeletalMesh(GetSkeletalMesh());
+	//{
+	//	UAnimSingleNodeInstance* SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance.get());
+	//	const TArray<FSkeletalBone>& Bones = GetSkeletalMesh()->MeshData.Bones;
+	//	if (SingleNode && Bones.Num() > 1)
+	//	{
+	//		UAnimSequence* TestClip = NewObject<UAnimSequence>();
+	//		TestClip->SetSkeletalMesh(GetSkeletalMesh());
 
-			UAnimDataModel* Model = TestClip->GetDataModel();
-			Model->SetFrameRate(FFrameRate(30, 1));
-			Model->SetNumberOfFrames(30); // 키 31개, 1초
+	//		UAnimDataModel* Model = TestClip->GetDataModel();
+	//		Model->SetFrameRate(FFrameRate(30, 1));
+	//		Model->SetNumberOfFrames(30); // 키 31개, 1초
 
-			const int32 TestBoneIndex = 1;
-			const int32 TrackIndex = Model->AddBoneTrack(FName(Bones[TestBoneIndex].Name));
+	//		const int32 TestBoneIndex = 1;
+	//		const int32 TrackIndex = Model->AddBoneTrack(FName(Bones[TestBoneIndex].Name));
 
-			const FQuat RefRot = FQuat(Bones[TestBoneIndex].RefPoseTransform.Rotation).Normalized();
-			const FQuat EndRot = (RefRot * FQuat::MakeFromAxisAngle(FVector(0.0f, 0.0f, 1.0f), 3.14159265f * 0.5f)).Normalized();
+	//		const FQuat RefRot = FQuat(Bones[TestBoneIndex].RefPoseTransform.Rotation).Normalized();
+	//		const FQuat EndRot = (RefRot * FQuat::MakeFromAxisAngle(FVector(0.0f, 0.0f, 1.0f), 3.14159265f * 0.5f)).Normalized();
 
-			TArray<FQuat> RotKeys;
-			const int32 NumKeys = Model->GetNumberOfKeys();
-			for (int32 Key = 0; Key < NumKeys; ++Key)
-			{
-				const float T = static_cast<float>(Key) / static_cast<float>(NumKeys - 1);
-				RotKeys.Add(FMath::SlerpShortestPath(RefRot, EndRot, T));
-			}
-			Model->SetBoneTrackKeys(TrackIndex, {}, RotKeys, {});
+	//		TArray<FQuat> RotKeys;
+	//		const int32 NumKeys = Model->GetNumberOfKeys();
+	//		for (int32 Key = 0; Key < NumKeys; ++Key)
+	//		{
+	//			const float T = static_cast<float>(Key) / static_cast<float>(NumKeys - 1);
+	//			RotKeys.Add(FMath::SlerpShortestPath(RefRot, EndRot, T));
+	//		}
+	//		Model->SetBoneTrackKeys(TrackIndex, {}, RotKeys, {});
 
-			SingleNode->SetAnimationAsset(TestClip);
-			SingleNode->SetPosition(0.5f); // 기대: 45°
-			RefreshAnimationPose();
-			FlushPendingPose();
-		}
-	}
+	//		SingleNode->SetAnimationAsset(TestClip);
+	//		SingleNode->SetPosition(0.5f); // 기대: 45°
+	//		RefreshAnimationPose();
+	//		FlushPendingPose();
+	//	}
+	//}
 	// ---- [TEMP 2-5] 끝 ----
 }
 

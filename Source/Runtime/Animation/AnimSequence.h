@@ -2,6 +2,7 @@
 #include "AnimationAsset.h"
 #include "AnimDataModel.h"
 #include "AnimationPose.h" 
+#include "AnimNotifyEvent.h"
 
 class UAnimSequenceBase : public UAnimationAsset
 {
@@ -9,11 +10,17 @@ class UAnimSequenceBase : public UAnimationAsset
 
 public: 
 	UAnimSequenceBase();
-	~UAnimSequenceBase() override = default;
+	~UAnimSequenceBase() override;
+
+	void RemoveNotifyAt(int32 Index);
+	void ClearNotifies();
+	void SetNotifyObject(int32 Index, UAnimNotify* NewNotify);
 
 	UAnimDataModel* GetDataModel() const { return DataModel; }
 	float GetPlayLength() const override { return DataModel->GetPlayLength(); }
 
+
+	TArray<FAnimNotifyEvent> Notifies;
 protected:
 	UAnimDataModel* DataModel = nullptr;
 };

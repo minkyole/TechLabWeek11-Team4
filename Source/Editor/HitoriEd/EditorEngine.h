@@ -45,6 +45,7 @@
 #include "Text/TextRenderer.h"
 
 class FSkeletalMeshViewerPanel;
+class FBlendSpaceEditorPanel;
 
 class UEditorEngine : public UEngine
 {
@@ -181,6 +182,7 @@ private:
 	FRenderQueue ArrowQueue;
 	FOutlinerPanel* OutlinerPanel = nullptr;
 	FContentDrawerPanel* ContentDrawerPanel = nullptr;
+	FBlendSpaceEditorPanel* BlendSpaceEditorPanel = nullptr;
 	FSkeletalMeshViewerPanel* SkeletalMeshViewerPanel = nullptr;
 
 	UWorld* EditorWorld = nullptr;

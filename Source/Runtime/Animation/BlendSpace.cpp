@@ -429,3 +429,11 @@ void UBlendSpace1D::RebuildSampleData()
 		    return A.SampleValue.X < B.SampleValue.X;
 	    });
 }
+
+void UBlendSpace1D::CopyDefinitionFrom(const UBlendSpace1D& Other)
+{
+	SetSkeletalMesh(Other.GetSkeletalMesh());
+	BlendParameters = Other.BlendParameters;
+	SampleData = Other.SampleData;
+	RebuildSampleData();
+}

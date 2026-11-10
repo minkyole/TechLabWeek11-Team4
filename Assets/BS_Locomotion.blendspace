@@ -1,0 +1,24 @@
+{
+  "Axis": {
+    "Max": 600.0,
+    "Min": 0.0,
+    "Name": "Speed"
+  },
+  "Samples": [
+    {
+      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Animation/0",
+      "X": 82.40635681152344
+    },
+    {
+      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Animation/11",
+      "X": 275.1418762207031
+    },
+    {
+      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Animation/15",
+      "X": 513.847900390625
+    }
+  ],
+  "SkeletalMeshAssetKey": "Models/UAL1_Standard.fbx",
+  "Type": "BlendSpace1D",
+  "Version": 1
+}

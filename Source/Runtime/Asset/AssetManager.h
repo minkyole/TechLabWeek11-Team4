@@ -11,6 +11,8 @@
 class UStaticMesh;
 class USkeletalMesh;
 class FShader;
+class UAnimSequence;
+class UBlendSpace1D;
 
 struct FFbxStaticAsset
 {
@@ -65,6 +67,13 @@ public:
 	}
 
 	void RegisterAsset(const FString& Key, URenderAsset* Asset);
+
+	// Physical file paths under Assets; stored references use AssetMap keys.
+	UBlendSpace1D* CreateBlendSpace1D(const FString& Path, const USkeletalMesh* Mesh, FString& Error);
+	UBlendSpace1D* LoadBlendSpace(const FString& Path, FString& Error);
+	bool SaveBlendSpace(const FString& Path, const UBlendSpace1D& Definition, FString& Error, bool bCreateOnly = false);
+	TArray<UAnimSequence*> GetAnimationAssets(const USkeletalMesh* Mesh = nullptr) const;
+	TArray<USkeletalMesh*> GetSkeletalMeshAssets() const;
 
 	//UStaticMesh* GetMesh(FString InName);
 	//UStaticMesh* GetMesh(EPrimitiveType Type); // 오버로드(수정 중)

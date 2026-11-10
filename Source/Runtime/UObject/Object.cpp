@@ -203,6 +203,10 @@ void UObject::SerializeScriptProperties(FStructuredArchive::FSlot Slot)
 	{
 		for (const FProperty& Property : Class->GetProperties())
 		{
+			if (Property.HasAnyFlags(CPF_Transient))
+			{
+				continue;
+			}
 			// 프로퍼티 이름에 대응하는 슬롯 준비
 			const FString PropertyName = Property.Name.ToString();
 			TOptional<FStructuredArchive::FSlot> ValueSlot = Properties.TryEnterField(PropertyName.c_str(), true);

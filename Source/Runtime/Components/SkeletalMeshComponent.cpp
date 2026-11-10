@@ -11,6 +11,7 @@
 #include "Animation/TestAnimInstance.h"
 #include "Animation/MyAnimInstance.h"
 #include "Animation/AnimTestClips.h"
+#include "Asset/AssetManager.h"
 
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
@@ -43,6 +44,19 @@ void USkeletalMeshComponent::BeginPlay()
 		}
 	}
 	// ---- Debug [3-4] 끝 ----
+
+	// ---- Debug [4-4]: FBX 클립 재생 확인 ----
+	if (bDebugPlayFbxClip && GetSkeletalMesh())
+	{
+		// 메시의 경로가 곧 FBX 에셋 세트의 키라서 같은 파일의 클립을 바로 찾을 수 있다.
+		const FFbxAssetSet* Assets = UAssetManager::Get().FindFbxAssets(GetSkeletalMesh()->GetPath());
+		if (Assets && Assets->Animations.IsValidIndex(DebugFbxClipIndex))
+		{
+			PlayAnimation(Assets->Animations[DebugFbxClipIndex], bDebugTestClipLoop);
+			return;
+		}
+	}
+	// ---- Debug [4-4] 끝 ----
 
 	UMyAnimInstance* MyInstance =
 	    Cast<UMyAnimInstance>(GetAnimInstance());

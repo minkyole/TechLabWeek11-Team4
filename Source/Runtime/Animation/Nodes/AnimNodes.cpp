@@ -7,7 +7,13 @@
 
 namespace
 {
-	// 구간 안에 들어오는 Time + k * Length (k는 정수)의 개수. 루프면 바퀴 수만큼 센다.
+	// None 모드는 원본 궤적을 보여 주는 게 목적이라 Lock도 같이 푼다
+	bool ShouldLockRoot(bool bUseRootMotion, const UAnimInstance* Instance)
+	{
+		return bUseRootMotion &&
+		       (!Instance || Instance->GetEffectiveRootMotionMode() != ERootMotionMode::NoRootMotionExtraction);
+	}
+
 	bool IsNameNotifyState(const FAnimNotifyEvent& Notify)
 	{
 		return Notify.Notify == nullptr && Notify.Duration > 0.0f;
@@ -48,6 +54,7 @@ namespace
 		return KMax >= KMin;
 	}
 
+	// 구간 안에 들어오는 Time + k * Length (k는 정수)의 개수. 루프면 바퀴 수만큼 센다.
 	int32 CountNotifyCrossings(double Time, double Start, double End, double Length, bool bLoop, bool bIncludeStart)
 	{
 		const bool bForward = End > Start;
@@ -79,8 +86,9 @@ void FAnimNode_TwoWayBlend::OnEnter()
 
 void FAnimNode_TwoWayBlend::Update(const FAnimationUpdateContext& Context)
 {
-	A.Update(Context); // 각 입력이 자기 재생 시간을 흘린다
-	B.Update(Context);
+	// 각 입력이 자기 재생 시간을 흘린다. 루트 이동도 포즈와 같은 비율로 나눠 넘긴다
+	A.Update(Context.FractionalWeight(1.0f - Alpha));
+	B.Update(Context.FractionalWeight(Alpha));
 }
 
 void FAnimNode_TwoWayBlend::Evaluate(FPoseContext& Output)
@@ -193,10 +201,18 @@ void FAnimNode_AssetPlayerBase::AdvancePlayback(
 	// Previous는 위에서 움직이기 전 값으로 이미 넣어 두었다
 	DeltaTimeRecord.Set(DeltaTimeRecord.Previous, MovedDelta);
 
-	if (DeltaTimeRecord.IsMoved())
+	if (!DeltaTimeRecord.IsMoved())
 	{
-		GatherNotifies(Context, Length, bIncludeStartInNextAdvance);
-		bIncludeStartInNextAdvance = false;
+		return;
+	}
+
+	GatherNotifies(Context, Length, bIncludeStartInNextAdvance);
+	bIncludeStartInNextAdvance = false;
+
+	// Notify와 같은 구간 기록을 써야 이벤트와 이동이 같은 시간 범위를 본다
+	if (bUseRootMotion && Context.AnimInstance)
+	{
+		ExtractRootMotion(Context, DeltaTimeRecord.Previous, DeltaTimeRecord.Delta);
 	}
 }
 
@@ -206,7 +222,7 @@ void FAnimNode_SequencePlayer::Evaluate(FPoseContext& Output)
 	{
 		return;
 	}
-	Sequence->GetAnimationPose(GetNormalizedTime() * Sequence->GetPlayLength(), Output.Pose);
+	Sequence->GetAnimationPose(GetNormalizedTime() * Sequence->GetPlayLength(), Output.Pose, ShouldLockRoot(bUseRootMotion, Output.AnimInstance));
 }
 
 bool FAnimNode_SequencePlayer::IsFinished() const
@@ -222,6 +238,19 @@ bool FAnimNode_SequencePlayer::IsFinished() const
 
 	// 일시정지나 SetPosition으로 끝에 놓인 경우도 맞게 판정하려고 결과값 대신 시간을 본다
 	return IsReversePlay() ? GetNormalizedTime() <= 0.0f : GetNormalizedTime() >= 1.0f;
+}
+
+void FAnimNode_SequencePlayer::ExtractRootMotion(
+    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta)
+{
+	const USkeletalMesh* Mesh = Context.AnimInstance->GetSkeletalMesh();
+	if (!Sequence || !Mesh)
+	{
+		return;
+	}
+
+	const FRootMotionParams Delta = Sequence->ExtractRootMotion(*Mesh, PrevTime, MovedDelta, bLoop);
+	Context.AnimInstance->AccumulateRootMotion(Delta, Context.BlendWeight);
 }
 
 void FAnimNode_SequencePlayer::GatherNotifies(
@@ -419,6 +448,40 @@ void FAnimNode_BlendSpacePlayer::UpdateAssetPlayer(
 	}
 }
 
+void FAnimNode_BlendSpacePlayer::ExtractRootMotion(
+    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta)
+{
+	const USkeletalMesh* Mesh = Context.AnimInstance->GetSkeletalMesh();
+	if (!BlendSpace || !Mesh)
+	{
+		return;
+	}
+
+	// Evaluate와 같은 비율로 섞어야 포즈와 이동이 어긋나지 않으니 합이 1이 되게 맞춘다
+	float WeightSum = 0.0f;
+	for (const FBlendSampleWeight& Entry : SampleWeights)
+	{
+		WeightSum += Entry.Weight > 0.0f ? Entry.Weight : 0.0f;
+	}
+	if (WeightSum <= 0.0f)
+	{
+		return;
+	}
+
+	for (const FBlendSampleWeight& Entry : SampleWeights)
+	{
+		const FBlendSample* Sample = BlendSpace->GetSample(Entry.SampleIndex);
+		if (!Sample || !Sample->Animation || Entry.Weight <= 0.0f)
+		{
+			continue;
+		}
+
+		// 샘플들은 같은 정규화 시간을 공유하니 구간도 그대로 쓴다
+		const FRootMotionParams Delta = Sample->Animation->ExtractRootMotion(*Mesh, PrevTime, MovedDelta, bLoop);
+		Context.AnimInstance->AccumulateRootMotion(Delta, Context.BlendWeight * (Entry.Weight / WeightSum));
+	}
+}
+
 float FAnimNode_BlendSpacePlayer::GetEffectivePlayLength() const
 {
 	if (BlendSpace == nullptr)
@@ -491,7 +554,7 @@ void FAnimNode_BlendSpacePlayer::Evaluate(FPoseContext& Output)
 
 		// SamplePose는 Output과 같은 대상 메시를 가진다.
 		// GetAnimationPose 내부에서 본 이름 매핑과 보간을 수행한다.
-		Sequence->GetAnimationPose(TimeSeconds, SamplePose.Pose);
+		Sequence->GetAnimationPose(TimeSeconds, SamplePose.Pose, ShouldLockRoot(bUseRootMotion, SamplePose.AnimInstance));
 
 		// 현재 시퀀스 API는 본 포즈만 평가한다.
 		SamplePose.Curve.Reset();

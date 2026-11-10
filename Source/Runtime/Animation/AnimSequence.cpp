@@ -67,7 +67,7 @@ void UAnimSequenceBase::SetNotifyObject(int32 Index, UAnimNotify* NewNotify)
 }
 
 // 
-void UAnimSequence::GetAnimationPose(float Time, FAnimationPose& OutPose) const
+void UAnimSequence::GetAnimationPose(float Time, FAnimationPose& OutPose, bool bRootLock) const
 {
 	const USkeletalMesh* TargetMesh = OutPose.TargetMesh;
 	if (!TargetMesh)
@@ -93,6 +93,17 @@ void UAnimSequence::GetAnimationPose(float Time, FAnimationPose& OutPose) const
 		}
 		// 본 마다 Track대로 Transform을 업데이트한다 
 		SampleTrack(Tracks[TrackIndex].InternalTrack, Lookup, OutPose.LocalTransforms[i]);
+	}
+
+	// 루트가 간 만큼은 Actor가 대신 가므로 포즈에서는 빼야 두 번 움직이지 않는다
+	// ForceLock 클립은 이동을 넘기지 않으니, 잠그지 않으면 메시가 캡슐 앞으로 걸어 나간다
+	if (bRootLock && (bEnableRootMotion || bForceRootLock) && RootBoneIndex != -1)
+	{
+		// 추출이 위치·회전만 넘기니 잠그는 것도 위치·회전만이다. 스케일은 클립 값을 둔다
+		const FTransform& Ref = TargetMesh->MeshData.Bones[RootBoneIndex].RefPoseTransform;
+		FAnimBoneTransform& Root = OutPose.LocalTransforms[RootBoneIndex];
+		Root.Translation = Ref.Location;
+		Root.Rotation = FQuat(Ref.Rotation);
 	}
 }
 
@@ -158,12 +169,19 @@ void UAnimSequence::RebuildBoneTrackMap(const USkeletalMesh& Mesh) const
 {
 	int32 BonesNum = Mesh.MeshData.Bones.Num();
 	BoneToTrackIndex.SetNum(BonesNum);
+	RootBoneIndex = -1;
 
 	for (int32 i = 0; i < BonesNum; ++i)
 	{
 		FName BoneName = FName(Mesh.MeshData.Bones[i].Name);
 		int32 FoundIndex = DataModel->FindBoneTrackIndex(BoneName);
 		BoneToTrackIndex[i] = FoundIndex;
+
+		// 부모가 없는 첫 본을 루트로 본다. 이 본의 로컬 값이 곧 컴포넌트 공간 값이다
+		if (RootBoneIndex == -1 && Mesh.MeshData.Bones[i].ParentIndex == -1)
+		{
+			RootBoneIndex = i;
+		}
 	}
 	CachedMesh = &Mesh;
 }
@@ -183,4 +201,78 @@ void UAnimSequence::BuildFromTracks(const FFrameRate& FrameRate, int32 NumFrames
 	}
 	// 트랙 순서가 바뀌었으니 같은 메시라도 본→트랙 맵을 다시 만들게 한다.
 	CachedMesh = nullptr;
+}
+
+FRootMotionParams UAnimSequence::ExtractRootMotion(const USkeletalMesh& Mesh, float StartTime, float DeltaTime, bool bLoop) const
+{
+	if (!bEnableRootMotion || DeltaTime == 0.0f || !std::isfinite(StartTime) || !std::isfinite(DeltaTime))
+	{
+		return FRootMotionParams{};
+	}
+
+	if (CachedMesh != &Mesh)
+	{
+		RebuildBoneTrackMap(Mesh);
+	}
+
+	const float Length = GetPlayLength();
+	if (RootBoneIndex == -1 || BoneToTrackIndex[RootBoneIndex] == -1 || Length <= 0.0f)
+	{
+		return FRootMotionParams{};
+	}
+
+	FRootMotionParams Result;
+
+	// AdvanceTime과 같은 이유로 경계 근처 판정을 double로 한다
+	double Cursor = StartTime;
+	double Remaining = DeltaTime;
+	const bool bForward = DeltaTime > 0.0f;
+
+	while (Remaining != 0.0)
+	{
+		const double Boundary = bForward ? 1.0 : 0.0;
+		const double ToBoundary = Boundary - Cursor;
+
+		// 루프가 아니면 AdvanceTime이 이미 끝에서 잘라 준 값이라 경계를 넘을 일이 없다
+		if (!bLoop || std::abs(Remaining) <= std::abs(ToBoundary))
+		{
+			const double End = std::clamp(Cursor + Remaining, 0.0, 1.0);
+			Result.Accumulate(ExtractRootMotionRange(static_cast<float>(Cursor * Length), static_cast<float>(End * Length)));
+			break;
+		}
+
+		// 끝까지 간 이동을 먼저 담고, 반대쪽 끝에서 다시 출발한다. 여러 바퀴면 한 바퀴씩 이 분기를 탄다
+		Result.Accumulate(ExtractRootMotionRange(static_cast<float>(Cursor * Length), static_cast<float>(Boundary * Length)));
+		Remaining -= ToBoundary;
+		Cursor = bForward ? 0.0 : 1.0;
+	}
+
+	return Result;
+}
+
+FRootMotionParams UAnimSequence::ExtractRootMotionRange(float FromTime, float ToTime) const
+{
+	FVector FromPos, ToPos;
+	FQuat FromRot, ToRot;
+	SampleRootTransform(FromTime, FromPos, FromRot);
+	SampleRootTransform(ToTime, ToPos, ToRot);
+
+	return FRootMotionParams::MakeDelta(FromPos, FromRot, ToPos, ToRot);
+}
+
+void UAnimSequence::SampleRootTransform(float Time, FVector& OutPos, FQuat& OutRot) const
+{
+	// 키가 빠진 채널은 GetAnimationPose처럼 RefPose 값을 쓰게 해서 포즈와 이동량이 어긋나지 않게 한다
+	const FTransform& Ref = CachedMesh->MeshData.Bones[RootBoneIndex].RefPoseTransform;
+	FAnimBoneTransform Root;
+	Root.Translation = Ref.Location;
+	Root.Rotation = FQuat(Ref.Rotation);
+	Root.Scale = Ref.Scale;
+
+	// Lock된 포즈가 아니라 원본 키를 읽어야 이동량이 0이 되지 않는다
+	const FRawAnimSequenceTrack& Track = DataModel->GetBoneAnimationTracks()[BoneToTrackIndex[RootBoneIndex]].InternalTrack;
+	SampleTrack(Track, FindKeyLookup(Time), Root);
+
+	OutPos = Root.Translation;
+	OutRot = Root.Rotation;
 }

@@ -25,6 +25,21 @@ public:
 
 	bool IsInitialized() const;
 
+	// 재생 노드가 루트 로컬 이동량을 비율과 함께 넣는다
+	void AccumulateRootMotion(const FRootMotionParams& Delta, float Weight);
+
+	// 꺼내면서 비워서, 이동 쪽이 몇 번 불러도 한 프레임 이동은 한 번만 적용된다
+	FRootMotionParams ConsumeRootMotion();
+
+	void SetRootMotionMode(ERootMotionMode InMode) { RootMotionMode = InMode; }
+	ERootMotionMode GetRootMotionMode() const { return RootMotionMode; }
+
+	// 콘솔 강제값이 있으면 그걸 쓴다. 노드는 항상 이 값을 본다
+	ERootMotionMode GetEffectiveRootMotionMode() const;
+
+	// rootmotion [none|ignore|on|default] : 모든 인스턴스에 강제값을 건다. default는 해제
+	static bool ExecRootMotionCommand(const FString& CommandLine, FString& OutMessage);
+
 	void QueueAnimNotify(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence, float Weight = 1.0f);
 	void QueueAnimNotifyState(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence, float Weight = 1.0f);
 	void TriggerAnimNotifies();
@@ -44,6 +59,15 @@ private:
 	// 비소유 참조. 컴포넌트가 인스턴스의 수명을 관리한다.
 	USkeletalMeshComponent* OwningComponent = nullptr;
 	bool bIsInitialized = false;
+
+	// 그래프 안의 모든 재생 노드가 모으는 곳. 노드는 여럿이라 노드에 두면 합칠 곳이 없다
+	FRootMotionParams ExtractedRootMotion;
+
+	ERootMotionMode RootMotionMode = ERootMotionMode::RootMotionFromEverything;
+
+	// 디버그 비교용이라 인스턴스마다 찾아다니지 않고 전역 하나로 덮어쓴다
+	inline static bool bHasRootMotionOverride = false;
+	inline static ERootMotionMode RootMotionOverride = ERootMotionMode::RootMotionFromEverything;
 
 	TArray<FQueuedAnimNotify> NotifyQueue;
 	TArray<FQueuedAnimNotify> NotifyStateQueue;
@@ -75,6 +99,10 @@ public:
 	float GetPosition() const;
 
 	float GetLength() const;
+
+	// 뷰어는 끄고 원본 궤적을 보여 주고, 게임에서는 켜서 Actor를 움직인다
+	void SetUseRootMotion(bool bUse);
+	bool IsUsingRootMotion() const;
 
 	// 루프가 아니고 진행 방향의 끝에 닿았는지. 뷰어가 자동 정지할 때 쓴다.
 	bool IsFinished() const;

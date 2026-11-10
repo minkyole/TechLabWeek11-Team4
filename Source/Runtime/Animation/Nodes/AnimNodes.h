@@ -52,6 +52,9 @@ struct FAnimNode_AssetPlayerBase : public FAnimNode_Base
 	bool bPlaying = true;
 	bool bLoop = true;
 
+	// 끄면 루트를 잠그지 않고 이동도 넘기지 않는다. 뷰어가 원본 궤적을 보여 줄 때 쓴다
+	bool bUseRootMotion = true;
+
 	// 파생 클래스가 재생하는 에셋을 반환한다.
 	virtual const UAnimationAsset* GetAnimationAsset() const = 0;
 
@@ -88,6 +91,10 @@ protected:
 	virtual void UpdateAssetPlayer(
 	    const FAnimationUpdateContext& Context) {}
 
+	// 시간을 움직인 직후 불린다. 지나간 구간의 루트 이동을 AnimInstance에 넣는다
+	virtual void ExtractRootMotion(
+	    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta) {}
+
 	// 이번 프레임에 지나간 구간의 Notify를 인스턴스 큐에 넣는다. 시간이 실제로 움직인 프레임에만 불린다.
 	virtual void GatherNotifies(
 	    const FAnimationUpdateContext& Context, float Length, bool bIncludeStart) {}
@@ -117,6 +124,8 @@ struct FAnimNode_SequencePlayer : public FAnimNode_AssetPlayerBase
 	bool IsFinished() const override;
 
 protected:
+	void ExtractRootMotion(
+	    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta) override;
 	void GatherNotifies(
 	    const FAnimationUpdateContext& Context, float Length, bool bIncludeStart) override;
 	void GatherNotifyStates(const FAnimationUpdateContext& Context) override;
@@ -136,6 +145,8 @@ protected:
 	void UpdateAssetPlayer(
 	    const FAnimationUpdateContext& Context) override;
 
+	void ExtractRootMotion(
+	    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta) override;
 	void GatherNotifies(
 	    const FAnimationUpdateContext& Context, float Length, bool bIncludeStart) override;
 	void GatherNotifyStates(const FAnimationUpdateContext& Context) override;

@@ -7,19 +7,19 @@
   "NotifyTriggerMode": "HighestWeightedAnimation",
   "Samples": [
     {
-      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Anim/Armature|Idle_Loop",
+      "AnimationAssetKey": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Idle_Loop",
       "X": 0.0
     },
     {
-      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Anim/Armature|Walk_Loop",
+      "AnimationAssetKey": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Walk_Loop",
       "X": 5.0
     },
     {
-      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Anim/Armature|Jog_Fwd_Loop",
+      "AnimationAssetKey": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jog_Fwd_Loop",
       "X": 10.0
     }
   ],
-  "SkeletalMeshAssetKey": "Models/UAL1_Standard.fbx",
+  "SkeletalMeshAssetKey": "Models/UAL1_Standard_RM.fbx",
   "Type": "BlendSpace1D",
   "Version": 1
 }

@@ -18,11 +18,11 @@ public:
 
 	void BeginPlay() override;
 
-	UCapsuleComponent* GetCapsuleComponent() const;
-	USkeletalMeshComponent* GetMesh() const;
-	UCharacterMovementComponent* GetCharacterMovement() const;
-	UScriptComponent* GetScriptComponent() const;
-	UCameraComponent* GetCameraComponent() const;
+	UCapsuleComponent* GetCapsuleComponent() const { return CapsuleComponent; }
+	USkeletalMeshComponent* GetMesh() const { return SkeletalMeshComponent; }
+	UCharacterMovementComponent* GetCharacterMovement() const { return MovementComponent; }
+	UScriptComponent* GetScriptComponent() const { return ScriptComponent; }
+	UCameraComponent* GetCameraComponent() const { return CameraComponent; }
 	ULuaAnimInstance* GetLuaAnimInstance() const;
 	UStateMachineAnimInstance* GetStateMachineAnimInstance() const;
 

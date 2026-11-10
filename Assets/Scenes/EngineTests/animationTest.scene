@@ -48,7 +48,7 @@
                             "Properties": {
                                 "DebugFbxClipIndex": 0,
                                 "DebugSpeed": 0.0,
-                                "SkeletalMesh": "Models/UAL1_Standard.fbx",
+                                "SkeletalMesh": "Models/UAL1_Standard_RM.fbx",
                                 "StateMachineAssetPath": "Assets/NewStateMachine.animsm",
                                 "Transform": {
                                     "Location": {

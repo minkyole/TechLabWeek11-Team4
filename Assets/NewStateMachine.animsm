@@ -190,7 +190,7 @@
     "EntryY": 237.0
   },
   "Entry": 1,
-  "Mesh": "Models/UAL1_Standard.fbx",
+  "Mesh": "Models/UAL1_Standard_RM.fbx",
   "Parameters": [
     {
       "Bool": false,
@@ -237,7 +237,7 @@
       "Y": 219.0
     },
     {
-      "Asset": "Models/UAL1_Standard.fbx#Anim/Armature|Sword_Attack",
+      "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Sword_Attack",
       "BlendSpace": false,
       "Id": 2,
       "Loop": false,
@@ -249,7 +249,7 @@
       "Y": 217.0
     },
     {
-      "Asset": "Models/UAL1_Standard.fbx#Anim/Armature|Hit_Chest",
+      "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Hit_Chest",
       "BlendSpace": false,
       "Id": 3,
       "Loop": false,
@@ -261,7 +261,7 @@
       "Y": -61.0
     },
     {
-      "Asset": "Models/UAL1_Standard.fbx#Anim/Armature|Jump_Start",
+      "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Start",
       "BlendSpace": false,
       "Id": 4,
       "Loop": false,
@@ -273,7 +273,7 @@
       "Y": 464.0
     },
     {
-      "Asset": "Models/UAL1_Standard.fbx#Anim/Armature|Death01",
+      "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Death01",
       "BlendSpace": false,
       "Id": 5,
       "Loop": false,
@@ -285,7 +285,7 @@
       "Y": -157.0
     },
     {
-      "Asset": "Models/UAL1_Standard.fbx#Anim/Armature|Jump_Start",
+      "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Start",
       "BlendSpace": false,
       "Id": 6,
       "Loop": false,
@@ -297,7 +297,7 @@
       "Y": -131.0
     },
     {
-      "Asset": "Models/UAL1_Standard.fbx#Anim/Armature|Jump_Loop",
+      "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Loop",
       "BlendSpace": false,
       "Id": 7,
       "Loop": true,
@@ -309,7 +309,7 @@
       "Y": 608.0
     },
     {
-      "Asset": "Models/UAL1_Standard.fbx#Anim/Armature|Jump_Land",
+      "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Land",
       "BlendSpace": false,
       "Id": 8,
       "Loop": false,

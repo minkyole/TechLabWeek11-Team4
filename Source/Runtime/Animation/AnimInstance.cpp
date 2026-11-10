@@ -6,6 +6,9 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 
+#include <cctype>
+#include <sstream>
+
 void UAnimInstance::InitializeAnimation(
     USkeletalMeshComponent* InComponent)
 {
@@ -59,6 +62,9 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds)
 	// 역재생은 음수 DeltaSeconds 대신 음수 PlayRate를 사용한다.
 	const float SafeDeltaSeconds =
 	    DeltaSeconds > 0.0f ? DeltaSeconds : 0.0f;
+
+	// 이동 쪽이 이전 프레임 값을 안 가져갔으면 버린다. 쌓아 두면 나중에 한꺼번에 튄다
+	ExtractedRootMotion.Clear();
 
 	NotifyQueue.Empty();
 	NotifyStateQueue.Empty();
@@ -234,6 +240,84 @@ bool UAnimInstance::IsInitialized() const
 	return bIsInitialized;
 }
 
+void UAnimInstance::AccumulateRootMotion(const FRootMotionParams& Delta, float Weight)
+{
+	// Ignore는 포즈는 잠근 채 이동만 버려서, 캐릭터가 제자리에서 동작한다
+	if (GetEffectiveRootMotionMode() != ERootMotionMode::RootMotionFromEverything)
+	{
+		return;
+	}
+
+	if (!Delta.bHasRootMotion || !std::isfinite(Weight) || Weight <= 0.0f)
+	{
+		return;
+	}
+
+	// 비율만큼만 간 것으로 본다. 회전은 Identity에서 Weight만큼만 돌린다
+	FRootMotionParams Scaled;
+	Scaled.Translation = Delta.Translation * Weight;
+	Scaled.Rotation = FMath::SlerpShortestPath(FQuat::Identity(), Delta.Rotation, FMath::Clamp01(Weight));
+	Scaled.bHasRootMotion = true;
+
+	// 한 프레임 이동은 작아서 합치는 순서에 따른 차이는 무시할 만하다
+	ExtractedRootMotion.Accumulate(Scaled);
+}
+
+ERootMotionMode UAnimInstance::GetEffectiveRootMotionMode() const
+{
+	return bHasRootMotionOverride ? RootMotionOverride : RootMotionMode;
+}
+
+bool UAnimInstance::ExecRootMotionCommand(const FString& CommandLine, FString& OutMessage)
+{
+	const auto Lower = [](FString S)
+	{
+		for (char& C : S)
+			C = static_cast<char>(std::tolower(static_cast<unsigned char>(C)));
+		return S;
+	};
+
+	std::istringstream Stream(Lower(CommandLine));
+	FString Name, Arg, Extra;
+	Stream >> Name >> Arg >> Extra;
+	if (Name != "rootmotion")
+	{
+		return false;
+	}
+
+	if (!Extra.empty())
+	{
+		Arg = "?";
+	}
+
+	if (Arg.empty())
+	{
+		// 인자 없이 치면 켬/끔만 오가게 해서 비교를 빠르게 한다
+		const bool bOn = !bHasRootMotionOverride || RootMotionOverride == ERootMotionMode::RootMotionFromEverything;
+		Arg = bOn ? "ignore" : "on";
+	}
+
+	if (Arg == "none")         { bHasRootMotionOverride = true; RootMotionOverride = ERootMotionMode::NoRootMotionExtraction; }
+	else if (Arg == "ignore")  { bHasRootMotionOverride = true; RootMotionOverride = ERootMotionMode::IgnoreRootMotion; }
+	else if (Arg == "on")      { bHasRootMotionOverride = true; RootMotionOverride = ERootMotionMode::RootMotionFromEverything; }
+	else if (Arg == "default") { bHasRootMotionOverride = false; }
+	else
+	{
+		OutMessage = "usage: rootmotion [none|ignore|on|default] (no argument: toggle on/ignore)";
+		return true;
+	}
+
+	OutMessage = "rootmotion: " + (bHasRootMotionOverride ? Arg : FString("default (per instance)"));
+	return true;
+}
+
+FRootMotionParams UAnimInstance::ConsumeRootMotion()
+{
+	FRootMotionParams Out = ExtractedRootMotion;
+	ExtractedRootMotion.Clear();
+	return Out;
+}
+
 
 FAnimNode_AssetPlayerBase& UAnimSingleNodeInstance::ActivePlayer()
 {
@@ -320,6 +404,16 @@ float UAnimSingleNodeInstance::GetLength() const
 	if (!BlendSpacePlayer.BlendSpace && SequencePlayer.Sequence && !SequencePlayer.Sequence->GetDataModel()) return 0.0f;
 	const float Length = ActivePlayer().GetEffectivePlayLength();
 	return std::isfinite(Length) && Length > 0.0f ? Length : 0.0f;
+}
+
+void UAnimSingleNodeInstance::SetUseRootMotion(bool bUse)
+{
+	SequencePlayer.bUseRootMotion = bUse;
+}
+
+bool UAnimSingleNodeInstance::IsUsingRootMotion() const
+{
+	return SequencePlayer.bUseRootMotion;
 }
 
 bool UAnimSingleNodeInstance::IsFinished() const

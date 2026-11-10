@@ -52,3 +52,26 @@ struct FAnimKeyLookup
 	int32 KeyIndex1 = 0;
 	float Alpha = 0.f;
 };
+
+// 시간을 한 번 진행한 결과. 상태 전환과 Notify 판단이 이 값을 본다.
+enum class ETypeAdvanceAnim : uint8
+{
+	Default,  // 경계에 닿지 않았다
+	Looped,   // 루프 경계를 넘어 되감겼다
+	Finished, // 루프가 아니고 진행 방향의 끝(정방향 1, 역방향 0)에 닿았다
+};
+
+// 이번 프레임에 재생 헤드가 지나간 구간. 정규화 시간(0~1) 단위.
+struct FDeltaTimeRecord
+{
+	float Previous = 0.0f; // 움직이기 전 시간
+	float Delta = 0.0f;    // 되감기 전 값이라 부호로 방향, 크기로 바퀴 수를 알 수 있다
+
+	void Set(float InPrevious, float InDelta)
+	{
+		Previous = InPrevious;
+		Delta = InDelta;
+	}
+
+	bool IsMoved() const { return Delta != 0.0f; }
+};

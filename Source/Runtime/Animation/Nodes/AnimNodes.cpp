@@ -49,6 +49,23 @@ void FAnimNode_AssetPlayerBase::SetNormalizedTime(float InTime)
 		return;
 	}
 	NormalizedTime = std::clamp(InTime, 0.0f, 1.0f);
+
+	// 스크럽·점프는 재생이 아니라 순간이동이라 지나간 구간이 없다
+	DeltaTimeRecord.Set(NormalizedTime, 0.0f);
+	LastAdvanceResult = ETypeAdvanceAnim::Default;
+}
+
+void FAnimNode_AssetPlayerBase::ResetPlayback()
+{
+	// 루프 역재생도 1에서 시작해야 첫 프레임에 Looped가 떠서 끝 지점 Notify가 울리지 않는다
+	SetNormalizedTime(IsReversePlay() ? 1.0f : 0.0f);
+}
+
+void FAnimNode_AssetPlayerBase::SetReversePlay(bool bReverse)
+{
+	// 속도 크기는 유지하고 부호만 바꿔서, 뷰어의 배속 설정과 충돌하지 않게 한다
+	const float Speed = std::abs(PlayRate);
+	PlayRate = bReverse ? -Speed : Speed;
 }
 
 void FAnimNode_AssetPlayerBase::OnEnter()
@@ -63,6 +80,10 @@ void FAnimNode_AssetPlayerBase::Update(
 	// 정지 중에도 입력값 변경은 포즈에 반영되어야 한다.
 	// 따라서 bPlyaing 검사보다 먼저 호출한다.
 	UpdateAssetPlayer(Context);
+
+	// 멈춘 프레임도 "안 움직임"으로 덮어써야 지난 프레임 구간으로 Notify가 또 울리지 않는다
+	DeltaTimeRecord.Set(NormalizedTime, 0.0f);
+	LastAdvanceResult = ETypeAdvanceAnim::Default;
 
 	if (!bPlaying || GetAnimationAsset() == nullptr)
 	{
@@ -84,24 +105,16 @@ void FAnimNode_AssetPlayerBase::Update(
 		return;
 	}
 
-	const double DeltaNormalizedtime =
-	    static_cast<double>(Context.DeltaSeconds) * PlayRate / Length;
+	// 초 단위를 길이로 나눠 정규화한다. BlendSpace는 이 길이가 가중치에 따라 매 프레임 바뀐다
+	const float MoveDelta = static_cast<float>(
+	    static_cast<double>(Context.DeltaSeconds) * PlayRate / Length);
 
-	double NewTime =
-	    static_cast<double>(NormalizedTime) + DeltaNormalizedtime;
+	float MovedDelta = 0.0f;
+	LastAdvanceResult = FAnimationRuntime::AdvanceTime(
+	    bLoop, MoveDelta, NormalizedTime, MovedDelta);
 
-	if (bLoop)
-	{
-		// 정방향과 역방향 재생 모두 [0, 1)로 순환한다.
-		NewTime -= std::floor(NewTime);
-	}
-	else
-	{
-		// 끝에 도달하면 마지막 포즈를 유지한다.
-		NewTime = std::clamp(NewTime, 0.0, 1.0);
-	}
-
-	NormalizedTime = static_cast<float>(NewTime);
+	// Previous는 위에서 움직이기 전 값으로 이미 넣어 두었다
+	DeltaTimeRecord.Set(DeltaTimeRecord.Previous, MovedDelta);
 }
 
 void FAnimNode_SequencePlayer::Evaluate(FPoseContext& Output)
@@ -123,7 +136,9 @@ bool FAnimNode_SequencePlayer::IsFinished() const
 	{
 		return false;
 	}
-	return GetNormalizedTime() >= 1.0f;
+
+	// 일시정지나 SetPosition으로 끝에 놓인 경우도 맞게 판정하려고 결과값 대신 시간을 본다
+	return IsReversePlay() ? GetNormalizedTime() <= 0.0f : GetNormalizedTime() >= 1.0f;
 }
 
 const UAnimationAsset* FAnimNode_SequencePlayer::GetAnimationAsset() const

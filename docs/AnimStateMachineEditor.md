@@ -3,12 +3,15 @@
 ## Create and connect states
 
 1. In Content Drawer, right-click an Assets folder and choose **Create > Animation > State Machine**. Select the skeletal mesh and an `.animsm` save path under Assets.
-2. Right-click the graph background and choose **Add State**. Select a Sequence or BlendSpace in the state Details. Declare Bool, Float and Trigger parameters under Parameters; bind each BlendSpace axis to a Float parameter.
-3. Drag a state's **Out** pin to another state's **In** pin to create a transition. Dragging a pin onto empty space offers to create and connect a state. Entry selects the initial state; AnyState can transition into any state. Both are protected from deletion.
-4. Each transition has its own small badge between two links. Click either link or the badge to select the transition. Details shows its endpoints, rule summary, blend time, priority, interrupt policy, restart flag and consumed triggers. Badges can be moved independently, including for reverse, parallel and self transitions.
-5. Double-click the badge or either link, or choose **Edit Transition Rule**, to open its condition graph. Click **State Machine** in the breadcrumb to return.
+2. Right-click the graph background and choose **Add State**. Compact boxes show the state name and Sequence/BlendSpace type. Select an animation and edit playback options in Details. Declare Bool, Float and Trigger parameters under Parameters; bind each BlendSpace axis to a Float parameter.
+3. Right-click a state and choose **Make Transition**, then click the target state. The source and valid targets are highlighted, with a temporary arrow following the cursor. Select the source itself to create a self transition. Escape or a background click cancels. Closing the asset or switching to the condition graph also cancels.
+4. Use the same action on **Entry** to set or replace the initial state, or on **AnyState** to create an any-state transition. Entry and AnyState cannot be deleted.
+5. A transition is one directional link from state border to state border, with a small diamond in the middle. Click anywhere on the line or diamond to select it. Hover for its endpoints and condition summary; Details contains the full rule summary and transition options.
+6. Double-click the line or diamond, or choose **Edit Transition Rule**, to open its condition graph. Click **State Machine** in the breadcrumb to return.
 
-Left-drag moves nodes or connects pins. Middle-drag pans; the wheel zooms. Frame All and Frame Selection focus the canvas. Right-click menus offer contextual actions. Select several nodes/links and press Delete to remove them. Removing a state also removes its transitions; disconnecting or removing the initial state requires reconnecting Entry. Ctrl+S saves. Node movement changes the asset; panning, zoom and selection do not.
+State graphs have no visible In/Out pins or separate transition nodes. Opposite and parallel transitions use separate lanes. Self transitions loop outside the state. Left-drag moves boxes; middle-drag pans; the wheel zooms. Frame All and Frame Selection focus the canvas. Delete and multi-selection deletion remain available. Removing a state removes its transitions; deleting Entry's link clears the initial-state choice. Ctrl+S saves.
+
+**Auto Arrange** explicitly rearranges state boxes into deterministic BFS layers rooted at Entry (or the lowest state ID if Entry is unset). Return transitions participate as undirected neighbors so cycles do not break layout. Disconnected components get separate vertical regions. Entry is placed left of the initial state and AnyState above the graph. The operation marks the asset modified and frames all content; save to retain positions. Existing layouts are preserved until the button is pressed. Routing does not search for detours around unrelated state boxes; automatic arrangement and manual movement can reduce remaining crossings.
 
 ## Edit a transition rule
 
@@ -38,7 +41,7 @@ C++ can use `GetStateMachineAnimInstance()` or cast the component's animation in
 
 ## Compatibility and limits
 
-Existing Version 1 `.animsm` files open without manual migration. Their conditions are converted into independent per-transition graphs in memory. Editing one transition no longer changes other transitions that previously shared its condition. Opening a file does not rewrite it; saving adds optional editor metadata and regenerates the existing runtime condition arrays. State IDs, state positions, transition order and behavior are preserved. No `NodeEditor.json` sidecar is created.
+Existing Version 1 `.animsm` files open without manual migration. Their conditions are converted into independent per-transition graphs in memory. Editing one transition no longer changes other transitions that previously shared its condition. Opening a file does not rewrite it; saving adds optional editor metadata and regenerates the existing runtime condition arrays. State IDs, state positions, transition order and behavior are preserved. Legacy transition badge coordinates are retained in the file for compatibility but are not used by the direct-link view. No `NodeEditor.json` sidecar is created.
 
 Each state still contains one Sequence or one nonempty 1D BlendSpace. Undo/Redo, copy/paste, a free-form AnimGraph, nested state machines, general Blueprint operations and live rebuilding of running characters are outside this version. Save does not change existing runtime snapshots; reapply or restart play to use edits.
 

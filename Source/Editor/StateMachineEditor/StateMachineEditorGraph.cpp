@@ -9,100 +9,288 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <queue>
+#include <limits>
 
 namespace ed = ax::NodeEditor;
 namespace
 {
-	enum EGraphKind : uintptr_t
+enum EGraphKind : uintptr_t
+{
+	StateNode = 1,
+	SpecialNode = 2,
+	TransitionLink = 6,
+	EntryLink = 7,
+	RuleNode = 8,
+	RulePin = 9,
+	RuleLink = 10,
+	DirectPin = 12,
+	InitialPin = 13
+};
+uintptr_t Key(EGraphKind Kind, int Id = 0, int Slot = 0)
+{
+	return (uintptr_t(Kind) << 56) | (uintptr_t(uint32_t(Id)) << 16) | uint16_t(Slot);
+}
+int Kind(uintptr_t Id)
+{
+	return int(Id >> 56);
+}
+int Object(uintptr_t Id)
+{
+	return int((Id >> 16) & 0xffffffff);
+}
+int Slot(uintptr_t Id)
+{
+	return int(Id & 0xffff);
+}
+ed::NodeId Node(EGraphKind k, int id = 0)
+{
+	return ed::NodeId(Key(k, id));
+}
+ed::PinId Pin(EGraphKind k, int id = 0, int slot = 0)
+{
+	return ed::PinId(Key(k, id, slot));
+}
+const char *TypeName(EAnimConditionType Type)
+{
+	switch (Type)
 	{
-		StateNode = 1,
-		SpecialNode,
-		TransitionNode,
-		StatePin,
-		TransitionPin,
-		TransitionLink,
-		EntryLink,
-		RuleNode,
-		RulePin,
-		RuleLink,
-		SpecialPin
-	};
-	uintptr_t Key(EGraphKind Kind, int Id = 0, int Slot = 0)
-	{
-		return (uintptr_t(Kind) << 56) | (uintptr_t(uint32_t(Id)) << 16) | uint16_t(Slot);
+	case EAnimConditionType::Always:
+		return "Bool Constant";
+	case EAnimConditionType::BoolEquals:
+		return "Bool Compare";
+	case EAnimConditionType::FloatCompare:
+		return "Float Compare";
+	case EAnimConditionType::TriggerActive:
+		return "Trigger Active";
+	case EAnimConditionType::SourceFinished:
+		return "Source Finished";
+	case EAnimConditionType::StateElapsedCompare:
+		return "State Elapsed";
+	case EAnimConditionType::And:
+		return "AND";
+	case EAnimConditionType::Or:
+		return "OR";
+	case EAnimConditionType::Not:
+		return "NOT";
+	default:
+		return "Invalid";
 	}
-	int Kind(uintptr_t Id)
+}
+void PinLabel(ed::PinId Id, ed::PinKind Kind, const char *Text)
+{
+	ed::BeginPin(Id, Kind);
+	ImGui::TextColored(ImVec4(.55f, .85f, 1, 1), "%s %s", Kind == ed::PinKind::Input ? ">" : "o", Text);
+	ed::EndPin();
+}
+void Place(std::set<uintptr_t> &Placed, ed::NodeId Id, float X, float Y)
+{
+	if (Placed.insert(Id.Get()).second)
+		ed::SetNodePosition(Id, ImVec2(X, Y));
+}
+bool Capture(ed::NodeId Id, float &X, float &Y)
+{
+	auto p = ed::GetNodePosition(Id);
+	if (std::abs(p.x - std::floor(X)) > .01f || std::abs(p.y - std::floor(Y)) > .01f)
 	{
-		return int(Id >> 56);
+		X = p.x;
+		Y = p.y;
+		return true;
 	}
-	int Object(uintptr_t Id)
+	return false;
+}
+constexpr int NoSource = -3;
+constexpr int EntrySource = -2;
+constexpr int AnySource = -1;
+ImVec2 Add(ImVec2 a, ImVec2 b)
+{
+	return ImVec2(a.x + b.x, a.y + b.y);
+}
+ImVec2 Sub(ImVec2 a, ImVec2 b)
+{
+	return ImVec2(a.x - b.x, a.y - b.y);
+}
+ImVec2 Scale(ImVec2 a, float v)
+{
+	return ImVec2(a.x * v, a.y * v);
+}
+float Length(ImVec2 a)
+{
+	return std::sqrt(a.x * a.x + a.y * a.y);
+}
+ImVec2 Unit(ImVec2 a)
+{
+	float length = Length(a);
+	return length > .001f ? Scale(a, 1 / length) : ImVec2(1, 0);
+}
+ImVec2 Snap(ImVec2 a)
+{
+	return ImVec2(std::floor(a.x), std::floor(a.y));
+}
+ed::NodeId StateId(int state)
+{
+	return state < 0 ? Node(SpecialNode, state == EntrySource ? 0 : 1) : Node(StateNode, state);
+}
+ImVec2 CompactSize(const char *name, bool special)
+{
+	float font = ImGui::GetFontSize();
+	return ImVec2(std::max(special ? 86.f : 160.f, ImGui::CalcTextSize(name).x + 24.f),
+				  20.f + font + (special ? 0.f : font * .82f + 4.f));
+}
+struct FStateBox
+{
+	ImVec2 Min, Size;
+	ImVec2 Center() const
 	{
-		return int((Id >> 16) & 0xffffffff);
+		return Add(Min, Scale(Size, .5f));
 	}
-	int Slot(uintptr_t Id)
+};
+struct FStateConnection
+{
+	int Id = 0, From = 0, To = 0;
+	bool Initial = false, Loop = false;
+	ImVec2 P0, P1, P2, P3;
+	float Strength = 0;
+	ImVec2 Point(float t) const
 	{
-		return int(Id & 0xffff);
+		float u = 1 - t;
+		return Add(Add(Scale(P0, u * u * u), Scale(P1, 3 * u * u * t)),
+				   Add(Scale(P2, 3 * u * t * t), Scale(P3, t * t * t)));
 	}
-	ed::NodeId Node(EGraphKind k, int id = 0)
+	ed::LinkId LinkId() const
 	{
-		return ed::NodeId(Key(k, id));
+		return ed::LinkId(Initial ? Key(EntryLink) : Key(TransitionLink, Id));
 	}
-	ed::PinId Pin(EGraphKind k, int id = 0, int slot = 0)
+	ed::PinId Endpoint(int slot) const
 	{
-		return ed::PinId(Key(k, id, slot));
+		return Pin(Initial ? InitialPin : DirectPin, Id, slot);
 	}
-	const char* TypeName(EAnimConditionType Type)
+};
+ImVec2 Boundary(const FStateBox &box, ImVec2 start, ImVec2 direction)
+{
+	float distance = std::numeric_limits<float>::max();
+	if (std::abs(direction.x) > .0001f)
+		distance = std::min(distance, ((direction.x > 0 ? box.Min.x + box.Size.x : box.Min.x) - start.x) / direction.x);
+	if (std::abs(direction.y) > .0001f)
+		distance = std::min(distance, ((direction.y > 0 ? box.Min.y + box.Size.y : box.Min.y) - start.y) / direction.y);
+	return Snap(Add(start, Scale(direction, std::max(0.f, distance))));
+}
+std::vector<FStateConnection> Connections(const FAnimStateMachineAssetData &data, const std::map<int, FStateBox> &boxes)
+{
+	std::vector<FStateConnection> paths;
+	if (data.Entry >= 0 && boxes.contains(data.Entry))
 	{
-		switch (Type)
+		FStateConnection p;
+		p.Initial = true;
+		p.From = EntrySource;
+		p.To = data.Entry;
+		paths.push_back(p);
+	}
+	for (const auto &t : data.Transitions)
+		if (boxes.contains(t.From) && boxes.contains(t.To))
 		{
-		case EAnimConditionType::Always:
-			return "Bool Constant";
-		case EAnimConditionType::BoolEquals:
-			return "Bool Compare";
-		case EAnimConditionType::FloatCompare:
-			return "Float Compare";
-		case EAnimConditionType::TriggerActive:
-			return "Trigger Active";
-		case EAnimConditionType::SourceFinished:
-			return "Source Finished";
-		case EAnimConditionType::StateElapsedCompare:
-			return "State Elapsed";
-		case EAnimConditionType::And:
-			return "AND";
-		case EAnimConditionType::Or:
-			return "OR";
-		case EAnimConditionType::Not:
-			return "NOT";
-		default:
-			return "Invalid";
+			FStateConnection p;
+			p.Id = t.Id;
+			p.From = t.From;
+			p.To = t.To;
+			paths.push_back(p);
+		}
+	for (auto &p : paths)
+	{
+		const auto &a = boxes.at(p.From);
+		const auto &b = boxes.at(p.To);
+		std::vector<const FStateConnection *> parallel;
+		for (const auto &other : paths)
+			if (other.Initial == p.Initial && std::min(other.From, other.To) == std::min(p.From, p.To) &&
+				std::max(other.From, other.To) == std::max(p.From, p.To))
+				parallel.push_back(&other);
+		std::sort(parallel.begin(), parallel.end(),
+				  [](auto *x, auto *y) { return x->From != y->From ? x->From < y->From : x->Id < y->Id; });
+		int rank = 0;
+		for (int i = 0; i < (int)parallel.size(); ++i)
+			if (parallel[i] == &p)
+				rank = i;
+		if (p.From == p.To)
+		{
+			// Unit strength leaves the direction vectors as explicit cubic control offsets.
+			p.Loop = true;
+			p.Strength = 1;
+			p.P0 = Snap(ImVec2(a.Min.x + a.Size.x, a.Center().y - 12));
+			p.P3 = Snap(ImVec2(a.Min.x + a.Size.x, a.Center().y + 12));
+			float reach = 85.f + rank * 45.f;
+			p.P1 = Add(p.P0, ImVec2(reach, 0));
+			p.P2 = Add(p.P3, ImVec2(reach, 0));
+		}
+		else
+		{
+			ImVec2 canonical =
+				Unit(Sub(boxes.at(std::max(p.From, p.To)).Center(), boxes.at(std::min(p.From, p.To)).Center()));
+			ImVec2 normal(-canonical.y, canonical.x);
+			float available = std::numeric_limits<float>::max();
+			for (const auto *box : {&a, &b})
+			{
+				if (std::abs(normal.x) > .001f)
+					available = std::min(available, std::max(0.f, box->Size.x * .5f - 8) / std::abs(normal.x));
+				if (std::abs(normal.y) > .001f)
+					available = std::min(available, std::max(0.f, box->Size.y * .5f - 8) / std::abs(normal.y));
+			}
+			float maxRank = ((int)parallel.size() - 1) * .5f;
+			float spacing = maxRank > 0 ? std::min(16.f, available / maxRank) : 0;
+			ImVec2 offset = Scale(normal, (rank - maxRank) * spacing), direction = Unit(Sub(b.Center(), a.Center()));
+			p.P0 = Boundary(a, Add(a.Center(), offset), direction);
+			p.P3 = Boundary(b, Add(b.Center(), offset), Scale(direction, -1));
+			p.P1 = p.P0;
+			p.P2 = p.P3;
 		}
 	}
-	void PinLabel(ed::PinId Id, ed::PinKind Kind, const char* Text)
+	return paths;
+}
+void HiddenEndpoint(const FStateConnection &path, int slot, ImVec2 layoutOrigin)
+{
+	ImVec2 point = slot ? path.P3 : path.P0;
+	ImVec2 direction = slot ? Sub(path.P2, path.P3) : Sub(path.P1, path.P0);
+	// Internal pins have no layout footprint. The node submits its sized Dummy afterwards.
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+	ImGui::SetCursorScreenPos(layoutOrigin);
+	ed::PushStyleVar(ed::StyleVar_LinkStrength, path.Strength);
+	ed::PushStyleVar(slot ? ed::StyleVar_TargetDirection : ed::StyleVar_SourceDirection, direction);
+	ed::PushStyleVar(ed::StyleVar_PinRadius, 0.f);
+	ed::PushStyleVar(ed::StyleVar_PinArrowSize, 0.f);
+	ed::PushStyleVar(ed::StyleVar_PinArrowWidth, 0.f);
+	ed::PushStyleColor(ed::StyleColor_PinRect, ImVec4(0, 0, 0, 0));
+	ed::PushStyleColor(ed::StyleColor_PinRectBorder, ImVec4(0, 0, 0, 0));
+	ed::BeginPin(path.Endpoint(slot), slot ? ed::PinKind::Input : ed::PinKind::Output);
+	// A zero-area hit rectangle keeps the internal pin from capturing state clicks.
+	ed::PinRect(point, point);
+	ed::PinPivotRect(point, point);
+	// ItemAdd inside BeginPin does not call ItemSize or consume SetCursorScreenPos.
+	ImGui::Dummy(ImVec2(0, 0));
+	ed::EndPin();
+	ed::PopStyleColor(2);
+	ed::PopStyleVar(5);
+	ImGui::PopStyleVar();
+}
+void DrawDirection(ImDrawList *draw, const FStateConnection &path, ImU32 color, bool diamond)
+{
+	ImVec2 direction = Unit(Sub(path.P3, path.Point(.96f))), normal(-direction.y, direction.x);
+	float head = std::min(11.f, std::max(4.f, Length(Sub(path.P3, path.P0)) * .25f));
+	ImVec2 back = Sub(path.P3, Scale(direction, head));
+	draw->AddTriangleFilled(path.P3, Add(back, Scale(normal, head * .45f)), Sub(back, Scale(normal, head * .45f)),
+							color);
+	if (diamond)
 	{
-		ed::BeginPin(Id, Kind);
-		ImGui::TextColored(ImVec4(.55f, .85f, 1, 1), "%s %s", Kind == ed::PinKind::Input ? ">" : "o", Text);
-		ed::EndPin();
+		auto mid = path.Point(.5f);
+		ImVec2 top = Add(mid, ImVec2(0, -5)), right = Add(mid, ImVec2(5, 0)), bottom = Add(mid, ImVec2(0, 5)),
+			   left = Add(mid, ImVec2(-5, 0));
+		draw->AddQuadFilled(top, right, bottom, left, IM_COL32(35, 38, 44, 255));
+		draw->AddQuad(top, right, bottom, left, color, 1.5f);
 	}
-	void Place(std::set<uintptr_t>& Placed, ed::NodeId Id, float X, float Y)
-	{
-		if (Placed.insert(Id.Get()).second)
-			ed::SetNodePosition(Id, ImVec2(X, Y));
-	}
-	bool Capture(ed::NodeId Id, float& X, float& Y)
-	{
-		auto p = ed::GetNodePosition(Id);
-		if (std::abs(p.x - std::floor(X)) > .01f || std::abs(p.y - std::floor(Y)) > .01f)
-		{
-			X = p.x;
-			Y = p.y;
-			return true;
-		}
-		return false;
-	}
+}
+
 } // namespace
 void FStateMachineEditorPanel::ClearContexts()
 {
-	for (auto& [id, s] : Sessions)
+	for (auto &[id, s] : Sessions)
 	{
 		if (ed::GetCurrentEditor() == s.Context)
 			ed::SetCurrentEditor(nullptr);
@@ -110,10 +298,13 @@ void FStateMachineEditorPanel::ClearContexts()
 	}
 	Sessions.clear();
 	CreateFromPin = ContextObject = 0;
+	PendingSource = -3;
+	PendingStartFrame = -1;
+	QueuedTransition = 0;
 }
-FStateMachineEditorPanel::FGraphSession& FStateMachineEditorPanel::GraphSession()
+FStateMachineEditorPanel::FGraphSession &FStateMachineEditorPanel::GraphSession()
 {
-	auto& session = Sessions[ActiveRule];
+	auto &session = Sessions[ActiveRule];
 	if (!session.Context)
 	{
 		ed::Config config;
@@ -133,7 +324,7 @@ void FStateMachineEditorPanel::AddTransition(int From, int To)
 	t.From = From;
 	t.To = To;
 	int next = 1;
-	for (auto& existing : Working.Transitions)
+	for (auto &existing : Working.Transitions)
 		next = std::max(next, existing.Id + 1);
 	t.Id = next;
 	t.Rule = FAnimRuleGraph::Disabled();
@@ -145,8 +336,8 @@ void FStateMachineEditorPanel::AddTransition(int From, int To)
 }
 void FStateMachineEditorPanel::DeleteSelection()
 {
-	auto& session = GraphSession();
-	auto* previous = ed::GetCurrentEditor();
+	auto &session = GraphSession();
+	auto *previous = ed::GetCurrentEditor();
 	ed::SetCurrentEditor(session.Context);
 	std::vector<ed::NodeId> nodes(ed::GetSelectedObjectCount());
 	int count = ed::GetSelectedNodes(nodes.data(), (int)nodes.size());
@@ -160,21 +351,24 @@ void FStateMachineEditorPanel::DeleteSelection()
 }
 void FStateMachineEditorPanel::DrawGraph()
 {
+	if (ActiveRule)
+		PendingSource = -3;
 	if (ActiveRule && !FindTransition(ActiveRule))
 		ActiveRule = 0;
 	if (ImGui::Button("State Machine"))
 	{
 		ActiveRule = 0;
 		SelectedRuleNode = 0;
+		PendingSource = -3;
 	}
-	if (auto* t = FindTransition(ActiveRule))
+	if (auto *t = FindTransition(ActiveRule))
 	{
 		ImGui::SameLine();
 		FString title = FString(" > ") + StateName(t->From) + " -> " + StateName(t->To);
 		ImGui::TextUnformatted(title.c_str());
 	}
-	auto& session = GraphSession();
-	auto* previous = ed::GetCurrentEditor();
+	auto &session = GraphSession();
+	auto *previous = ed::GetCurrentEditor();
 	ed::SetCurrentEditor(session.Context);
 	if (ImGui::Button("Frame All"))
 		session.Fit = true;
@@ -184,10 +378,23 @@ void FStateMachineEditorPanel::DrawGraph()
 	ImGui::SameLine();
 	if (ImGui::Button("Delete Selection"))
 		DeleteSelection();
-	ImGui::TextDisabled("Drag pins to connect | Middle drag: pan | Wheel: zoom | Right click: actions");
+	if (!ActiveRule)
+	{
+		ImGui::SameLine();
+		if (ImGui::Button("Auto Arrange"))
+			AutoArrange();
+	}
+	ImGui::TextDisabled(ActiveRule ? "Drag Bool pins to connect | Middle drag: pan | Wheel: zoom"
+								   : "Right click a state: Make Transition | Middle drag: pan | Wheel: zoom");
+	if (!ActiveRule && PendingSource != -3)
+	{
+		ImGui::TextColored(ImVec4(1, .8f, .3f, 1), "Choose target for %s. Escape or background click cancels.",
+						   PendingSource == -2 ? "Entry" : StateName(PendingSource));
+	}
 	ed::EnableShortcuts(Focused && !ImGui::GetIO().WantTextInput);
 	ed::Begin(ActiveRule ? "Transition Rule" : "State Machine Canvas",
-	          ImVec2(0, std::max(260.0f, ImGui::GetContentRegionAvail().y)));
+			  ImVec2(0, std::max(260.0f, ImGui::GetContentRegionAvail().y)));
+	const bool stateGraph = ActiveRule == 0;
 	if (ActiveRule)
 		DrawRuleGraph(session);
 	else
@@ -198,180 +405,121 @@ void FStateMachineEditorPanel::DrawGraph()
 		session.Fit = false;
 	}
 	ed::End();
+	if (stateGraph)
+		HandleStateGraphInteraction();
 	ed::SetCurrentEditor(previous);
 }
-void FStateMachineEditorPanel::DrawStateGraph(FGraphSession& session)
+void FStateMachineEditorPanel::DrawStateGraph(FGraphSession &session)
 {
-	auto* runtime = Viewer ? Viewer->GetStateMachinePreview() : nullptr;
-	int current = runtime ? runtime->GetCurrentAssetState() : -1;
-	int activeTransition = 0;
+	auto *runtime = Viewer ? Viewer->GetStateMachinePreview() : nullptr;
+	int current = runtime ? runtime->GetCurrentAssetState() : -1, activeTransition = 0;
 	if (runtime)
 	{
 		int index = runtime->GetActiveTransitionIndex();
-		const auto& data = runtime->GetAssetData();
+		const auto &data = runtime->GetAssetData();
 		if (index >= 0 && index < (int)data.Transitions.size())
 			activeTransition = data.Transitions[index].Id;
 	}
-	for (int special = 0; special < 2; ++special)
-	{
-		auto id = Node(SpecialNode, special);
-		Place(session.Placed, id, special ? Working.AnyX : Working.EntryX, special ? Working.AnyY : Working.EntryY);
-		ed::PushStyleColor(ed::StyleColor_NodeBg, special ? ImVec4(.3f, .19f, .1f, 1) : ImVec4(.12f, .25f, .32f, 1));
-		ed::BeginNode(id);
-		ImGui::TextUnformatted(special ? "AnyState" : "Entry");
-		PinLabel(Pin(SpecialPin, special), ed::PinKind::Output, "Transition");
-		ed::EndNode();
-		ed::PopStyleColor();
-	}
-	for (auto& state : Working.States)
-	{
-		auto id = Node(StateNode, state.Id);
-		Place(session.Placed, id, state.X, state.Y);
-		if (state.Id == current)
-			ed::PushStyleColor(ed::StyleColor_NodeBg, ImVec4(.13f, .36f, .22f, 1));
-		ed::BeginNode(id);
-		ImGui::TextUnformatted(state.Name.c_str());
-		ImGui::Separator();
-		ImGui::TextDisabled("%s", state.BlendSpace ? "BlendSpace" : "Sequence");
-		FString asset = state.AssetKey;
-		auto slash = asset.find_last_of("/\\");
-		if (slash != FString::npos)
-			asset = asset.substr(slash + 1);
-		ImGui::TextUnformatted(asset.empty() ? "Select animation in Details" : asset.c_str());
-		PinLabel(Pin(StatePin, state.Id, 1), ed::PinKind::Input, "In");
-		ImGui::SameLine(120);
-		PinLabel(Pin(StatePin, state.Id, 0), ed::PinKind::Output, "Out");
-		ed::EndNode();
-		if (state.Id == current)
-			ed::PopStyleColor();
-	}
-	auto sourcePin = [&](int from)
-	{ return from == -1 ? Pin(SpecialPin, 1) : Pin(StatePin, from, 0); };
-	if (FindState(Working.Entry))
-		ed::Link(ed::LinkId(Key(EntryLink)), Pin(SpecialPin, 0), Pin(StatePin, Working.Entry, 1),
-		         ImVec4(.3f, .7f, 1, 1), 2);
-	for (auto& t : Working.Transitions)
-	{
-		auto id = Node(TransitionNode, t.Id);
-		Place(session.Placed, id, t.X, t.Y);
-		bool active = activeTransition == t.Id;
-		ed::PushStyleColor(ed::StyleColor_NodeBg, active ? ImVec4(.12f, .4f, .22f, 1) : ImVec4(.24f, .22f, .14f, 1));
-		ed::BeginNode(id);
-		FString summary = t.Rule.Summary();
-		if (summary.size() > 54)
-			summary = summary.substr(0, 51) + "...";
-		ImGui::TextUnformatted(summary.c_str());
-		PinLabel(Pin(TransitionPin, t.Id, 0), ed::PinKind::Input, "");
-		ImGui::SameLine();
-		PinLabel(Pin(TransitionPin, t.Id, 1), ed::PinKind::Output, "");
-		ed::EndNode();
-		ed::PopStyleColor();
-		ImVec4 color = active ? ImVec4(.3f, 1, .5f, 1) : ImVec4(.7f, .75f, .85f, 1);
-		auto left = ed::LinkId(Key(TransitionLink, t.Id, 0)), right = ed::LinkId(Key(TransitionLink, t.Id, 1));
-		ed::Link(left, sourcePin(t.From), Pin(TransitionPin, t.Id, 0), color, 2);
-		ed::Link(right, Pin(TransitionPin, t.Id, 1), Pin(StatePin, t.To, 1), color, 2);
-		if (active)
-		{
-			ed::Flow(left);
-			ed::Flow(right);
-		}
-	}
-	auto selectTransition = [&](int id)
-	{
-		for (int i = 0; i < (int)Working.Transitions.size(); ++i)
-			if (Working.Transitions[i].Id == id)
-			{
-				SelectedTransition = i;
-				Selected = -1;
-				return;
-			}
+	std::map<int, FStateBox> boxes;
+	auto box = [&](int id, float x, float y, const char *name, bool special) {
+		auto node = StateId(id);
+		Place(session.Placed, node, x, y);
+		auto size = ed::GetNodeSize(node);
+		if (size.x <= 0 || size.y <= 0)
+			size = CompactSize(name, special);
+		boxes[id] = {ed::GetNodePosition(node), size};
 	};
-	if (ed::HasSelectionChanged())
-	{
-		int count = ed::GetSelectedObjectCount();
-		std::vector<ed::NodeId> nodes(count);
-		int n = ed::GetSelectedNodes(nodes.data(), count);
-		Selected = -1;
-		SelectedTransition = -1;
-		if (n)
+	box(EntrySource, Working.EntryX, Working.EntryY, "Entry", true);
+	box(AnySource, Working.AnyX, Working.AnyY, "AnyState", true);
+	for (auto &state : Working.States)
+		box(state.Id, state.X, state.Y, state.Name.c_str(), false);
+	auto paths = Connections(Working, boxes);
+	ed::PushStyleVar(ed::StyleVar_NodePadding, ImVec4(12, 10, 12, 10));
+	auto drawNode = [&](int id, const char *name, const char *type) {
+		bool special = id < 0, source = id == PendingSource, target = PendingSource != NoSource && !special;
+		ImVec4 background = id == EntrySource
+								? ImVec4(.12f, .25f, .32f, 1)
+								: (id == AnySource ? ImVec4(.3f, .19f, .1f, 1) : ImVec4(.13f, .15f, .19f, 1));
+		if (!special && id == current)
+			background = ImVec4(.13f, .36f, .22f, 1);
+		ed::PushStyleColor(ed::StyleColor_NodeBg, background);
+		if (source || target)
+			ed::PushStyleColor(ed::StyleColor_NodeBorder, source ? ImVec4(1, .75f, .2f, 1) : ImVec4(.25f, .8f, .7f, 1));
+		ed::BeginNode(StateId(id));
+		auto origin = ImGui::GetCursorScreenPos(), size = CompactSize(name, special);
+		for (const auto &path : paths)
 		{
-			auto value = nodes[n - 1].Get();
-			if (Kind(value) == StateNode)
-				Selected = Object(value);
-			else if (Kind(value) == TransitionNode)
-				selectTransition(Object(value));
+			if (path.From == id)
+				HiddenEndpoint(path, 0, origin);
+			if (path.To == id)
+				HiddenEndpoint(path, 1, origin);
 		}
-		std::vector<ed::LinkId> links(count);
-		n = ed::GetSelectedLinks(links.data(), count);
-		if (n && Kind(links[n - 1].Get()) == TransitionLink)
-			selectTransition(Object(links[n - 1].Get()));
+		// Always consume the cursor move with a real layout item before EndNode/EndGroup.
+		ImGui::SetCursorScreenPos(origin);
+		ImGui::Dummy(ImVec2(size.x - 24, size.y - 20));
+		auto *draw = ImGui::GetWindowDrawList();
+		draw->AddText(origin, IM_COL32(235, 237, 242, 255), name);
+		if (!special)
+			draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * .82f,
+						  Add(origin, ImVec2(0, ImGui::GetFontSize() + 4)), IM_COL32(145, 155, 170, 255), type);
+		ed::EndNode();
+		if (source || target)
+			ed::PopStyleColor();
+		ed::PopStyleColor();
+	};
+	drawNode(EntrySource, "Entry", "");
+	drawNode(AnySource, "AnyState", "");
+	for (auto &s : Working.States)
+		drawNode(s.Id, s.Name.c_str(), s.BlendSpace ? "BlendSpace" : "Sequence");
+	ed::PopStyleVar();
+	for (const auto &path : paths)
+	{
+		bool active = !path.Initial && path.Id == activeTransition;
+		bool highlight = ed::IsLinkSelected(path.LinkId()) || ed::GetHoveredLink() == path.LinkId();
+		ImVec4 color = active ? ImVec4(.3f, 1, .5f, 1)
+							  : (highlight ? ImVec4(1, .78f, .3f, 1)
+										   : (path.Initial ? ImVec4(.3f, .7f, 1, 1) : ImVec4(.65f, .72f, .82f, 1)));
+		ed::Link(path.LinkId(), path.Endpoint(0), path.Endpoint(1), color, active ? 3.f : 2.f);
+		if (active)
+			ed::Flow(path.LinkId());
+		if (auto *draw = ed::GetNodeBackgroundDrawList(StateId(path.From)))
+			DrawDirection(draw, path, ImGui::ColorConvertFloat4ToU32(color), !path.Initial);
 	}
-	auto doubleNode = ed::GetDoubleClickedNode();
-	auto doubleLink = ed::GetDoubleClickedLink();
-	int openRule = 0;
-	if (Kind(doubleNode.Get()) == TransitionNode)
-		openRule = Object(doubleNode.Get());
-	if (Kind(doubleLink.Get()) == TransitionLink)
-		openRule = Object(doubleLink.Get());
-	if (ed::BeginCreate())
+	if (QueuedTransition)
 	{
-		ed::PinId a, b;
-		if (ed::QueryNewLink(&a, &b))
+		if (FindTransition(QueuedTransition))
 		{
-			auto from = a.Get(), to = b.Get();
-			if (Kind(to) == SpecialPin || (Kind(to) == StatePin && Slot(to) == 0))
-				std::swap(from, to);
-			bool validSource = Kind(from) == SpecialPin || (Kind(from) == StatePin && Slot(from) == 0);
-			bool valid = validSource && Kind(to) == StatePin && Slot(to) == 1;
-			if (valid)
-			{
-				if (ed::AcceptNewItem())
-				{
-					int target = Object(to);
-					if (Kind(from) == SpecialPin && Object(from) == 0)
-					{
-						Working.Entry = target;
-						Dirty = true;
-					}
-					else
-						AddTransition(Kind(from) == SpecialPin ? -1 : Object(from), target);
-				}
-			}
-			else
-				ed::RejectNewItem(ImVec4(1, .3f, .3f, 1));
+			ed::ClearSelection();
+			ed::SelectLink(ed::LinkId(Key(TransitionLink, QueuedTransition)));
 		}
-		ed::PinId pin;
-		if (ed::QueryNewNode(&pin))
+		QueuedTransition = 0;
+	}
+	if (PendingSource != NoSource && boxes.contains(PendingSource))
+	{
+		auto mouse = ImGui::GetMousePos();
+		const auto &source = boxes.at(PendingSource);
+		FStateConnection preview;
+		preview.P0 = Boundary(source, source.Center(), Unit(Sub(mouse, source.Center())));
+		preview.P1 = preview.P0;
+		preview.P2 = preview.P3 = mouse;
+		if (auto *draw = ed::GetNodeBackgroundDrawList(StateId(PendingSource)))
 		{
-			if (Kind(pin.Get()) == StatePin || Kind(pin.Get()) == SpecialPin)
-			{
-				if (ed::AcceptNewItem())
-				{
-					CreateFromPin = pin.Get();
-					CreationPosition = ed::ScreenToCanvas(ImGui::GetMousePos());
-					ed::Suspend();
-					ImGui::OpenPopup("Create State");
-					ed::Resume();
-				}
-			}
-			else
-				ed::RejectNewItem();
+			auto color = IM_COL32(255, 195, 70, 220);
+			draw->AddLine(preview.P0, preview.P3, color, 2);
+			DrawDirection(draw, preview, color, false);
 		}
 	}
-	// BeginCreate marks the action active even when it returns false.
-	ed::EndCreate();
-	auto removeTransition = [&](int id)
-	{
-		session.Placed.erase(Key(TransitionNode, id));
+	auto removeTransition = [&](int id) {
 		auto it = Sessions.find(id);
 		if (it != Sessions.end())
 		{
 			ed::DestroyEditor(it->second.Context);
 			Sessions.erase(it);
 		}
-		std::erase_if(Working.Transitions, [&](auto& t)
-		              { return t.Id == id; });
+		std::erase_if(Working.Transitions, [&](const auto &t) { return t.Id == id; });
 		SelectedTransition = -1;
+		if (QueuedTransition == id)
+			QueuedTransition = 0;
 		Dirty = true;
 	};
 	if (ed::BeginDelete())
@@ -400,28 +548,28 @@ void FStateMachineEditorPanel::DrawStateGraph(FGraphSession& session)
 		while (ed::QueryDeletedNode(&node))
 		{
 			auto value = node.Get();
-			if (Kind(value) == SpecialNode)
-				ed::RejectDeletedItem();
-			else if (ed::AcceptDeletedItem())
+			if (Kind(value) != StateNode)
 			{
-				if (Kind(value) == TransitionNode)
-					removeTransition(Object(value));
-				else if (Kind(value) == StateNode)
-				{
-					int id = Object(value);
-					std::vector<int> dependencies;
-					for (auto& t : Working.Transitions)
-						if (t.From == id || t.To == id)
-							dependencies.push_back(t.Id);
-					for (int t : dependencies)
-						removeTransition(t);
-					std::erase_if(Working.States, [&](auto& s)
-					              { return s.Id == id; });
-					if (Working.Entry == id)
-						Working.Entry = -1;
-					Selected = -1;
-					Dirty = true;
-				}
+				ed::RejectDeletedItem();
+				continue;
+			}
+			if (ed::AcceptDeletedItem())
+			{
+				int id = Object(value);
+				std::vector<int> dependencies;
+				for (const auto &t : Working.Transitions)
+					if (t.From == id || t.To == id)
+						dependencies.push_back(t.Id);
+				for (int t : dependencies)
+					removeTransition(t);
+				std::erase_if(Working.States, [&](const auto &s) { return s.Id == id; });
+				session.Placed.erase(value);
+				if (Working.Entry == id)
+					Working.Entry = -1;
+				if (PendingSource == id)
+					PendingSource = NoSource;
+				Selected = -1;
+				Dirty = true;
 			}
 		}
 	}
@@ -441,41 +589,33 @@ void FStateMachineEditorPanel::DrawStateGraph(FGraphSession& session)
 	}
 	if (ed::ShowBackgroundContextMenu())
 	{
-		CreateFromPin = 0;
 		CreationPosition = ed::ScreenToCanvas(ImGui::GetMousePos());
 		ImGui::OpenPopup("Create State");
 	}
 	if (ImGui::BeginPopup("Create State"))
 	{
 		if (ImGui::MenuItem("Add State"))
-		{
 			AddState(CreationPosition);
-			int target = Selected;
-			if (CreateFromPin)
-			{
-				auto p = CreateFromPin;
-				if (Kind(p) == SpecialPin && Object(p) == 0)
-				{
-					Working.Entry = target;
-					Dirty = true;
-				}
-				else if (Kind(p) == SpecialPin)
-					AddTransition(-1, target);
-				else if (Slot(p) == 0)
-					AddTransition(Object(p), target);
-				else
-					AddTransition(target, Object(p));
-			}
-			CreateFromPin = 0;
-		}
 		ImGui::EndPopup();
 	}
 	if (ImGui::BeginPopup("State Actions"))
 	{
 		int kind = Kind(ContextObject), id = Object(ContextObject);
-		bool transition = kind == TransitionNode || kind == TransitionLink;
+		bool transition = kind == TransitionLink;
+		if ((kind == StateNode || kind == SpecialNode) && ImGui::MenuItem("Make Transition"))
+		{
+			PendingSource = kind == StateNode ? id : (id == 0 ? EntrySource : AnySource);
+			PendingStartFrame = ImGui::GetFrameCount();
+		}
 		if (transition && ImGui::MenuItem("Edit Transition Rule"))
-			openRule = id;
+		{
+			if (FindTransition(id))
+			{
+				ActiveRule = id;
+				SelectedRuleNode = 0;
+				PendingSource = NoSource;
+			}
+		}
 		if (kind == StateNode && ImGui::MenuItem("Set as Entry"))
 		{
 			Working.Entry = id;
@@ -485,27 +625,199 @@ void FStateMachineEditorPanel::DrawStateGraph(FGraphSession& session)
 		{
 			if (kind == TransitionLink || kind == EntryLink)
 				ed::DeleteLink(ed::LinkId(ContextObject));
-			else
+			else if (kind == StateNode)
 				ed::DeleteNode(ed::NodeId(ContextObject));
 		}
 		ImGui::EndPopup();
 	}
 	ed::Resume();
-	for (auto& s : Working.States)
+	for (auto &s : Working.States)
 		if (session.Placed.contains(Key(StateNode, s.Id)))
 			Dirty |= Capture(Node(StateNode, s.Id), s.X, s.Y);
-	for (auto& t : Working.Transitions)
-		if (session.Placed.contains(Key(TransitionNode, t.Id)))
-			Dirty |= Capture(Node(TransitionNode, t.Id), t.X, t.Y);
 	Dirty |= Capture(Node(SpecialNode, 0), Working.EntryX, Working.EntryY);
 	Dirty |= Capture(Node(SpecialNode, 1), Working.AnyX, Working.AnyY);
-	if (openRule && FindTransition(openRule))
+}
+void FStateMachineEditorPanel::HandleStateGraphInteraction()
+{
+	if (ActiveRule)
 	{
-		selectTransition(openRule);
-		ActiveRule = openRule;
+		PendingSource = NoSource;
+		return;
+	}
+	if (ed::HasSelectionChanged())
+	{
+		int total = ed::GetSelectedObjectCount();
+		std::vector<ed::NodeId> nodes(total);
+		int count = ed::GetSelectedNodes(nodes.data(), total);
+		Selected = -1;
+		SelectedTransition = -1;
+		if (count && Kind(nodes[count - 1].Get()) == StateNode)
+			Selected = Object(nodes[count - 1].Get());
+		std::vector<ed::LinkId> links(total);
+		count = ed::GetSelectedLinks(links.data(), total);
+		if (count && Kind(links[count - 1].Get()) == TransitionLink)
+		{
+			int id = Object(links[count - 1].Get());
+			for (int i = 0; i < (int)Working.Transitions.size(); ++i)
+				if (Working.Transitions[i].Id == id)
+					SelectedTransition = i;
+		}
+	}
+	if (PendingSource >= 0 && !FindState(PendingSource))
+		PendingSource = NoSource;
+	if (PendingSource != NoSource)
+	{
+		if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+			PendingSource = NoSource;
+		else if (ImGui::GetFrameCount() > PendingStartFrame &&
+				 !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+		{
+			auto hovered = ed::GetHoveredNode();
+			if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && Kind(hovered.Get()) == StateNode)
+			{
+				int target = Object(hovered.Get());
+				if (FindState(target))
+				{
+					if (PendingSource == EntrySource)
+					{
+						Working.Entry = target;
+						Dirty = true;
+					}
+					else
+					{
+						AddTransition(PendingSource, target);
+						QueuedTransition = Working.Transitions.back().Id;
+					}
+					PendingSource = NoSource;
+				}
+			}
+			else if (ed::IsBackgroundClicked() && ed::GetBackgroundClickButtonIndex() == ImGuiMouseButton_Left)
+				PendingSource = NoSource;
+		}
+	}
+	auto doubleLink = ed::GetDoubleClickedLink();
+	if (Kind(doubleLink.Get()) == TransitionLink && FindTransition(Object(doubleLink.Get())))
+	{
+		ActiveRule = Object(doubleLink.Get());
 		SelectedRuleNode = 0;
+		PendingSource = NoSource;
+	}
+	auto hoveredLink = ed::GetHoveredLink();
+	if (PendingSource == NoSource && Kind(hoveredLink.Get()) == TransitionLink)
+	{
+		if (auto *t = FindTransition(Object(hoveredLink.Get())))
+		{
+			ImGui::BeginTooltip();
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28);
+			ImGui::Text("%s -> %s", StateName(t->From), StateName(t->To));
+			ImGui::TextUnformatted(t->Rule.Summary().c_str());
+			ImGui::TextDisabled("Double click to edit the transition rule.");
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
 	}
 }
+void FStateMachineEditorPanel::AutoArrange()
+{
+	if (Working.States.empty())
+		return;
+	PendingSource = NoSource;
+	std::map<int, std::vector<int>> adjacency;
+	std::map<int, ImVec2> sizes;
+	for (const auto &state : Working.States)
+	{
+		adjacency[state.Id];
+		auto size = ed::GetNodeSize(Node(StateNode, state.Id));
+		if (size.x <= 0 || size.y <= 0)
+			size = CompactSize(state.Name.c_str(), false);
+		sizes[state.Id] = size;
+	}
+	for (const auto &t : Working.Transitions)
+		if (t.From >= 0 && adjacency.contains(t.From) && adjacency.contains(t.To))
+		{
+			adjacency[t.From].push_back(t.To);
+			adjacency[t.To].push_back(t.From);
+		}
+	for (auto &[id, neighbors] : adjacency)
+	{
+		std::sort(neighbors.begin(), neighbors.end());
+		neighbors.erase(std::unique(neighbors.begin(), neighbors.end()), neighbors.end());
+	}
+	std::vector<int> roots;
+	if (adjacency.contains(Working.Entry))
+		roots.push_back(Working.Entry);
+	for (const auto &[id, neighbors] : adjacency)
+		if (id != Working.Entry)
+			roots.push_back(id);
+	std::set<int> visited;
+	float componentTop = 0;
+	for (int root : roots)
+	{
+		if (visited.contains(root))
+			continue;
+		std::map<int, std::vector<int>> layers;
+		std::queue<std::pair<int, int>> queue;
+		queue.push({root, 0});
+		visited.insert(root);
+		while (!queue.empty())
+		{
+			auto [id, depth] = queue.front();
+			queue.pop();
+			layers[depth].push_back(id);
+			for (int neighbor : adjacency[id])
+				if (visited.insert(neighbor).second)
+					queue.push({neighbor, depth + 1});
+		}
+		float componentHeight = 0;
+		std::map<int, float> heights, widths;
+		for (auto &[depth, ids] : layers)
+		{
+			std::sort(ids.begin(), ids.end());
+			float height = -64, width = 0;
+			for (int id : ids)
+			{
+				height += sizes[id].y + 64;
+				width = std::max(width, sizes[id].x);
+			}
+			heights[depth] = height;
+			widths[depth] = width;
+			componentHeight = std::max(componentHeight, height);
+		}
+		float x = 0;
+		for (const auto &[depth, ids] : layers)
+		{
+			float y = componentTop + (componentHeight - heights[depth]) * .5f;
+			for (int id : ids)
+			{
+				auto *state = FindState(id);
+				state->X = x;
+				state->Y = y;
+				ed::SetNodePosition(Node(StateNode, id), ImVec2(x, y));
+				y += sizes[id].y + 64;
+			}
+			x += widths[depth] + 180;
+		}
+		componentTop += componentHeight + 160;
+	}
+	int root = adjacency.contains(Working.Entry) ? Working.Entry : adjacency.begin()->first;
+	auto *start = FindState(root);
+	auto entrySize = CompactSize("Entry", true), anySize = CompactSize("AnyState", true);
+	Working.EntryX = start->X - entrySize.x - 100;
+	Working.EntryY = start->Y + (sizes[root].y - entrySize.y) * .5f;
+	float left = std::numeric_limits<float>::max(), top = left;
+	for (const auto &s : Working.States)
+	{
+		left = std::min(left, s.X);
+		top = std::min(top, s.Y);
+	}
+	Working.AnyX = left - anySize.x - 100;
+	Working.AnyY = top - anySize.y - 100;
+	ed::SetNodePosition(Node(SpecialNode, 0), ImVec2(Working.EntryX, Working.EntryY));
+	ed::SetNodePosition(Node(SpecialNode, 1), ImVec2(Working.AnyX, Working.AnyY));
+	Sessions[0].Fit = true;
+	Dirty = true;
+}
+
 void FStateMachineEditorPanel::DrawRuleGraph(FGraphSession& session)
 {
 	auto* transition = FindTransition(ActiveRule);

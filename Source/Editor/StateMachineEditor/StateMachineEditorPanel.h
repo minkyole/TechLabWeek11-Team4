@@ -55,6 +55,8 @@ class FStateMachineEditorPanel : public IEditorPanel
 	bool Save();
 	void DrawGraph();
 	void DrawStateGraph(FGraphSession &Session);
+	void HandleStateGraphInteraction();
+	void AutoArrange();
 	void DrawRuleGraph(FGraphSession &Session);
 	void DrawDetails();
 	void DrawParameters();
@@ -76,6 +78,7 @@ class FStateMachineEditorPanel : public IEditorPanel
 	char SavePath[512] = "Assets/NewStateMachine.animsm";
 	bool Dirty = false, PendingClose = false, Focused = false;
 	int Selected = -1, SelectedTransition = -1, NextId = 1, ActiveRule = 0, SelectedRuleNode = 0;
+	int PendingSource = -3, PendingStartFrame = -1, QueuedTransition = 0;
 	uintptr_t ContextObject = 0, CreateFromPin = 0;
 	ImVec2 CreationPosition{};
 	std::map<int, FGraphSession> Sessions;

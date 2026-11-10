@@ -88,10 +88,10 @@
     }
   ],
   "Editor": {
-    "AnyX": -314.0,
-    "AnyY": -63.0,
-    "EntryX": -234.0,
-    "EntryY": 273.0
+    "AnyX": -224.0,
+    "AnyY": -52.0,
+    "EntryX": -214.0,
+    "EntryY": 237.0
   },
   "Entry": 1,
   "Mesh": "Models/UAL1_Standard.fbx",
@@ -143,8 +143,8 @@
       "Parameter": "",
       "Playing": true,
       "Rate": 1.0,
-      "X": 532.0,
-      "Y": 29.0
+      "X": 544.0,
+      "Y": 218.0
     },
     {
       "Asset": "Models/UAL1_Standard.fbx#Animation/11",
@@ -155,8 +155,8 @@
       "Parameter": "",
       "Playing": true,
       "Rate": 1.0,
-      "X": 292.0,
-      "Y": -131.0
+      "X": 96.0,
+      "Y": -61.0
     },
     {
       "Asset": "Models/UAL1_Standard.fbx#Animation/0",
@@ -167,8 +167,8 @@
       "Parameter": "",
       "Playing": true,
       "Rate": 1.0,
-      "X": 274.0,
-      "Y": 557.0
+      "X": 105.0,
+      "Y": 528.0
     }
   ],
   "Transitions": [

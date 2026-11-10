@@ -513,7 +513,11 @@ void USkinnedMeshComponent::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
 
+	TArray<UMaterial*> CopiedOverrideMaterials = OverrideMaterials;
 	USkeletalMesh* CopiedSkeletalMesh = SkeletalMesh;
 	SkeletalMesh = nullptr;
 	SetSkeletalMesh(CopiedSkeletalMesh);
+
+	OverrideMaterials = CopiedOverrideMaterials;
+	MarkRenderStateDirty();
 }

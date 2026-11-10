@@ -9,31 +9,53 @@
 
 // Debug
 #include "Animation/TestAnimInstance.h"
+#include "Animation/MyAnimInstance.h"
+#include "Animation/AnimTestClips.h"
 
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	AnimationMode = EAnimationMode::AnimationBlueprint;
+	AnimClass = UMyAnimInstance::StaticClass();
 }
 
 USkeletalMeshComponent::~USkeletalMeshComponent()
 {
+	// 인스턴스의 SequencePlayer가 클립을 가리키고 있으므로 인스턴스를 먼저 지운다.
 	ClearAnimInstance();
+	AnimTestClips::DestroyClip(DebugTestClip);
 }
 
 void USkeletalMeshComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UTestAnimInstance* TestInstance =
-	    Cast<UTestAnimInstance>(GetAnimInstance());
+	// ---- Debug [3-4]: SingleNode 재생 경로 확인 ----
+	if (bDebugPlayTestClip && GetSkeletalMesh() && !DebugTestClip)
+	{
+		// 본 11을 1초 동안 로컬 Z축으로 90도. 루프면 1초마다 되돌아가고, 비루프면 90도에서 멈춘다.
+		DebugTestClip = AnimTestClips::CreateSwingClip(GetSkeletalMesh(), 11, FVector(0.0f, 0.0f, 1.0f), 90.0f, 1.0f);
 
-	if (!TestInstance || !TestInstance->IsInitialized())
+		if (DebugTestClip)
+		{
+			PlayAnimation(DebugTestClip, bDebugTestClipLoop);
+			return;
+		}
+	}
+	// ---- Debug [3-4] 끝 ----
+
+	UMyAnimInstance* MyInstance =
+	    Cast<UMyAnimInstance>(GetAnimInstance());
+
+	if (!MyInstance || !MyInstance->IsInitialized())
 		return;
 
-	TestInstance->SetSpeed(DebugSpeed);
+	MyInstance->Speed = DebugSpeed;
+	MyInstance->bIsAttacking = bDebugAttack;
+	MyInstance->bIsHit = bDebugHit;
 
 	// Evaluate 전에 현재 속도의 가중치를 준비한다.
-	TestInstance->UpdateAnimation(0.0f);
+	MyInstance->UpdateAnimation(0.0f);
 
 	// BeginPlay 안에서 스키닝 결과까지 바로 반영.
 	if (RefreshAnimationPose())
@@ -62,51 +84,38 @@ void USkeletalMeshComponent::InitializeAnimInstance()
 
 	if (!AnimInstance)
 	{
-		AnimInstance.reset(
-		    NewObject<UAnimSingleNodeInstance>(this));
-		    //NewObject<UTestAnimInstance>(this)); // Debug
-	}
+		if (AnimationMode == EAnimationMode::AnimationSingleNode)
+		{
+			AnimInstance.reset(NewObject<UAnimSingleNodeInstance>(this));
+		}
+		else
+		{
+			UClass* ClassToSpawn =
+			    (AnimClass && AnimClass->IsChildOf(UAnimInstance::StaticClass()))
+			        ? AnimClass
+			        : UAnimInstance::StaticClass();
 
-	if (AnimInstance && !AnimInstance->IsInitialized())
+			AnimInstance.reset(NewObject<UAnimInstance>(this, ClassToSpawn));
+		}
+
+	if (!AnimInstance->IsInitialized())
 	{
 		AnimInstance->InitializeAnimation(this);
+
+		// InitializeAnimation이 CurrentTime을 0으로 되돌리므로 그 뒤에 요청을 덮어쓴다.
+		// 이미 초기화된 인스턴스에는 적용하지 않는다. 진행 중인 재생 시간을 저장값으로 되감게 된다.
+		if (UAnimSingleNodeInstance* SingleNode =
+		        Cast<UAnimSingleNodeInstance>(AnimInstance.get()))
+		{
+			AnimationData.Initialize(SingleNode);
+		}
+
+		// Tick이 돌지 않는 에디터 월드·뷰어에서도 첫 화면이 RefPose가 아니라 요청한 포즈가 되게 한다.
+		if (RefreshAnimationPose())
+		{
+			FlushPendingPose();
+		}
 	}
-
-	// ---- [TEMP 2-5] 샘플링 확인용. 확인 후 삭제 ----
-	//{
-	//	UAnimSingleNodeInstance* SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance.get());
-	//	const TArray<FSkeletalBone>& Bones = GetSkeletalMesh()->MeshData.Bones;
-	//	if (SingleNode && Bones.Num() > 1)
-	//	{
-	//		UAnimSequence* TestClip = NewObject<UAnimSequence>();
-	//		TestClip->SetSkeletalMesh(GetSkeletalMesh());
-
-	//		UAnimDataModel* Model = TestClip->GetDataModel();
-	//		Model->SetFrameRate(FFrameRate(30, 1));
-	//		Model->SetNumberOfFrames(30); // 키 31개, 1초
-
-	//		const int32 TestBoneIndex = 1;
-	//		const int32 TrackIndex = Model->AddBoneTrack(FName(Bones[TestBoneIndex].Name));
-
-	//		const FQuat RefRot = FQuat(Bones[TestBoneIndex].RefPoseTransform.Rotation).Normalized();
-	//		const FQuat EndRot = (RefRot * FQuat::MakeFromAxisAngle(FVector(0.0f, 0.0f, 1.0f), 3.14159265f * 0.5f)).Normalized();
-
-	//		TArray<FQuat> RotKeys;
-	//		const int32 NumKeys = Model->GetNumberOfKeys();
-	//		for (int32 Key = 0; Key < NumKeys; ++Key)
-	//		{
-	//			const float T = static_cast<float>(Key) / static_cast<float>(NumKeys - 1);
-	//			RotKeys.Add(FMath::SlerpShortestPath(RefRot, EndRot, T));
-	//		}
-	//		Model->SetBoneTrackKeys(TrackIndex, {}, RotKeys, {});
-
-	//		SingleNode->SetAnimationAsset(TestClip);
-	//		SingleNode->SetPosition(0.5f); // 기대: 45°
-	//		RefreshAnimationPose();
-	//		FlushPendingPose();
-	//	}
-	//}
-	// ---- [TEMP 2-5] 끝 ----
 }
 
 void USkeletalMeshComponent::ClearAnimInstance()
@@ -144,6 +153,94 @@ void USkeletalMeshComponent::SetSkeletalMesh(
 	InitializeAnimInstance();
 }
 
+UAnimSingleNodeInstance* USkeletalMeshComponent::GetSingleNodeInstance() const
+{
+	return Cast<UAnimSingleNodeInstance>(AnimInstance.get());
+}
+
+void USkeletalMeshComponent::SetAnimationMode(EAnimationMode InMode)
+{
+	if (AnimationMode == InMode)
+		return;
+
+	AnimationMode = InMode;
+
+	// 인스턴스 타입이 모드에 묶여 있으므로 기존 실행체를 버린다.
+	// AnimationData는 컴포넌트에 남아 있어 SingleNode로 돌아오면 그대로 복원된다.
+	ClearAnimInstance();
+	InitializeAnimInstance();
+}
+
+void USkeletalMeshComponent::SetAnimInstanceClass(UClass* InClass)
+{
+	if (AnimClass == InClass)
+		return;
+
+	AnimClass = InClass;
+
+	// SingleNode 모드 중에는 클래스만 기억해 두고, Blueprint 모드로 바뀔 때 쓴다.
+	if (AnimationMode == EAnimationMode::AnimationBlueprint)
+	{
+		ClearAnimInstance();
+		InitializeAnimInstance();
+	}
+}
+
+void USkeletalMeshComponent::SetAnimation(UAnimSequence* NewAnimToPlay)
+{
+	AnimationData.AnimToPlay = NewAnimToPlay;
+	AnimationData.SavedPosition = 0.0f;
+
+	if (UAnimSingleNodeInstance* SingleNode = GetSingleNodeInstance())
+	{
+		SingleNode->SetAnimationAsset(NewAnimToPlay);
+
+		// SetAnimationAsset은 같은 클립이면 아무것도 안 하므로,
+		// "다시 지정 = 처음부터"를 보장하려고 위치를 명시적으로 되돌린다.
+		SingleNode->SetPosition(0.0f);
+	}
+}
+
+void USkeletalMeshComponent::Play(bool bLooping)
+{
+	AnimationData.bSavedLooping = bLooping;
+	AnimationData.bSavedPlaying = true;
+
+	if (UAnimSingleNodeInstance* SingleNode = GetSingleNodeInstance())
+	{
+		SingleNode->SetLooping(bLooping);
+		SingleNode->SetPlaying(true);
+	}
+}
+
+void USkeletalMeshComponent::Stop()
+{
+	AnimationData.bSavedPlaying = false;
+
+	if (UAnimSingleNodeInstance* SingleNode = GetSingleNodeInstance())
+	{
+		SingleNode->SetPlaying(false);
+	}
+}
+
+bool USkeletalMeshComponent::IsPlaying() const
+{
+	// 인스턴스가 아직 없으면 "재생 요청이 걸려 있는가"를 답한다.
+	if (UAnimSingleNodeInstance* SingleNode = GetSingleNodeInstance())
+	{
+		return SingleNode->IsPlaying();
+	}
+	return AnimationData.AnimToPlay != nullptr && AnimationData.bSavedPlaying;
+}
+
+void USkeletalMeshComponent::PlayAnimation(UAnimSequence* NewAnimToPlay, bool bLooping)
+{
+	// 모드 전환이 인스턴스를 재생성할 수 있으므로 먼저 실행체를 확정하고, 그 실행체에 요청을 건다.
+	SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	SetAnimation(NewAnimToPlay);
+	Play(bLooping);
+}
+
 void USkeletalMeshComponent::TickPose(float DeltaTime)
 {
 	if (!AnimInstance || !AnimInstance->IsInitialized())
@@ -151,10 +248,20 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 
 	SCOPE_CYCLE_COUNTER(SkinningStats::STAT_AnimEvaluate);
 
-	if (UTestAnimInstance* TestInstance =
-	        Cast<UTestAnimInstance>(AnimInstance.get()))
+	if (UMyAnimInstance* MyInstance =
+	        Cast<UMyAnimInstance>(AnimInstance.get()))
 	{
-		TestInstance->SetSpeed(DebugSpeed);
+		MyInstance->Speed = DebugSpeed;
+		if (bDebugAttack)
+		{
+			MyInstance->bIsAttacking = true;
+			bDebugAttack = false; // 한 번만 반영
+		}
+		if (bDebugHit)
+		{
+			MyInstance->bIsHit = true;
+			bDebugHit = false; // 한 번만 반영
+		}
 	}
 
 	AnimInstance->UpdateAnimation(DeltaTime);

@@ -8,6 +8,7 @@ struct FPoseLink
 {
 	FAnimNode_Base* LinkedNode = nullptr;
 
+	void OnEnter();
 	void Update(const FAnimationUpdateContext& Context);
 	void Evaluate(FPoseContext& Output);
 };

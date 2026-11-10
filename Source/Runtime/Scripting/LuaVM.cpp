@@ -2,6 +2,7 @@
 #include "Scripting/LuaVM.h"
 #include "Scripting/CameraManagerBindings.h"
 #include "Scripting/AnimationBindings.h"
+#include "Scripting/MovementBindings.h"
 #include "Sequence/SequenceActor.h"
 
 #include "GameFramework/Actor.h"
@@ -978,6 +979,7 @@ void FLuaVM::BindEngineAPI()
 	BindCameraAPI(*State);
 	BindAnimationAPI(*State);
 	BindActorAPI(*State);
+	BindMovementAPI(*State);
 	BindSequenceAPI(*State);
 	BindFogAPI(*State);
 	BindPlayerCameraManagerAPI(*State);

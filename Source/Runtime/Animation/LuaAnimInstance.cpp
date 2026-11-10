@@ -90,7 +90,7 @@ void ULuaAnimInstance::NativeInitializeAnimation()
 		FBlendParameter SpeedAxis;
 		SpeedAxis.Name = FName("Speed");
 		SpeedAxis.Min = 0.0f;
-		SpeedAxis.Max = 600.0f;
+		SpeedAxis.Max = 10.0f;
 		if (!IdleClip || !WalkClip || !RunClip || !AttackClip || !HitClip)
 		{
 			Fail("Failed to create test animation clips.");
@@ -109,8 +109,8 @@ void ULuaAnimInstance::NativeInitializeAnimation()
 
 		if (!TestBlendSpace->SetBlendParameter(0, SpeedAxis) ||
 		    !AddSample(IdleClip, 0.0f) ||
-		    !AddSample(WalkClip, 300.0f) ||
-		    !AddSample(RunClip, 600.0f))
+		    !AddSample(WalkClip, 5.0f) ||
+		    !AddSample(RunClip, 10.0f))
 		{
 			Fail("Failed to configure test BlendSpace.");
 			// 생성된 테스트 에셋 정리도 필요

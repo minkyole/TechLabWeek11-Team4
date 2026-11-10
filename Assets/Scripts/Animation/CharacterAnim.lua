@@ -162,10 +162,21 @@ function InitializeAnimation(anim)
 end
 
 function UpdateAnimation(anim, deltaTime)
-    local speed = anim:GetFloat("Speed")
+    local movement = anim:GetMovementComponent()
 
-    requireSuccess(
-        anim,
-        anim:SetBlendSpaceInput(locomotionPlayer, speed)
+    local speed = 0.0
+
+    if movement ~= nil then
+        speed = movement:GetGroundSpeed()
+    end
+
+    assert(
+        anim:SetFloat("Speed", speed),
+        anim:GetLastError()
+    )
+
+    assert(
+        anim:SetBlendSpaceInput(locomotionPlayer, speed),
+        anim:GetLastError()
     )
 end

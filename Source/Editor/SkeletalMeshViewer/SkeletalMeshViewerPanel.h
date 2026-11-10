@@ -14,6 +14,7 @@
 #include "BoneWeightHeatmap.h"
 
 #include "Render/ViewMode.h"
+#include "Render/ToneMapRenderer.h"
 
 class FGridRenderer;
 class UAnimSequence;
@@ -29,6 +30,7 @@ public:
 	void SetRenderer(FRenderer* InRenderer) { Renderer = InRenderer; }
 	void SetGridRenderer(FGridRenderer* InGridRenderer) { GridRenderer = InGridRenderer; }
 	void SetGizmoRenderer(FGizmoRenderer* InGizmoRenderer) { GizmoRenderer = InGizmoRenderer; }
+	void SetToneMapRenderer(FToneMapRenderer* InToneMapRenderer) { ToneMapRenderer = InToneMapRenderer; }
 
 	virtual bool Init() override;
 	virtual void Tick(float DeltaTime) override;
@@ -97,6 +99,7 @@ private:
 	FRenderer* Renderer = nullptr;
 	FGridRenderer* GridRenderer = nullptr;
 	FGizmoRenderer* GizmoRenderer = nullptr;
+	FToneMapRenderer* ToneMapRenderer = nullptr;
 
 	// 임시 프리뷰 객체는 에디터가 종료되기 전에 해제한다.
 	USkeletalMeshComponent* PreviewComponent = nullptr;
@@ -117,6 +120,7 @@ private:
 
 	// 렌더 타깃 및 뷰포트
 	TUniquePtr<FTexture2D> ColorTarget;
+	TUniquePtr<FTexture2D> HDRTarget;
 	TUniquePtr<FTexture2D> DepthTarget;
 	FRenderingInfo RenderingInfo{};
 	uint32 ViewportWidth = 0;
@@ -158,6 +162,7 @@ private:
 	FVector SkyColor = FVector(0.6f, 0.7f, 0.85f);
 	FVector GroundColor = FVector(0.25f, 0.25f, 0.28f);
 	float SkyLightIntensity = 1.0f;
+	float PreviewExposure = 1.0f;
 
 	// 뷰어 표시 모드. View Mode 메뉴의 라디오 그룹(하나만 선택)이며, 체크 표시는 이 값 하나로 계산한다.
 	// 렌더러의 EViewMode에는 히트맵이 없으므로 GetRendererViewMode()로 변환해 넘긴다.
@@ -170,6 +175,7 @@ private:
 		BoneWeightHeatmap,
 	};
 	EViewMode GetRendererViewMode() const;
+	EToneMapMode GetToneMapMode() const;
 	bool IsBoneWeightHeatmapMode() const { return DisplayMode == EViewerDisplayMode::BoneWeightHeatmap; }
 
 	// 뷰 모드 및 렌더 옵션

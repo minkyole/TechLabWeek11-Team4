@@ -193,6 +193,7 @@ bool UEditorEngine::Init()
 	SkeletalMeshViewerPanel->SetRenderer(Renderer);
 	SkeletalMeshViewerPanel->SetGridRenderer(GridRenderer.get());
 	SkeletalMeshViewerPanel->SetGizmoRenderer(GizmoRenderer.get());
+	SkeletalMeshViewerPanel->SetToneMapRenderer(ToneMapRenderer.get());
 	DetailsPanel->SetOpenSkeletalMeshViewerCallback([this](USkeletalMesh* Mesh)
 	{
 		SkeletalMeshViewerPanel->OpenMesh(Mesh);

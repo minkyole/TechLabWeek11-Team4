@@ -13,7 +13,7 @@ class UAnimNotify : public UObject
 
 public:
 	UAnimNotify() = default;
-	~UAnimNotify() override = default;
+	~UAnimNotify() override;
 
 	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) {}
 	virtual FString GetNotifyName() const;

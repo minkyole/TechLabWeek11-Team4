@@ -4,6 +4,7 @@
     "Min": 0.0,
     "Name": "Speed"
   },
+  "NotifyTriggerMode": "HighestWeightedAnimation",
   "Samples": [
     {
       "AnimationAssetKey": "Models/UAL1_Standard.fbx#Anim/Armature|Idle_Loop",

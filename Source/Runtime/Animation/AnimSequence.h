@@ -15,6 +15,7 @@ public:
 	void RemoveNotifyAt(int32 Index);
 	void ClearNotifies();
 	void SetNotifyObject(int32 Index, UAnimNotify* NewNotify);
+	void OnNotifyObjectDestroyed(const UAnimNotify* DestroyedNotify);
 
 	UAnimDataModel* GetDataModel() const { return DataModel; }
 	float GetPlayLength() const override { return DataModel->GetPlayLength(); }

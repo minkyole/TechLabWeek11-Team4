@@ -105,6 +105,7 @@ bool FBlendSpaceEditorPanel::CommitRows(std::vector<FSampleRow> NewRows)
 	std::unique_ptr<UBlendSpace1D> Candidate(NewObject<UBlendSpace1D>());
 	Candidate->SetSkeletalMesh(Working->GetSkeletalMesh());
 	Candidate->SetBlendParameter(0, *Working->GetBlendParameter(0));
+	Candidate->NotifyTriggerMode = Working->NotifyTriggerMode;
 	for (const auto& Row : NewRows)
 	{
 		if (!Candidate->AddSample(Row.Sample))
@@ -160,6 +161,34 @@ void FBlendSpaceEditorPanel::DrawAssetDetails()
 				}
 			}
 			ImGui::TreePop();
+		}
+	}
+	if (ImGui::CollapsingHeader("Animation Notify", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		static constexpr const char* ModeLabels[] = { "All Animations", "Highest Weighted Animation", "None" };
+		static constexpr ENotifyTriggerMode Modes[] = {
+			ENotifyTriggerMode::AllAnimations, ENotifyTriggerMode::HighestWeightedAnimation, ENotifyTriggerMode::None };
+
+		int CurrentIndex = 1;
+		for (int Index = 0; Index < 3; ++Index)
+		{
+			if (Modes[Index] == Working->NotifyTriggerMode) CurrentIndex = Index;
+		}
+		if (ImGui::BeginCombo("Notify Trigger Mode", ModeLabels[CurrentIndex]))
+		{
+			for (int Index = 0; Index < 3; ++Index)
+			{
+				if (ImGui::Selectable(ModeLabels[Index], Index == CurrentIndex) && Index != CurrentIndex)
+				{
+					Working->NotifyTriggerMode = Modes[Index];
+					Dirty = true;
+				}
+			}
+			ImGui::EndCombo();
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("Which samples fire their notifies while blending");
 		}
 	}
 	ImGui::Spacing();

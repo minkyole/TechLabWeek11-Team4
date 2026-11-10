@@ -34,6 +34,29 @@ enum class ENotifyTriggerMode : uint8
 	None,
 };
 
+inline const char* NotifyTriggerModeToString(ENotifyTriggerMode Mode)
+{
+	switch (Mode)
+	{
+	case ENotifyTriggerMode::AllAnimations: return "AllAnimations";
+	case ENotifyTriggerMode::None:          return "None";
+	default:                                return "HighestWeightedAnimation";
+	}
+}
+
+inline bool NotifyTriggerModeFromString(const FString& Text, ENotifyTriggerMode& OutMode)
+{
+	for (ENotifyTriggerMode Mode : { ENotifyTriggerMode::AllAnimations, ENotifyTriggerMode::HighestWeightedAnimation, ENotifyTriggerMode::None })
+	{
+		if (Text == NotifyTriggerModeToString(Mode))
+		{
+			OutMode = Mode;
+			return true;
+		}
+	}
+	return false;
+}
+
 class UBlendSpace : public UAnimationAsset
 {
 	DECLARE_CLASS(UBlendSpace, UAnimationAsset)

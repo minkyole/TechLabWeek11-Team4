@@ -41,6 +41,17 @@ void UAnimSequenceBase::ClearNotifies()
 	Notifies.Empty();
 }
 
+void UAnimSequenceBase::OnNotifyObjectDestroyed(const UAnimNotify* DestroyedNotify)
+{
+	for (FAnimNotifyEvent& Event : Notifies)
+	{
+		if (Event.Notify == DestroyedNotify)
+		{
+			Event.Notify = nullptr;
+		}
+	}
+}
+
 void UAnimSequenceBase::SetNotifyObject(int32 Index, UAnimNotify* NewNotify)
 {
 	if (Index < 0 || Index >= Notifies.Num())

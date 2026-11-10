@@ -1152,6 +1152,35 @@ void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImF
 		if (bValueChanged){ Object->ApplyPropertyValue(Property.Name, &Value); }
 		break;
 	}
+	case EPropertyType::Name:
+	{
+		FString Text = static_cast<const FName*>(ValuePtr)->ToString();
+		ImGui::PushID(Object);
+		if (CustomFont)
+		{
+			ImGui::PushFont(CustomFont);
+		}
+		ImGui::PushItemFlag(ImGuiItemFlags_LiveEditOnInputText, false);
+		const bool bValueCommitted = ImGui::InputText(Label.c_str(), &Text, ImGuiInputTextFlags_EnterReturnsTrue);
+		ImGui::PopItemFlag();
+		if (CustomFont)
+		{
+			ImGui::PopFont();
+		}
+		ImGui::PopID();
+
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+		{
+			ImGui::SetTooltip("Enter로 적용, Esc로 취소");
+		}
+
+		if (bValueCommitted)
+		{
+			const FName Value(Text);
+			Object->ApplyPropertyValue(Property.Name, &Value);
+		}
+		break;
+	}
 	case EPropertyType::Transform:
 	{
 		FTransform Value = *static_cast<const FTransform*>(ValuePtr);

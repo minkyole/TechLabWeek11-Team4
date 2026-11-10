@@ -28,7 +28,8 @@ enum class EPropertyType
 	Rotator,
 	Transform,
 	Object,
-	UInt32
+	UInt32,
+	Name
 };
 
 template <typename T>
@@ -61,6 +62,7 @@ DEFINE_PROPERTY_TYPE(FTransform, Transform)
 DEFINE_PROPERTY_TYPE(FRotator, Rotator)
 DEFINE_PROPERTY_TYPE(FColor, Color)
 DEFINE_PROPERTY_TYPE(FLinearColor, LinearColor)
+DEFINE_PROPERTY_TYPE(FName, Name)
 
 // 프로퍼티 지정자 (UE의 UPROPERTY 지정자에 대응)
 enum EPropertyFlags : uint32

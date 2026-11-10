@@ -656,12 +656,14 @@ const FFbxAssetSet* UAssetManager::LoadFbxAssets(const FString& Path)
 		// 같은 FBX 안에서 이름이 겹치면 두 번째 클립을 버리지 않도록 인덱스를 붙인다.
 		if (Sequence && Assets.Animations.Find(Sequence) != INDEX_NONE)
 		{
-			AnimKey += "_" + std::to_string(Index);
+			ClipName += "_" + std::to_string(Index);
+			AnimKey = Key + "#Anim/" + ClipName;
 			Sequence = GetAssetByPath<UAnimSequence>(AnimKey);
 		}
 		if (!Sequence)
 		{
 			Sequence = NewObject<UAnimSequence>();
+			Sequence->SetName(FName(ClipName));
 			Sequence->BuildFromTracks(Clip.FrameRate, Clip.NumFrames, Clip.Tracks);
 			Sequence->SetSkeletalMesh(Assets.SkeletalMesh);
 			RegisterAsset(AnimKey, Sequence);

@@ -75,3 +75,42 @@ struct FDeltaTimeRecord
 
 	bool IsMoved() const { return Delta != 0.0f; }
 };
+
+// 루트 본이 한 구간 동안 움직인 양. 구간을 시작할 때 루트가 바라보던 방향 기준이다.
+struct FRootMotionParams
+{
+	FVector Translation = FVector::ZeroVector;
+	FQuat Rotation = FQuat::Identity();
+	bool bHasRootMotion = false;
+
+	void Clear()
+	{
+		Translation = FVector::ZeroVector;
+		Rotation = FQuat::Identity();
+		bHasRootMotion = false;
+	}
+
+	// 다음 구간은 앞 구간이 끝난 방향에서 출발하므로, 앞 회전으로 돌려서 이어 붙인다
+	void Accumulate(const FRootMotionParams& Next)
+	{
+		if (!Next.bHasRootMotion)
+		{
+			return;
+		}
+		Translation = Translation + Rotation.RotateVector(Next.Translation);
+		Rotation = (Rotation * Next.Rotation).Normalized();
+		bHasRootMotion = true;
+	}
+
+	// 월드 차이를 그대로 쓰면 Actor가 돌아섰을 때 엉뚱한 방향으로 가니, 시작 방향 기준으로 바꾼다
+	static FRootMotionParams MakeDelta(const FVector& StartPos, const FQuat& StartRot, const FVector& EndPos, const FQuat& EndRot)
+	{
+		const FQuat InvStart = StartRot.Inverse();
+
+		FRootMotionParams Out;
+		Out.Translation = InvStart.RotateVector(EndPos - StartPos);
+		Out.Rotation = (InvStart * EndRot).Normalized();
+		Out.bHasRootMotion = true;
+		return Out;
+	}
+};

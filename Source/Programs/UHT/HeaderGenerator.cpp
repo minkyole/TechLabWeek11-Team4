@@ -157,7 +157,22 @@ std::string FHeaderGenerator::GenerateModule(const std::vector<FHeaderFile>& Hea
 			}
 			for (const FHeaderProperty& Property : Class.Properties)
 			{
-				const std::string Flags = Property.Specifiers.empty() ? "CPF_None" : "CPF_" + Property.Specifiers.front();
+				// 전체 프로퍼티 지정자를 결합하는 플래그 표현식
+				std::string Flags;
+				for (const std::string& Specifier : Property.Specifiers)
+				{
+					if (!Flags.empty())
+					{
+						Flags += " | ";
+					}
+					Flags += "CPF_" + Specifier;
+				}
+
+				if (Flags.empty())
+				{
+					Flags = "CPF_None";
+				}
+
 				Output << "    InClass->AddProperty<decltype(ThisClass::" << Property.Name << ")>(\"" << Property.Name
 				       << "\", offsetof(ThisClass, " << Property.Name << "), " << Flags << ");\n";
 			}

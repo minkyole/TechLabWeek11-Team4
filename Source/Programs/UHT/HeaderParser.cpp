@@ -371,8 +371,12 @@ FHeaderProperty FHeaderParser::ReadProperty()
 		Error(Result.Line, "Conditional UPROPERTY is unsupported");
 	}
 	Expect("UPROPERTY");
-	Result.Specifiers = ReadSpecifiers({ "EditAnywhere", "VisibleAnywhere" });
-	if (Result.Specifiers.size() > 1)
+	Result.Specifiers = ReadSpecifiers({ "EditAnywhere", "VisibleAnywhere", "Transient" });
+
+	// 편집 가능 지정자와 읽기 전용 지정자의 동시 사용 차단
+	const bool bEditAnywhere = std::find(Result.Specifiers.begin(), Result.Specifiers.end(), "EditAnywhere") != Result.Specifiers.end();
+	const bool bVisibleAnywhere = std::find(Result.Specifiers.begin(), Result.Specifiers.end(), "VisibleAnywhere") != Result.Specifiers.end();
+	if (bEditAnywhere && bVisibleAnywhere)
 	{
 		Error(Result.Line, "Choose EditAnywhere or VisibleAnywhere");
 	}

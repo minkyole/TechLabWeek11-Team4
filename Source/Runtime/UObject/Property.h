@@ -174,6 +174,5 @@ struct FProperty
 				*static_cast<T*>(ValueAddress) = static_cast<T>(Object);
 			};
 		}
-
 	}
 };

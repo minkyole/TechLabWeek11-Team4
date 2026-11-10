@@ -10,6 +10,7 @@
 // Debug
 #include "Animation/TestAnimInstance.h"
 #include "Animation/MyAnimInstance.h"
+#include "Animation/LuaAnimInstance.h"
 #include "Animation/AnimTestClips.h"
 #include "Asset/AssetManager.h"
 
@@ -17,7 +18,7 @@ USkeletalMeshComponent::USkeletalMeshComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	AnimationMode = EAnimationMode::AnimationBlueprint;
-	AnimClass = UMyAnimInstance::StaticClass();
+	AnimClass = ULuaAnimInstance::StaticClass();
 }
 
 USkeletalMeshComponent::~USkeletalMeshComponent()
@@ -57,21 +58,22 @@ void USkeletalMeshComponent::BeginPlay()
 		}
 	}
 	// ---- Debug [4-4] 끝 ----
+	ULuaAnimInstance* LuaInstance =
+	    Cast<ULuaAnimInstance>(GetAnimInstance());
 
-	UMyAnimInstance* MyInstance =
-	    Cast<UMyAnimInstance>(GetAnimInstance());
-
-	if (!MyInstance || !MyInstance->IsInitialized())
+	if (!LuaInstance || !LuaInstance->IsGraphReady())
 		return;
 
-	MyInstance->Speed = DebugSpeed;
-	MyInstance->bIsAttacking = bDebugAttack;
-	MyInstance->bIsHit = bDebugHit;
+	LuaInstance->SetFloat("Speed", DebugSpeed);
 
-	// Evaluate 전에 현재 속도의 가중치를 준비한다.
-	MyInstance->UpdateAnimation(0.0f);
+	if (bDebugAttack)
+	{
+		LuaInstance->SetTrigger("AttackRequested");
+		bDebugAttack = false;
+	}
 
-	// BeginPlay 안에서 스키닝 결과까지 바로 반영.
+	LuaInstance->UpdateAnimation(0.0f);
+
 	if (RefreshAnimationPose())
 	{
 		FlushPendingPose();
@@ -263,19 +265,27 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 
 	SCOPE_CYCLE_COUNTER(SkinningStats::STAT_AnimEvaluate);
 
-	if (UMyAnimInstance* MyInstance =
-	        Cast<UMyAnimInstance>(AnimInstance.get()))
+	if (ULuaAnimInstance* LuaInstance =
+	        Cast<ULuaAnimInstance>(AnimInstance.get()))
 	{
-		MyInstance->Speed = DebugSpeed;
+		if (!LuaInstance->IsGraphReady())
+		{
+			assert(false);
+			return;
+		}
+
+		LuaInstance->SetFloat("Speed", DebugSpeed);
+
 		if (bDebugAttack)
 		{
-			MyInstance->bIsAttacking = true;
-			bDebugAttack = false; // 한 번만 반영
+			LuaInstance->SetTrigger("AttackRequested");
+			bDebugAttack = false;
 		}
+
 		if (bDebugHit)
 		{
-			MyInstance->bIsHit = true;
-			bDebugHit = false; // 한 번만 반영
+			LuaInstance->SetTrigger("HitRequested");
+			bDebugHit = false;	
 		}
 	}
 

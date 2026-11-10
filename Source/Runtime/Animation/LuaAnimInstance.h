@@ -162,4 +162,8 @@ private:
 	bool bGraphReady = false;
 
 	FString LastError;
+
+	// Debug
+	UAnimSequence* CreateRootTestClip(
+	    int32 RootBoneIndex, float DurationSeconds, const FVector& Offset);
 };

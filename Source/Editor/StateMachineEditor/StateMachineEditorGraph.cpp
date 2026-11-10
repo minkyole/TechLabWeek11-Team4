@@ -411,15 +411,9 @@ void FStateMachineEditorPanel::DrawGraph()
 }
 void FStateMachineEditorPanel::DrawStateGraph(FGraphSession &session)
 {
-	auto *runtime = Viewer ? Viewer->GetStateMachinePreview() : nullptr;
-	int current = runtime ? runtime->GetCurrentAssetState() : -1, activeTransition = 0;
-	if (runtime)
-	{
-		int index = runtime->GetActiveTransitionIndex();
-		const auto &data = runtime->GetAssetData();
-		if (index >= 0 && index < (int)data.Transitions.size())
-			activeTransition = data.Transitions[index].Id;
-	}
+	const bool observed=Observation.Ready && Observation.Compatible;
+	int current=observed?Observation.State:-1;
+	int activeTransition=observed?Observation.Transition:0;
 	std::map<int, FStateBox> boxes;
 	auto box = [&](int id, float x, float y, const char *name, bool special) {
 		auto node = StateId(id);
@@ -1038,22 +1032,19 @@ bool FStateMachineEditorPanel::ParameterCombo(const char* Label, FName& Name, EA
 		valid |= p.Name == Name && p.Type == Type;
 	if (!valid)
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, .4f, .3f, 1));
-	// IsActive() reports focus, not whether Begin()/End() is open.
-	bool suspended = InCanvas;
-	if (suspended)
-		ed::Suspend();
+	// Keep the widget in canvas space. Suspend only while drawing popup contents.
 	if (ImGui::BeginCombo(Label, valid ? Name.ToString().c_str() : "Select parameter"))
 	{
+		if (InCanvas) ed::Suspend();
 		for (auto& p : Working.Parameters)
 			if (p.Type == Type && ImGui::Selectable(p.Name.ToString().c_str(), p.Name == Name))
 			{
 				Name = p.Name;
 				changed = true;
 			}
+		if (InCanvas) ed::Resume();
 		ImGui::EndCombo();
 	}
-	if (suspended)
-		ed::Resume();
 	if (!valid)
 		ImGui::PopStyleColor();
 	return changed;
@@ -1083,16 +1074,19 @@ void FStateMachineEditorPanel::DrawRuleProperties(FAnimRuleNode& n, bool InCanva
 	if (type == EAnimConditionType::FloatCompare || type == EAnimConditionType::StateElapsedCompare)
 	{
 		int op = (int)c.CompareOp;
-		bool suspended = InCanvas;
-		if (suspended)
-			ed::Suspend();
-		if (ImGui::Combo("Compare", &op, "<\0<=\0>\0>=\0Nearly Equal\0Not Nearly Equal\0"))
+		const char* operators[] = {"<", "<=", ">", ">=", "Nearly Equal", "Not Nearly Equal"};
+		if (ImGui::BeginCombo("Compare", op >= 0 && op < 6 ? operators[op] : "Select comparison"))
 		{
-			c.CompareOp = (EAnimCompareOp)op;
-			Dirty = true;
+			if (InCanvas) ed::Suspend();
+			for (int i = 0; i < 6; ++i)
+				if (ImGui::Selectable(operators[i], op == i))
+				{
+					c.CompareOp = (EAnimCompareOp)i;
+					Dirty = true;
+				}
+			if (InCanvas) ed::Resume();
+			ImGui::EndCombo();
 		}
-		if (suspended)
-			ed::Resume();
 		Dirty |= ImGui::InputFloat("Value", &c.FloatValue);
 		if (c.CompareOp == EAnimCompareOp::NearlyEqual || c.CompareOp == EAnimCompareOp::NotNearlyEqual)
 			Dirty |= ImGui::InputFloat("Tolerance", &c.Tolerance);

@@ -92,6 +92,7 @@ void FStateMachineEditorPanel::ReleaseResources()
 	ClearContexts();
 	Working = {};
 	Dirty = false;
+	PIEFrame={}; Observation={}; ObservedActor=ObservedComponent=0; ObservedSession=0; ObservePIE=false;
 }
 void FStateMachineEditorPanel::OpenAsset(const FString &P)
 {
@@ -297,6 +298,7 @@ void FStateMachineEditorPanel::DrawDetails()
 }
 void FStateMachineEditorPanel::DrawPreview()
 {
+	if(ObservePIE){ImGui::TextDisabled("PIE observation is read-only. Select Preview to use preview controls.");return;}
 	if (ImGui::Button("Apply to 3D Preview") && Viewer)
 	{
 		if (Working.CompileRules(Error) && Working.Validate(Error))
@@ -356,6 +358,9 @@ void FStateMachineEditorPanel::OnRender()
 {
 	if (!IsOpen())
 		return;
+	UpdateObservations();
+	ImGuiWindowClass AssetEditorClass;
+	ImGui::SetNextWindowClass(&AssetEditorClass);
 	bool open = true;
 	ImGui::SetNextWindowSize(ImVec2(1100, 750), ImGuiCond_FirstUseEver);
 	bool visible = ImGui::Begin(GetPanelName(), &open, ImGuiWindowFlags_NoCollapse);
@@ -364,6 +369,7 @@ void FStateMachineEditorPanel::OnRender()
 		SetOpen(false);
 	if (visible && IsOpen())
 	{
+		DrawObservationControls();
 		if (ImGui::Button("Save"))
 			Save();
 		ImGui::SameLine();
@@ -467,4 +473,144 @@ void FStateMachineEditorPanel::OnRender()
 		ImGui::EndPopup();
 	}
 	ImGui::End();
+}
+void FStateMachineEditorPanel::UpdateObservations()
+{
+	ExpectedSignature.clear();
+	ObservationDefinitionError.clear();
+	StateMachineDefinitionSignature(Working, ExpectedSignature, ObservationDefinitionError);
+	FString key = StateMachineAssetKey(Path);
+	if (key != ObservedAssetKey)
+	{
+		ObservedAssetKey = key;
+		ObservedActor = ObservedComponent = 0;
+	}
+	PIEFrame = PIEProvider ? PIEProvider(key, ExpectedSignature) : FStateMachinePIEFrame{};
+	if (PIEFrame.Session != ObservedSession)
+	{
+		ObservedSession = PIEFrame.Session;
+		ObservedActor = ObservedComponent = 0;
+		ObservePIE = ObservedSession != 0;
+	}
+	bool found = false;
+	for (const auto &target : PIEFrame.Targets)
+		found |= target.ActorId == ObservedActor && target.ComponentId == ObservedComponent;
+	if (!found)
+	{
+		ObservedActor = ObservedComponent = 0;
+		if (PIEFrame.Targets.size() == 1)
+		{
+			ObservedActor = PIEFrame.Targets[0].ActorId;
+			ObservedComponent = PIEFrame.Targets[0].ComponentId;
+		}
+	}
+	ResolveObservation();
+}
+void FStateMachineEditorPanel::ResolveObservation()
+{
+	Observation = {};
+	ObservationMessage.clear();
+	if (!ObservationDefinitionError.empty())
+	{
+		ObservationMessage = "Edited graph is invalid: " + ObservationDefinitionError;
+		return;
+	}
+	if (ObservePIE)
+	{
+		if (!PIEFrame.Session)
+		{
+			ObservationMessage = "PIE is not running.";
+			return;
+		}
+		if (ObservedAssetKey.empty())
+		{
+			ObservationMessage = "Save the asset before choosing a PIE instance.";
+			return;
+		}
+		if (PIEFrame.Targets.empty())
+		{
+			ObservationMessage = "No PIE instance uses this state machine asset.";
+			return;
+		}
+		for (const auto &target : PIEFrame.Targets)
+			if (target.ActorId == ObservedActor && target.ComponentId == ObservedComponent)
+			{
+				Observation = target.Observation;
+				ObservationMessage = Observation.Message;
+				return;
+			}
+		ObservationMessage = "Choose a PIE actor / mesh component to observe.";
+	}
+	else
+	{
+		auto *instance = Viewer ? Viewer->GetStateMachinePreview() : nullptr;
+		if (!instance)
+		{
+			ObservationMessage = "Apply this graph to 3D Preview to observe playback.";
+			return;
+		}
+		Observation = ObserveStateMachine(*instance, ExpectedSignature);
+		ObservationMessage = Observation.Message;
+	}
+}
+void FStateMachineEditorPanel::DrawObservationControls()
+{
+	int source = ObservePIE ? 1 : 0;
+	ImGui::SetNextItemWidth(140);
+	if (ImGui::Combo("Observe", &source, "Preview\0PIE\0"))
+	{
+		ObservePIE = source == 1;
+		ResolveObservation();
+	}
+	if (ObservePIE)
+	{
+		const FStateMachinePIETarget *selected = nullptr;
+		for (const auto &target : PIEFrame.Targets)
+			if (target.ActorId == ObservedActor && target.ComponentId == ObservedComponent)
+				selected = &target;
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(330);
+		if (ImGui::BeginCombo("PIE Target", selected ? selected->Label.c_str() : "Select actor / mesh component"))
+		{
+			if (PIEFrame.Targets.size() != 1 && ImGui::Selectable("None", !selected))
+			{
+				ObservedActor = ObservedComponent = 0;
+				ResolveObservation();
+			}
+			for (const auto &target : PIEFrame.Targets)
+			{
+				ImGui::PushID((int)target.ActorId);
+				ImGui::PushID((int)target.ComponentId);
+				if (ImGui::Selectable(target.Label.c_str(), selected == &target))
+				{
+					ObservedActor = target.ActorId;
+					ObservedComponent = target.ComponentId;
+					ResolveObservation();
+				}
+				ImGui::PopID();
+				ImGui::PopID();
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::TextDisabled("PIE observations are read-only.");
+	}
+	DrawObservationStatus();
+	ImGui::Separator();
+}
+void FStateMachineEditorPanel::DrawObservationStatus()
+{
+	if (!ObservationMessage.empty())
+	{
+		ImGui::TextWrapped("%s", ObservationMessage.c_str());
+		return;
+	}
+	if (!Observation.Ready || !Observation.Compatible)
+		return;
+	ImGui::TextColored(ImVec4(.35f, 1, .55f, 1), "Current state: %s", Observation.StateName.c_str());
+	if (Observation.Transition)
+	{
+		ImGui::Text("Transition: %s -> %s", Observation.FromName.c_str(), Observation.ToName.c_str());
+		ImGui::SetNextItemWidth(250);
+		ImGui::ProgressBar(Observation.Progress, ImVec2(250, 0));
+	}
 }

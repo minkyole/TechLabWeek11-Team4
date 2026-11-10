@@ -39,6 +39,16 @@ For a character, set its skeletal mesh component's **StateMachineAssetPath** to 
 
 C++ can use `GetStateMachineAnimInstance()` or cast the component's animation instance to `UStateMachineAnimInstance`. Actor Lua scripts can use `self:GetAnimInstance()` and `SetBool`, `SetFloat`, `SetTrigger` or `ResetTrigger`. An optional asset update script must provide `UpdateAnimation(anim, dt)`; see `Assets/Scripts/Animation/StateMachineUpdate.lua`.
 
+## PIE observation and docking
+
+The State Machine Editor is an independent asset window: drag its tab/title bar to undock or dock it in the root workspace, like Blend Space Editor. Old layouts that grouped it with the locked level viewport are repaired for this window only; other panel layouts and viewport locking are retained.
+
+The **Observe** selector switches between **Preview** and **PIE**. Starting a new PIE session selects PIE observation. The **PIE Target** dropdown lists actor / skeletal mesh component instances using the open asset; a single candidate is selected automatically. With several candidates, choose the actor/component explicitly. Choosing Preview during PIE keeps that choice for the rest of the session. Stopping PIE clears the target and returns to Preview.
+
+The panel displays the actual current state and transition progress and highlights that state and the exact active link. PIE observation is read-only: preview parameter controls and Reset are unavailable in PIE observation mode. Engine pause and frame stepping retain/update the displayed runtime snapshot normally. Actor deletion, animation instance replacement and PIE restart are resolved through fresh observations, not retained runtime pointers.
+
+If the edited state/transition/condition definition differs from the running snapshot, highlighting stops with an explanation. Moving nodes does not invalidate observation. Reapply the preview or restart PIE after behavior changes; this feature does not rebuild running instances. An uninitialized graph or missing candidate is reported without retaining an old highlight.
+
 ## Compatibility and limits
 
 Existing Version 1 `.animsm` files open without manual migration. Their conditions are converted into independent per-transition graphs in memory. Editing one transition no longer changes other transitions that previously shared its condition. Opening a file does not rewrite it; saving adds optional editor metadata and regenerates the existing runtime condition arrays. State IDs, state positions, transition order and behavior are preserved. Legacy transition badge coordinates are retained in the file for compatibility but are not used by the direct-link view. No `NodeEditor.json` sidecar is created.

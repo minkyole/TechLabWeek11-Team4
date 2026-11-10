@@ -1,5 +1,6 @@
 #pragma once
 #include "Animation/AnimStateMachineAsset.h"
+#include "StateMachineDebug.h"
 #include "Editor/EditorUI/EditorPanel.h"
 #include <map>
 #include <set>
@@ -41,6 +42,10 @@ class FStateMachineEditorPanel : public IEditorPanel
 		return IsOpen() && Focused;
 	}
 	void ReleaseResources();
+	void SetPIEDebugProvider(FStateMachinePIEProvider Provider)
+	{
+		PIEProvider = std::move(Provider);
+	}
 
   private:
 	struct FGraphSession
@@ -61,6 +66,10 @@ class FStateMachineEditorPanel : public IEditorPanel
 	void DrawDetails();
 	void DrawParameters();
 	void DrawPreview();
+	void UpdateObservations();
+	void ResolveObservation();
+	void DrawObservationControls();
+	void DrawObservationStatus();
 	void DrawRuleErrors();
 	void DrawRuleProperties(FAnimRuleNode &Node, bool InCanvas = false);
 	void DeleteSelection();
@@ -83,4 +92,11 @@ class FStateMachineEditorPanel : public IEditorPanel
 	ImVec2 CreationPosition{};
 	std::map<int, FGraphSession> Sessions;
 	FSkeletalMeshViewerPanel *Viewer = nullptr;
+	FStateMachinePIEProvider PIEProvider;
+	uint64 ObservedSession = 0;
+	uint32 ObservedActor = 0, ObservedComponent = 0;
+	bool ObservePIE = false;
+	FString ObservedAssetKey, ExpectedSignature, ObservationMessage, ObservationDefinitionError;
+	FStateMachinePIEFrame PIEFrame;
+	FStateMachineObservation Observation;
 };

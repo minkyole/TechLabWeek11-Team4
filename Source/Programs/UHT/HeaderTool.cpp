@@ -1,5 +1,6 @@
 #include "HeaderTool.h"
 #include "HeaderLexer.h"
+#include "HeaderParser.h"
 
 #include <algorithm>
 #include <iostream>
@@ -25,6 +26,9 @@ int FHeaderTool::Run(int ArgumentCount, wchar_t* Arguments[])
 	const std::u8string RootText = ProjectRoot.generic_u8string();
 	std::cout << "Project: " << std::string(RootText.begin(), RootText.end()) << '\n';
 	std::size_t TotalTokens = 0;
+	std::size_t TotalClasses = 0;
+	std::size_t TotalProperties = 0;
+
 	for (const std::filesystem::path& HeaderFile : HeaderFiles)
 	{
 		const std::u8string HeaderText = HeaderFile.generic_u8string();
@@ -47,10 +51,23 @@ int FHeaderTool::Run(int ArgumentCount, wchar_t* Arguments[])
 		const std::vector<FHeaderToken> Tokens = Lexer.Tokenize();
 		const std::size_t TokenCount = Tokens.size() - 1;
 		TotalTokens += TokenCount;
-		std::cout << HeaderName << ": " << TokenCount << " token(s).\n";
+		FHeaderParser Parser(Tokens, HeaderName);
+		const std::vector<FHeaderClass> Classes = Parser.Parse();
+		TotalClasses += Classes.size();
+		std::cout << HeaderName << ": " << TokenCount << " token(s), " << Classes.size() << " class(es).\n";
+		for (const FHeaderClass& Class : Classes)
+		{
+			TotalProperties += Class.Properties.size();
+			std::cout << "  class " << Class.Name << " : " << Class.SuperName << ", body line " << Class.GeneratedBodyLine << '\n';
+			for (const FHeaderProperty& Property : Class.Properties)
+			{
+				std::cout << "    " << Property.TypeName << ' ' << Property.Name << '\n';
+			}
+		}
+
 	}
 	std::cout << "Tokenized " << HeaderFiles.size() << " header(s), " << TotalTokens << " token(s).\n";
-
+	std::cout << "Parsed " << TotalClasses << " class(es), " << TotalProperties << " property(ies).\n";
 	return 0;
 }
 

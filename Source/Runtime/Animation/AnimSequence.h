@@ -28,6 +28,8 @@ public:
 
 	void GetAnimationPose(float Time, FAnimationPose& OutPose) const;
 
+	void BuildFromTracks(const FFrameRate& FrameRate, int32 NumFrames, const TArray<FBoneAnimationTrack>& Tracks);
+
 private:
 	FAnimKeyLookup FindKeyLookup(float Time) const;
 

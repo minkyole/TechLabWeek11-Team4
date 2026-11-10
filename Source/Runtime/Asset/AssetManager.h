@@ -23,6 +23,7 @@ struct FFbxAssetSet
 {
 	USkeletalMesh* SkeletalMesh = nullptr;
 	TArray<FFbxStaticAsset> StaticMeshes;
+	TArray<class UAnimSequence*> Animations;
 };
 
 namespace fs = std::filesystem;

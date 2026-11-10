@@ -13,9 +13,10 @@
 #include "Asset/FBXImporter/FbxImporter.h"
 #include "Asset/FBXImporter/SkeletalMeshBake.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "Animation/AnimSequence.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "Render/GeometryGenerator.h"
-#include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectIterator.h"
 
 #include "Render/ImageLoader.h"
@@ -638,6 +639,14 @@ const FFbxAssetSet* UAssetManager::LoadFbxAssets(const FString& Path)
 			}
 			RegisterAsset(Key, Assets.SkeletalMesh);
 		}
+	}
+
+	for (const FFbxAnimClip& Clip : Data.Anims)
+	{
+		UAnimSequence* Sequence = NewObject<UAnimSequence>();
+		Sequence->BuildFromTracks(Clip.FrameRate, Clip.NumFrames, Clip.Tracks);
+		Sequence->SetSkeletalMesh(Assets.SkeletalMesh);
+		Assets.Animations.Add(Sequence);
 	}
 
 	const FString SourceName = ToUTF8String(SourceFile.stem());

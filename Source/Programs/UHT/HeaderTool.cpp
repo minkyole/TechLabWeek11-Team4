@@ -1,6 +1,7 @@
 #include "HeaderTool.h"
 #include "HeaderLexer.h"
 #include "HeaderParser.h"
+#include "HeaderGenerator.h"
 
 #include <algorithm>
 #include <iostream>
@@ -8,14 +9,14 @@
 #include <string>
 #include <string_view>
 #include <fstream>
-
+#include <utility>
 
 // 입력 해석과 헤더 탐색의 순차 실행
 int FHeaderTool::Run(int ArgumentCount, wchar_t* Arguments[])
 {
 	if (ArgumentCount == 2 && std::wstring_view(Arguments[1]) == L"--help")
 	{
-		std::cout << "Usage: UHT.exe --root <ProjectRoot>\n";
+		std::cout << "Usage: UHT.exe --root <ProjectRoot> [--output <Directory>]\n";
 		return 0;
 	}
 
@@ -28,6 +29,7 @@ int FHeaderTool::Run(int ArgumentCount, wchar_t* Arguments[])
 	std::size_t TotalTokens = 0;
 	std::size_t TotalClasses = 0;
 	std::size_t TotalProperties = 0;
+	std::vector<FHeaderFile> ReflectedHeaders;
 
 	for (const std::filesystem::path& HeaderFile : HeaderFiles)
 	{
@@ -51,10 +53,13 @@ int FHeaderTool::Run(int ArgumentCount, wchar_t* Arguments[])
 		const std::vector<FHeaderToken> Tokens = Lexer.Tokenize();
 		const std::size_t TokenCount = Tokens.size() - 1;
 		TotalTokens += TokenCount;
+
 		FHeaderParser Parser(Tokens, HeaderName);
-		const std::vector<FHeaderClass> Classes = Parser.Parse();
+		std::vector<FHeaderClass> Classes = Parser.Parse();
 		TotalClasses += Classes.size();
+
 		std::cout << HeaderName << ": " << TokenCount << " token(s), " << Classes.size() << " class(es).\n";
+
 		for (const FHeaderClass& Class : Classes)
 		{
 			TotalProperties += Class.Properties.size();
@@ -63,24 +68,59 @@ int FHeaderTool::Run(int ArgumentCount, wchar_t* Arguments[])
 			{
 				std::cout << "    " << Property.TypeName << ' ' << Property.Name << '\n';
 			}
+		} 
+		// 원본 경로와 분석 결과의 생성 단계 이관
+		if (!Classes.empty())
+		{
+			ReflectedHeaders.push_back({ HeaderFile, std::move(Classes) });
 		}
-
 	}
+	// 전체 입력 분석 성공 후의 출력 이름 검증
+	FHeaderGenerator Generator;
+	Generator.Validate(ReflectedHeaders);
+
+	// 반영 클래스가 있는 헤더의 생성 본문 저장
+	for (const FHeaderFile& Header : ReflectedHeaders)
+	{
+		std::filesystem::path Name = Header.RelativePath.filename();
+		Name.replace_extension(".generated.h");
+
+		SaveGeneratedFile(OutputDirectory / Generator.ModuleName(Header.RelativePath) / Name, Generator.GenerateHeader(Header));
+	}
+
+	// 반영 클래스 개수와 무관한 모듈별 등록 파일 저장
+	for (const std::string_view Module : { "Runtime", "Editor" })
+	{
+		SaveGeneratedFile(OutputDirectory / Module / (std::string(Module) + ".gen.cpp"), Generator.GenerateModule(ReflectedHeaders, Module));
+	}
+
 	std::cout << "Tokenized " << HeaderFiles.size() << " header(s), " << TotalTokens << " token(s).\n";
 	std::cout << "Parsed " << TotalClasses << " class(es), " << TotalProperties << " property(ies).\n";
+
+	const std::u8string OutputText = OutputDirectory.generic_u8string();
+	std::cout << "Generated files: " << std::string(OutputText.begin(), OutputText.end()) << '\n';
+
 	return 0;
 }
 
 // 고정된 명령 형식과 프로젝트 루트의 확정
 void FHeaderTool::ParseArguments(int ArgumentCount, wchar_t* Arguments[])
 {
-	if (ArgumentCount != 3 || std::wstring_view(Arguments[1]) != L"--root" || std::wstring_view(Arguments[2]).empty())
+	const bool bHasOutput = ArgumentCount == 5;
+	if ((ArgumentCount != 3 && !bHasOutput) ||std::wstring_view(Arguments[1]) != L"--root" || std::wstring_view(Arguments[2]).empty() ||
+		(bHasOutput && (std::wstring_view(Arguments[3]) != L"--output" || std::wstring_view(Arguments[4]).empty())))
 	{
-		throw std::invalid_argument("Usage: UHT.exe --root <ProjectRoot>");
+		throw std::invalid_argument("Usage: UHT.exe --root <ProjectRoot> [--output <Directory>]");
 	}
 
-	// 상대 경로와 중간 경로 요소의 정규화
+	// 존재하는 프로젝트 루트의 절대 경로 확정
 	ProjectRoot = std::filesystem::canonical(Arguments[2]);
+
+	// 프로젝트 루트를 기준으로 해석하는 선택적 출력 경로
+	const std::filesystem::path RequestedOutput = bHasOutput ? std::filesystem::path(Arguments[4])
+		: std::filesystem::path("Build/Generated/UHT");
+
+	OutputDirectory =(RequestedOutput.is_absolute() ? RequestedOutput : ProjectRoot / RequestedOutput).lexically_normal();
 }
 
 // 두 소스 영역의 원본 헤더 수집과 순서 고정
@@ -110,4 +150,20 @@ void FHeaderTool::DiscoverHeaders()
 
 	// 파일 시스템의 열거 순서와 독립적인 처리 순서
 	std::sort(HeaderFiles.begin(), HeaderFiles.end());
+}
+
+// 디렉터리 준비와 파일 닫기까지 포함한 생성 결과 저장
+void FHeaderTool::SaveGeneratedFile(const std::filesystem::path& Path, std::string_view Text) const
+{
+	std::filesystem::create_directories(Path.parent_path());
+
+	std::ofstream Writer(Path, std::ios::binary | std::ios::trunc);
+	Writer.write(Text.data(), static_cast<std::streamsize>(Text.size()));
+	Writer.close();
+
+	if (!Writer)
+	{
+		const std::u8string Name = Path.generic_u8string();
+		throw std::runtime_error("Cannot write generated file: " + std::string(Name.begin(), Name.end()));
+	}
 }

@@ -9,6 +9,8 @@
 #include "Serialization/Archive.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/StructuredArchiveSlots.h"
+#include "UObject/ReflectionMacros.h"
+
 
 class UClass;
 struct FProperty;
@@ -43,7 +45,7 @@ private:
 // 멤버여야 private 생성자(싱글턴 등)에 접근할 수 있다.
 // C++ 추상 타입의 생성자 제외와 선택적인 클래스 지정자 연결
 // TODO: GENERATED_BODY 전체 전환 완료 후 레거시 DECLARE_CLASS 제거
-#define DECLARE_CLASS(ClassName, SuperClassName, ...)                                        \
+#define DECLARE_CLASS_BODY(ClassName, SuperClassName, ...)                                   \
 public:                                                                                      \
 	using Super = SuperClassName;                                                            \
 	using ThisClass = ClassName;                                                             \
@@ -89,6 +91,12 @@ public:                                                                         
 	inline static FAutoRegister AutoRegister;                                                \
                                                                                              \
 private:
+
+// TODO: GENERATED_BODY 전체 전환 완료 후 레거시 DECLARE_CLASS 제거
+// 수동 선언과 생성 본문이 공유하는 호환 진입점
+#define DECLARE_CLASS(ClassName, SuperClassName, ...) \
+	DECLARE_CLASS_BODY(ClassName, SuperClassName, __VA_ARGS__)
+
 
 class UObject
 {

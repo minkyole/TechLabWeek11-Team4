@@ -929,7 +929,7 @@
       "Condition": 17,
       "Consume": [],
       "Curve": 0,
-      "Duration": 0.20000000298023224,
+      "Duration": 0.5,
       "Editor": {
         "Rule": {
           "Links": [

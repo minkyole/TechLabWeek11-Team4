@@ -26,6 +26,14 @@ struct FBlendSampleWeight
 	float Weight = 0.0f;
 };
 
+// 여러 샘플이 섞일 때 어느 샘플의 Notify를 발동할지 (언리얼 ENotifyTriggerMode 대응)
+enum class ENotifyTriggerMode : uint8
+{
+	AllAnimations,
+	HighestWeightedAnimation,
+	None,
+};
+
 class UBlendSpace : public UAnimationAsset
 {
 	DECLARE_CLASS(UBlendSpace, UAnimationAsset)
@@ -76,6 +84,8 @@ public:
 
 	float GetEffectivePlayLength(
 	    const TArray<FBlendSampleWeight>& Weights) const;
+
+	ENotifyTriggerMode NotifyTriggerMode = ENotifyTriggerMode::HighestWeightedAnimation;
 
 protected:
 	bool ValidateSample(

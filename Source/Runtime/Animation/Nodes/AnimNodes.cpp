@@ -3,6 +3,73 @@
 
 #include "Animation/AnimationContext.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimInstance.h"
+
+namespace
+{
+	// 구간 안에 들어오는 Time + k * Length (k는 정수)의 개수. 루프면 바퀴 수만큼 센다.
+	bool IsNameNotifyState(const FAnimNotifyEvent& Notify)
+	{
+		return Notify.Notify == nullptr && Notify.Duration > 0.0f;
+	}
+
+	// 구간 [StateStart, StateStart + Duration]이 이번 프레임에 재생 헤드가 지난 범위와 겹치는지.
+	// 정방향은 (Start, End], 역방향은 [End, Start)로 보고, 멈춘 프레임은 현재 시간이 구간 안인지 본다.
+	bool IsNotifyStateActive(double StateStart, double Duration, double Start, double End, double Length, bool bLoop, bool bReverse)
+	{
+		const double StateEnd = StateStart + Duration;
+		if (End == Start)
+		{
+			// 멈춘 위치가 구간 경계면 진행 방향 쪽에서 이미 빠져나온 것으로 본다.
+			return bReverse ? (Start > StateStart && Start <= StateEnd) : (Start >= StateStart && Start < StateEnd);
+		}
+
+		const bool bForward = End > Start;
+		const double Low = bForward ? Start : End;
+		const double High = bForward ? End : Start;
+
+		if (!bLoop || Length <= 0.0)
+		{
+			return bForward ? (StateStart <= High && StateEnd > Low) : (StateStart < High && StateEnd >= Low);
+		}
+
+		double KMin = 0.0;
+		double KMax = 0.0;
+		if (bForward)
+		{
+			KMin = std::floor((Low - StateEnd) / Length) + 1.0;
+			KMax = std::floor((High - StateStart) / Length);
+		}
+		else
+		{
+			KMin = std::ceil((Low - StateEnd) / Length);
+			KMax = std::ceil((High - StateStart) / Length) - 1.0;
+		}
+		return KMax >= KMin;
+	}
+
+	int32 CountNotifyCrossings(double Time, double Start, double End, double Length, bool bLoop, bool bIncludeStart)
+	{
+		const bool bForward = End > Start;
+		const double Low = bForward ? Start : End;
+		const double High = bForward ? End : Start;
+		const bool bLowInclusive = !bForward || bIncludeStart;
+		const bool bHighInclusive = bForward || bIncludeStart;
+
+		if (!bLoop || Length <= 0.0)
+		{
+			const bool bAboveLow = bLowInclusive ? Time >= Low : Time > Low;
+			const bool bBelowHigh = bHighInclusive ? Time <= High : Time < High;
+			return (bAboveLow && bBelowHigh) ? 1 : 0;
+		}
+
+		const double KLow = (Low - Time) / Length;
+		const double KHigh = (High - Time) / Length;
+		const double First = bLowInclusive ? std::ceil(KLow) : std::floor(KLow) + 1.0;
+		const double Last = bHighInclusive ? std::floor(KHigh) : std::ceil(KHigh) - 1.0;
+		return Last >= First ? static_cast<int32>(Last - First + 1.0) : 0;
+	}
+}
 
 void FAnimNode_TwoWayBlend::OnEnter()
 {
@@ -53,6 +120,7 @@ void FAnimNode_AssetPlayerBase::SetNormalizedTime(float InTime)
 	// 스크럽·점프는 재생이 아니라 순간이동이라 지나간 구간이 없다
 	DeltaTimeRecord.Set(NormalizedTime, 0.0f);
 	LastAdvanceResult = ETypeAdvanceAnim::Default;
+	bIncludeStartInNextAdvance = true;
 }
 
 void FAnimNode_AssetPlayerBase::ResetPlayback()
@@ -81,6 +149,15 @@ void FAnimNode_AssetPlayerBase::Update(
 	// 따라서 bPlyaing 검사보다 먼저 호출한다.
 	UpdateAssetPlayer(Context);
 
+	AdvancePlayback(Context);
+
+	// 멈춘 프레임에도 걸쳐 있는 구간을 알려야 일시정지 중에 End가 나가지 않는다.
+	GatherNotifyStates(Context);
+}
+
+void FAnimNode_AssetPlayerBase::AdvancePlayback(
+    const FAnimationUpdateContext& Context)
+{
 	// 멈춘 프레임도 "안 움직임"으로 덮어써야 지난 프레임 구간으로 Notify가 또 울리지 않는다
 	DeltaTimeRecord.Set(NormalizedTime, 0.0f);
 	LastAdvanceResult = ETypeAdvanceAnim::Default;
@@ -115,6 +192,12 @@ void FAnimNode_AssetPlayerBase::Update(
 
 	// Previous는 위에서 움직이기 전 값으로 이미 넣어 두었다
 	DeltaTimeRecord.Set(DeltaTimeRecord.Previous, MovedDelta);
+
+	if (DeltaTimeRecord.IsMoved())
+	{
+		GatherNotifies(Context, Length, bIncludeStartInNextAdvance);
+		bIncludeStartInNextAdvance = false;
+	}
 }
 
 void FAnimNode_SequencePlayer::Evaluate(FPoseContext& Output)
@@ -141,6 +224,59 @@ bool FAnimNode_SequencePlayer::IsFinished() const
 	return IsReversePlay() ? GetNormalizedTime() <= 0.0f : GetNormalizedTime() >= 1.0f;
 }
 
+void FAnimNode_SequencePlayer::GatherNotifies(
+    const FAnimationUpdateContext& Context, float Length, bool bIncludeStart)
+{
+	if (!Sequence || !Context.AnimInstance || Sequence->Notifies.IsEmpty())
+	{
+		return;
+	}
+
+	const FDeltaTimeRecord& Record = GetDeltaTimeRecord();
+	const double Start = static_cast<double>(Record.Previous) * Length;
+	const double End = Start + static_cast<double>(Record.Delta) * Length;
+
+	for (const FAnimNotifyEvent& Notify : Sequence->Notifies)
+	{
+		if (IsNameNotifyState(Notify))
+		{
+			continue;
+		}
+
+		const int32 Count = CountNotifyCrossings(Notify.TriggerTime, Start, End, Length, bLoop, bIncludeStart);
+		for (int32 i = 0; i < Count; ++i)
+		{
+			Context.AnimInstance->QueueAnimNotify(Notify, Sequence);
+		}
+	}
+}
+
+void FAnimNode_SequencePlayer::GatherNotifyStates(const FAnimationUpdateContext& Context)
+{
+	if (!Sequence || !Context.AnimInstance || Sequence->Notifies.IsEmpty())
+	{
+		return;
+	}
+
+	const float Length = GetEffectivePlayLength();
+	if (!std::isfinite(Length) || Length <= 0.0f)
+	{
+		return;
+	}
+
+	const FDeltaTimeRecord& Record = GetDeltaTimeRecord();
+	const double Start = static_cast<double>(Record.Previous) * Length;
+	const double End = Start + static_cast<double>(Record.Delta) * Length;
+
+	for (const FAnimNotifyEvent& Notify : Sequence->Notifies)
+	{
+		if (IsNameNotifyState(Notify) && IsNotifyStateActive(Notify.TriggerTime, Notify.Duration, Start, End, Length, bLoop, IsReversePlay()))
+		{
+			Context.AnimInstance->QueueAnimNotifyState(Notify, Sequence);
+		}
+	}
+}
+
 const UAnimationAsset* FAnimNode_SequencePlayer::GetAnimationAsset() const
 {
 	return Sequence;
@@ -156,6 +292,113 @@ float FAnimNode_SequencePlayer::GetEffectivePlayLength() const
 const UAnimationAsset* FAnimNode_BlendSpacePlayer::GetAnimationAsset() const
 {
 	return BlendSpace;
+}
+
+void FAnimNode_BlendSpacePlayer::GetNotifySamples(TArray<FBlendSampleWeight>& OutSamples) const
+{
+	OutSamples.Reset();
+	if (!BlendSpace || BlendSpace->NotifyTriggerMode == ENotifyTriggerMode::None)
+	{
+		return;
+	}
+
+	for (const FBlendSampleWeight& Entry : SampleWeights)
+	{
+		if (!std::isfinite(Entry.Weight) || Entry.Weight <= 0.0f)
+		{
+			continue;
+		}
+
+		if (BlendSpace->NotifyTriggerMode == ENotifyTriggerMode::AllAnimations || OutSamples.IsEmpty())
+		{
+			OutSamples.Add(Entry);
+		}
+		else if (Entry.Weight > OutSamples[0].Weight)
+		{
+			OutSamples[0] = Entry;
+		}
+	}
+}
+
+void FAnimNode_BlendSpacePlayer::GatherNotifies(
+    const FAnimationUpdateContext& Context, float Length, bool bIncludeStart)
+{
+	if (!Context.AnimInstance)
+	{
+		return;
+	}
+
+	TArray<FBlendSampleWeight> NotifySamples;
+	GetNotifySamples(NotifySamples);
+
+	const FDeltaTimeRecord& Record = GetDeltaTimeRecord();
+	for (const FBlendSampleWeight& Entry : NotifySamples)
+	{
+		const FBlendSample* Sample = BlendSpace->GetSample(Entry.SampleIndex);
+		UAnimSequence* SampleSequence = Sample ? Sample->Animation : nullptr;
+		if (!SampleSequence || SampleSequence->Notifies.IsEmpty())
+		{
+			continue;
+		}
+
+		// 샘플들은 정규화 진행률을 공유하므로 같은 구간을 각 샘플 길이로 바꿔 검사한다.
+		const double SampleLength = SampleSequence->GetPlayLength();
+		const double Start = static_cast<double>(Record.Previous) * SampleLength;
+		const double End = Start + static_cast<double>(Record.Delta) * SampleLength;
+
+		for (const FAnimNotifyEvent& Notify : SampleSequence->Notifies)
+		{
+			if (IsNameNotifyState(Notify))
+			{
+				continue;
+			}
+
+			const int32 Count = CountNotifyCrossings(Notify.TriggerTime, Start, End, SampleLength, bLoop, bIncludeStart);
+			for (int32 i = 0; i < Count; ++i)
+			{
+				Context.AnimInstance->QueueAnimNotify(Notify, SampleSequence, Entry.Weight);
+			}
+		}
+	}
+}
+
+void FAnimNode_BlendSpacePlayer::GatherNotifyStates(const FAnimationUpdateContext& Context)
+{
+	if (!Context.AnimInstance)
+	{
+		return;
+	}
+
+	TArray<FBlendSampleWeight> NotifySamples;
+	GetNotifySamples(NotifySamples);
+
+	const FDeltaTimeRecord& Record = GetDeltaTimeRecord();
+	for (const FBlendSampleWeight& Entry : NotifySamples)
+	{
+		const FBlendSample* Sample = BlendSpace->GetSample(Entry.SampleIndex);
+		UAnimSequence* SampleSequence = Sample ? Sample->Animation : nullptr;
+		if (!SampleSequence || SampleSequence->Notifies.IsEmpty())
+		{
+			continue;
+		}
+
+		const double SampleLength = SampleSequence->GetPlayLength();
+		if (!std::isfinite(SampleLength) || SampleLength <= 0.0)
+		{
+			continue;
+		}
+		const double Start = static_cast<double>(Record.Previous) * SampleLength;
+		const double End = Start + static_cast<double>(Record.Delta) * SampleLength;
+
+		for (const FAnimNotifyEvent& Notify : SampleSequence->Notifies)
+		{
+			if (IsNameNotifyState(Notify) &&
+				IsNotifyStateActive(Notify.TriggerTime, Notify.Duration, Start, End, SampleLength, bLoop, IsReversePlay()))
+			{
+				Context.AnimInstance->QueueAnimNotifyState(Notify, SampleSequence, Entry.Weight);
+			}
+		}
+	}
 }
 
 void FAnimNode_BlendSpacePlayer::UpdateAssetPlayer(

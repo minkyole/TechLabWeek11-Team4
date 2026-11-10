@@ -6,8 +6,11 @@
 #include "Render/Mesh.h"
 #include "Animation/AnimationContext.h"
 #include "Animation/SingleAnimationPlayData.h"
+#include "Animation/AnimNotifyEvent.h"
+#include "Core/TDelegate.h"
 
 class UAnimInstance;
+class UAnimSequenceBase;
 class UClass;
 
 enum class EAnimationMode : uint8
@@ -50,6 +53,15 @@ public:
 
 	// 시간 진행 없이 포즈만 평가, 적용. 뷰어 시크에 사용.
 	bool RefreshAnimationPose();
+
+	void HandleAnimNotify(const struct FAnimNotifyEvent& Notify);
+	void HandleAnimNotifyStateBegin(const FAnimNotifyEvent& Notify);
+	void HandleAnimNotifyStateEnd(const FAnimNotifyEvent& Notify);
+
+	// 발동한 모든 Notify(클래스, 이름)를 알린다. 에디터 프리뷰처럼 오너가 없는 쪽이 구독한다.
+	DECLARE_DELEGATE(OnAnimNotify, const FAnimNotifyEvent&, UAnimSequenceBase*)
+	DECLARE_DELEGATE(OnAnimNotifyStateBegin, const FAnimNotifyEvent&, UAnimSequenceBase*)
+	DECLARE_DELEGATE(OnAnimNotifyStateEnd, const FAnimNotifyEvent&, UAnimSequenceBase*)
 
 	// 비소유 포인터. 호출자는 delete하지 않는다.
 	UAnimInstance* GetAnimInstance() const { return AnimInstance.get(); }

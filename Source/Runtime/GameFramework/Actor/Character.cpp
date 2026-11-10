@@ -7,6 +7,7 @@
 #include "Components/CharacterMovementComponent.h"
 #include "Components/ScriptComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimNotifyEvent.h"
 
 ACharacter::ACharacter()
 {
@@ -147,4 +148,28 @@ ULuaAnimInstance* ACharacter::GetLuaAnimInstance() const
 
 	return Cast<ULuaAnimInstance>(
 	    SkeletalMeshComponent->GetAnimInstance());
+}
+
+void ACharacter::HandleAnimNotify(const FAnimNotifyEvent& Notify)
+{
+	if (UScriptComponent* Script = ScriptComponent)
+	{
+		Script->OnAnimNotify(Notify.NotifyName.ToString());
+	}
+}
+
+void ACharacter::HandleAnimNotifyStateBegin(const FAnimNotifyEvent& Notify)
+{
+	if (UScriptComponent* Script = ScriptComponent)
+	{
+		Script->OnAnimNotifyBegin(Notify.NotifyName.ToString());
+	}
+}
+
+void ACharacter::HandleAnimNotifyStateEnd(const FAnimNotifyEvent& Notify)
+{
+	if (UScriptComponent* Script = ScriptComponent)
+	{
+		Script->OnAnimNotifyEnd(Notify.NotifyName.ToString());
+	}
 }

@@ -3,6 +3,7 @@
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "Animation/Nodes/AnimNodes.h"
+#include "Animation/AnimNotifyEvent.h"
 
 struct FAnimNode_Base;
 class USkeletalMeshComponent;
@@ -24,6 +25,12 @@ public:
 
 	bool IsInitialized() const;
 
+	void QueueAnimNotify(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence, float Weight = 1.0f);
+	void QueueAnimNotifyState(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence, float Weight = 1.0f);
+	void TriggerAnimNotifies();
+	void EndAllNotifyStates();
+	const TArray<FQueuedAnimNotify>& GetQueuedNotifies() const { return NotifyQueue; }
+
 protected:
 	virtual void NativeInitializeAnimation() {};               // 그래프를 만든다 (한 번)
 	virtual void NativeUnInitializeAnimation() {};             // 그래프를 정리한다 (한 번)
@@ -37,6 +44,10 @@ private:
 	// 비소유 참조. 컴포넌트가 인스턴스의 수명을 관리한다.
 	USkeletalMeshComponent* OwningComponent = nullptr;
 	bool bIsInitialized = false;
+
+	TArray<FQueuedAnimNotify> NotifyQueue;
+	TArray<FQueuedAnimNotify> NotifyStateQueue;
+	TArray<FQueuedAnimNotify> ActiveNotifyStates;
 };
 
 class UAnimSingleNodeInstance : public UAnimInstance

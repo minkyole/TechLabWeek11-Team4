@@ -52,9 +52,17 @@ function Tick(dt)
 	anim:SetFloat("Speed", animSpeed)
 
 	-- 누른 순간 한 번만 공격 요청
-	if IsKeyPressed(Key.Space) then
+	if IsKeyPressed(Key.A) then
 		assert(
 			anim:SetTrigger("AttackRequested"),
+			anim:GetLastError()
+		)
+	end
+
+	-- 누른 순간 한 번만 점프 요청
+	if IsKeyPressed(Key.Space) then
+		assert(
+			anim:SetTrigger("JumpRequested"),
 			anim:GetLastError()
 		)
 	end

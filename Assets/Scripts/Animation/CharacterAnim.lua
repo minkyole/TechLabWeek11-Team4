@@ -33,6 +33,13 @@ function InitializeAnimation(anim)
         })
     )
 
+    local jumpPlayer = requireId(
+        anim,
+        anim:CreateSequencePlayer("Jump", {
+            loop = false
+        })
+    )
+
     -- 상태
     local locomotion = requireId(
         anim, anim:AddState("Locomotion", locomotionPlayer)
@@ -46,6 +53,10 @@ function InitializeAnimation(anim)
         anim, anim:AddState("Hit", hitPlayer)
     )
 
+    local jump = requireId(
+        anim, anim:AddState("Jump", jumpPlayer)
+    )
+
     requireSuccess(anim, anim:SetEntryState(locomotion))
 
     -- 파라미터
@@ -53,6 +64,7 @@ function InitializeAnimation(anim)
     requireSuccess(anim, anim:SetBool("IsGrounded", true))
     requireSuccess(anim, anim:DefineTrigger("AttackRequested"))
     requireSuccess(anim, anim:DefineTrigger("HitRequested"))
+    requireSuccess(anim, anim:DefineTrigger("JumpRequested"))
 
     -- 조건
     local canAttack = requireId(
@@ -60,6 +72,14 @@ function InitializeAnimation(anim)
         anim:AddCondition(function(ctx)
             return ctx:GetBool("IsGrounded")
                 and ctx:IsTriggerActive("AttackRequested")
+        end)
+    )
+
+    local canJump = requireId(
+        anim,
+        anim:AddCondition(function(ctx)
+            return ctx:GetBool("IsGrounded")
+                and ctx:IsTriggerActive("JumpRequested")
         end)
     )
 
@@ -118,6 +138,27 @@ function InitializeAnimation(anim)
             blendDuration = 0.2
         })
     )
+
+    -- 이동 → 점프
+    requireId(
+        anim,
+        anim:AddTransition(locomotion, jump, {
+            condition = canJump,
+            priority = 50,
+            blendDuration = 0.2,
+            consumeTriggers = { "JumpRequested" }
+        })
+    )
+
+    -- 점프 → 이동
+    requireId(
+        anim,
+        anim:AddTransition(jump, locomotion, {
+            condition = finished,
+            blendDuration = 0.2
+        })
+    )
+
 end
 
 function UpdateAnimation(anim, deltaTime)

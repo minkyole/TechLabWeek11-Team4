@@ -80,8 +80,9 @@ void ULuaAnimInstance::NativeInitializeAnimation()
 		const int32 RootBoneIndex = 1;
 
 		UAnimSequence* IdleClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0));
-		UAnimSequence* WalkClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0.5f));
-		UAnimSequence* RunClip = CreateRootTestClip(RootBoneIndex, 0.5f, FVector(0, 0, 1.2f));
+		UAnimSequence* WalkClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0.3f));
+		UAnimSequence* RunClip = CreateRootTestClip(RootBoneIndex, 0.5f, FVector(0, 0, 0.4f));
+		UAnimSequence* JumpClip = CreateRootTestClip(RootBoneIndex, 0.8f, FVector(0, 0, 1.0f));
 		UAnimSequence* AttackClip = CreateRootTestClip(RootBoneIndex, 0.6f, FVector(3.0f, 0, 0));
 		UAnimSequence* HitClip = CreateRootTestClip(RootBoneIndex, 0.4f, FVector(-1.5f, 0, 0));
 		UBlendSpace1D* TestBlendSpace = NewObject<UBlendSpace1D>(this);
@@ -121,6 +122,7 @@ void ULuaAnimInstance::NativeInitializeAnimation()
 		Assets.RegisterAsset("Idle", IdleClip);
 		Assets.RegisterAsset("Walk", WalkClip);
 		Assets.RegisterAsset("Run", RunClip);
+		Assets.RegisterAsset("Jump", JumpClip);
 		Assets.RegisterAsset("Attack", AttackClip);
 		Assets.RegisterAsset("Hit", HitClip);
 		Assets.RegisterAsset("Locomotion", TestBlendSpace);

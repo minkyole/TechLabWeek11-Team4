@@ -13,10 +13,10 @@ namespace CommonAnimClips
 	{
 		{ "Idle", "Models/UAL1_Standard.fbx#Anim/Armature|Idle_Loop" },
 		{ "Walk", "Models/UAL1_Standard.fbx#Anim/Armature|Walk_Loop" },
-		{ "Run", "Models/UAL1_Standard.fbx#Anim/Armature|Jog_Fwd_Loop" },
+		{ "Run","Models/UAL1_Standard.fbx#Anim/Armature|Jog_Fwd_Loop" },
 		{ "Attack", "Models/UAL1_Standard.fbx#Anim/Armature|Sword_Attack" },
 		{ "Hit", "Models/UAL1_Standard.fbx#Anim/Armature|Hit_Chest" },
-		{ "JumpStart", "Models/UAL1_Standard.fbx#Anim/Armature|Jump_Start" },
+		{ "JumpStart","Models/UAL1_Standard.fbx#Anim/Armature|Jump_Start" },
 		{ "JumpLoop", "Models/UAL1_Standard.fbx#Anim/Armature|Jump_Loop" },
 		{ "JumpLand", "Models/UAL1_Standard.fbx#Anim/Armature|Jump_Land" },
 	};

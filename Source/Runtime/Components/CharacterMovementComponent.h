@@ -16,6 +16,9 @@ public:
 	void SetMoveInput(const FVector& WorldDirection);
 	void SetMaxSpeed(float InMaxSpeed);
 
+	void SetAcceleration(float InAcceleration);
+	void SetBrakingDeceleration(float InDeceleration);
+
 	FVector GetVelocity() const { return Velocity; }
 	float GetGroundSpeed() const;
 
@@ -25,4 +28,6 @@ private:
 	FVector MoveInput = FVector::ZeroVector;
 
 	float MaxSpeed = 5.0f;
+	float Acceleration = 20.0f;
+	float BrakingDeceleration = 30.0f;
 };

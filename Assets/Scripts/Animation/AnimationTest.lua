@@ -6,6 +6,16 @@ print("BeginPlay!\n")
 	if camera ~= nil and manager ~= nil then
 		assert(manager:SetViewTargetCamera(camera))
 	end
+
+	local movement = self:GetMovementComponent()
+
+	if movement == nil then
+		return
+	end
+
+	movement:SetMaxSpeed(5.0)
+	movement:SetAcceleration(20.0)
+	movement:SetBrakingDeceleration(30.0)
 end
 
 function EndPlay()

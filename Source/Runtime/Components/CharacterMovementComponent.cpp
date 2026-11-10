@@ -7,6 +7,24 @@
 
 #include <cmath>
 
+namespace
+{
+	FVector MoveVelocityTowards(
+		const FVector& Current,
+		const FVector& Target,
+		float MaxChange)
+	{
+		const FVector Difference = Target - Current;
+		const float Distance =
+		    std::hypot(Difference.X, Difference.Y);
+
+		if (Distance <= MaxChange || Distance <= 0.000001f)
+			return Target;
+
+		return Current + Difference * (MaxChange / Distance);
+	}
+}
+
 UCharacterMovementComponent::UCharacterMovementComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -56,8 +74,32 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime)
 		return;
 	}
 
-	const FVector DesiredVelocity = MoveInput * MaxSpeed;
-	const FVector MoveDelta = DesiredVelocity * DeltaTime;
+	//const FVector DesiredVelocity = MoveInput * MaxSpeed;
+	//const FVector MoveDelta = DesiredVelocity * DeltaTime;
+	const FVector TargetVelocity = MoveInput * MaxSpeed;
+
+	FVector CurrentVelocity = Velocity;
+	CurrentVelocity.Z = 0.0f;
+
+	const float CurrentSpeed =
+	    std::hypot(CurrentVelocity.X, CurrentVelocity.Y);
+
+	const float TargetSpeed =
+	    std::hypot(TargetVelocity.X, TargetVelocity.Y);
+
+	// 입력 해제 또는 목표 속도 감소에는 제동 감속도를 사용한다.
+	// 같은 속도로 방향을 전환할 때에는 Acceleration을 사용한다.
+	const bool bSlowingDown = TargetSpeed < CurrentSpeed;
+
+	const float ChangeRate =
+	    bSlowingDown ? BrakingDeceleration : Acceleration;
+
+	const FVector NextVelocity = MoveVelocityTowards(
+	    CurrentVelocity,
+	    TargetVelocity,
+	    ChangeRate * DeltaTime);
+
+	const FVector MoveDelta = NextVelocity * DeltaTime;
 
 	if (!std::isfinite(MoveDelta.X) ||
 	    !std::isfinite(MoveDelta.Y) ||
@@ -153,6 +195,22 @@ void UCharacterMovementComponent::SetMaxSpeed(float InMaxSpeed)
 	}
 
 	MaxSpeed = InMaxSpeed;
+}
+
+void UCharacterMovementComponent::SetAcceleration(float Value)
+{
+	if (std::isfinite(Value) && Value >= 0.0f)
+	{
+		Acceleration = Value;
+	}
+}
+
+void UCharacterMovementComponent::SetBrakingDeceleration(float Value)
+{
+	if (std::isfinite(Value) && Value >= 0.0f)
+	{
+		BrakingDeceleration = Value;
+	}
 }
 
 float UCharacterMovementComponent::GetGroundSpeed() const

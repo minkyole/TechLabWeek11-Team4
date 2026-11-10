@@ -39,6 +39,12 @@ void BindMovementAPI(sol::state& LuaState)
 	    "SetMaxSpeed",
 	    &UCharacterMovementComponent::SetMaxSpeed,
 
+		"SetAcceleration",
+	    &UCharacterMovementComponent::SetAcceleration,
+
+	    "SetBrakingDeceleration",
+	    &UCharacterMovementComponent::SetBrakingDeceleration,
+
 	    "GetVelocity",
 	    &UCharacterMovementComponent::GetVelocity,
 

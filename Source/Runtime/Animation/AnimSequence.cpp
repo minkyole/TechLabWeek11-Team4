@@ -116,3 +116,20 @@ void UAnimSequence::RebuildBoneTrackMap(const USkeletalMesh& Mesh) const
 	}
 	CachedMesh = &Mesh;
 }
+
+// Importer 가 만든 키 배열을 AnimDataModel에 옮긴다
+void UAnimSequence::BuildFromTracks(const FFrameRate& FrameRate, int32 NumFrames, const TArray<FBoneAnimationTrack>& Tracks)
+{
+	DataModel->Reset();
+	// SetBoneTrackKeys의 키 개수 검사가 NumberOfKeys를 보므로 프레임 정보를 먼저 넣는다.
+	DataModel->SetFrameRate(FrameRate);
+	DataModel->SetNumberOfFrames(NumFrames);
+	for (const FBoneAnimationTrack& Track : Tracks)
+	{
+		const int32 TrackIndex = DataModel->AddBoneTrack(Track.Name);
+		const FRawAnimSequenceTrack& Keys = Track.InternalTrack;
+		DataModel->SetBoneTrackKeys(TrackIndex, Keys.PosKeys, Keys.RotKeys, Keys.ScaleKeys);
+	}
+	// 트랙 순서가 바뀌었으니 같은 메시라도 본→트랙 맵을 다시 만들게 한다.
+	CachedMesh = nullptr;
+}

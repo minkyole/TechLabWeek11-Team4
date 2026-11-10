@@ -118,6 +118,7 @@ void FSkeletalMeshViewerPanel::ReleaseResources()
 	MeshToSelect = nullptr;
 	RenderingInfo = {};
 	ColorTarget.reset();
+	HDRTarget.reset();
 	DepthTarget.reset();
 }
 
@@ -532,12 +533,25 @@ EViewMode FSkeletalMeshViewerPanel::GetRendererViewMode() const
 	}
 }
 
+EToneMapMode FSkeletalMeshViewerPanel::GetToneMapMode() const
+{
+	switch (DisplayMode)
+	{
+	case EViewerDisplayMode::Unlit:             return EToneMapMode::EncodeOnly;
+	case EViewerDisplayMode::BoneWeightHeatmap: return EToneMapMode::EncodeOnly;
+	case EViewerDisplayMode::WorldNormal:       return EToneMapMode::Passthrough;
+	case EViewerDisplayMode::LitLambert:		return EToneMapMode::ACES;
+	case EViewerDisplayMode::LitBlinnPhong:		return EToneMapMode::ACES;
+	default:                                    return EToneMapMode::ACES;
+	}
+}
+
 void FSkeletalMeshViewerPanel::ResizeViewport(uint32 NewWidth, uint32 NewHeight)
 {
 	NewWidth = std::max(1u, NewWidth);
 	NewHeight = std::max(1u, NewHeight);
 
-	if (ColorTarget && DepthTarget &&
+	if (ColorTarget && DepthTarget && HDRTarget &&
 		std::abs(static_cast<int32>(ViewportWidth) - static_cast<int32>(NewWidth)) <= 2 &&
 		std::abs(static_cast<int32>(ViewportHeight) - static_cast<int32>(NewHeight)) <= 2)
 	{
@@ -560,10 +574,15 @@ void FSkeletalMeshViewerPanel::ResizeViewport(uint32 NewWidth, uint32 NewHeight)
 	Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 	ColorTarget = RenderCommand::CreateTexture2D(Desc);
 
+	Desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	HDRTarget = RenderCommand::CreateTexture2D(Desc);
+	
 	// 깊이 렌더 타깃
 	Desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 	Desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 	DepthTarget = RenderCommand::CreateTexture2D(Desc);
+
 
 	RenderingInfo.ColorRenderTargets.Reset();
 	RenderingInfo.ViewportSetting.StartX = 0;
@@ -812,7 +831,7 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 	if (!IsOpen() || !bViewportVisible || !SelectedMesh)
 		return;
 
-	if (!Renderer || !ColorTarget || !DepthTarget || ViewportWidth == 0 || ViewportHeight == 0)
+	if (!Renderer || !ToneMapRenderer || !ColorTarget || !DepthTarget || !HDRTarget || ViewportWidth == 0 || ViewportHeight == 0)
 		return;
 
 	UpdateCamera(0.0f);
@@ -820,7 +839,10 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 	const FMatrix ViewProj = CachedViewMatrix * CachedProjMatrix;
 
 	RenderingInfo.ColorRenderTargets[0].ClearValue.ColorClearValue = BackgroundClearColor;
-	RenderCommand::BeginRenderPass(RenderingInfo);
+
+	FRenderingInfo SceneInfo = RenderingInfo;
+	SceneInfo.ColorRenderTargets[0].Texture = HDRTarget.get();
+	RenderCommand::BeginRenderPass(SceneInfo);
 
 	FLightingConstants LightingConstants{};
 	if (bEnableSkyLight)
@@ -857,23 +879,7 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 	Renderer->SetViewMode(GetRendererViewMode());
 	RenderCommand::SetRasterizerState(bWireframe ? ERasterizerState::Wireframe : ERasterizerState::SolidBack);
 
-	if (bShowGrid && GridRenderer)
-	{
-		const FRotator Rot(CameraPitch, CameraYaw, 0.0f);
-		const FQuat Quat(Rot);
-		const FVector CameraForward = Quat.GetForwardVector();
-
-		GridRenderer->OnRenderBatchGrid(
-			ViewProj,
-			CachedCameraLocation,
-			CameraForward,
-			EGridPlane::XY,
-			50.0f,
-			true,
-			RenderingInfo.ViewportSetting);
-	}
-
-	if (PreviewComponent && SelectedMesh)
+	if (PreviewComponent)
 	{
 		FRenderQueue RenderQueue;
 		const FMatrix PreviewWorld = PreviewComponent->GetWorldMatrix();
@@ -948,7 +954,53 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 			Renderer->RenderPreview(RenderQueue, ViewConstants, *PreviewLighting, *PreviewLightGrid);
 			BoneWeightHeatmap.Unbind();
 		}
+	}
 
+	RenderCommand::EndRenderPass(SceneInfo);
+
+	{
+		FRenderingInfo ToneMapInfo;
+		ToneMapInfo.ViewportSetting = RenderingInfo.ViewportSetting;
+		FRenderingDesc ToneMapColor{};
+		ToneMapColor.Texture = ColorTarget.get();
+		ToneMapColor.LoadOp = ERenderTargetLoadOp::DontCare;
+		ToneMapInfo.ColorRenderTargets.Add(ToneMapColor);
+		ToneMapInfo.DepthStencil.Texture = nullptr;
+
+		RenderCommand::BeginRenderPass(ToneMapInfo);
+		ToneMapRenderer->SetExposure(PreviewExposure);
+		ToneMapRenderer->SetVignette(0.0f, 0.65f, 0.25f, FVector::ZeroVector);
+		
+		ToneMapRenderer->OnRender(HDRTarget.get(), GetToneMapMode());
+		RenderCommand::EndRenderPass(ToneMapInfo);
+		RenderCommand::UnbindShaderResource(0, EShaderBindFlagBits::Pixel);
+	}
+
+	FRenderingInfo OverlayInfo = RenderingInfo;
+	for (FRenderingDesc& Color : OverlayInfo.ColorRenderTargets)
+		Color.LoadOp = ERenderTargetLoadOp::Load;
+	OverlayInfo.DepthStencil.LoadOp = ERenderTargetLoadOp::Load;
+	RenderCommand::BeginRenderPass(OverlayInfo);
+	RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+
+	if (bShowGrid && GridRenderer)
+	{
+		const FRotator Rot(CameraPitch, CameraYaw, 0.0f);
+		const FQuat Quat(Rot);
+		const FVector CameraForward = Quat.GetForwardVector();
+
+		GridRenderer->OnRenderBatchGrid(
+			ViewProj,
+			CachedCameraLocation,
+			CameraForward,
+			EGridPlane::XY,
+			50.0f,
+			true,
+			OverlayInfo.ViewportSetting);
+	}
+
+	if (PreviewComponent)
+	{
 		// 본 3D 메시 및 관절 렌더링
 		Render3DBones(ViewProj);
 
@@ -975,7 +1027,7 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 				}
 			}
 
-			RenderCommand::ClearDepthStencil(RenderingInfo.DepthStencil.Texture);
+			RenderCommand::ClearDepthStencil(OverlayInfo.DepthStencil.Texture);
 			RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
 			GizmoRenderer->OnRender(BoneGizmo, ViewProj, CachedCameraLocation, false);
 		}
@@ -985,7 +1037,7 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 		}
 	}
 
-	RenderCommand::EndRenderPass(RenderingInfo);
+	RenderCommand::EndRenderPass(OverlayInfo);
 	Renderer->SetViewMode(PreviousViewMode);
 }
 

@@ -47,6 +47,7 @@ workspace "Hitori"
 	multiprocessorcompile "On"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
+local UhtGeneratedRoot = "Build/Generated/UHT/" .. outputdir
 
 IncludeDir = {}
 IncludeDir["ImGui"] = "Source/ThirdParty/ImGui"
@@ -145,6 +146,25 @@ project "UHT"
         "Source/Programs/UHT/*.cpp",
     }
 
+-- 엔진과 에디터가 공유하는 리플렉션 코드 생성 단계
+project "UHTCodegen"
+	location "Intermediate/ProjectFiles"
+	kind "Utility"
+	CommonSettings()
+	objdir ("Build/Intermediate/" .. outputdir .. "/UHTCodegen")
+
+	-- 실행 도구의 선행 빌드를 보장하는 프로젝트 참조
+	links { "UHT" }
+	fastuptodate "Off"
+
+	prebuildmessage "Generating reflection code"
+	prebuildcommands
+	{
+		Shell(RepoRoot .. "/Build/Bin/" .. outputdir .. "/UHT.exe")
+			.. " --root " .. Shell(RepoRoot)
+			.. " --output " .. Shell(RepoRoot .. "/" .. UhtGeneratedRoot),
+	}
+
 -- 외부 라이브러리. 별도 프로젝트로 두면 에디터의 소스 루트가 Source/Editor 하나로 좁혀져
 -- Solution Explorer의 "모든 파일 표시"에서 폴더 구조가 그대로 보인다.
 project "ImGui"
@@ -183,6 +203,7 @@ project "HitoriEngine"
 	location "Source/Runtime"
 	kind     "StaticLib"
 	CommonSettings()
+	links { "UHTCodegen" }
 
 	includedirs
 	{
@@ -233,6 +254,7 @@ project "HitoriEngine"
 		"Source/Runtime/**.h",
 		"Source/Runtime/**.hpp",
 		"Source/Runtime/**.cpp",
+		UhtGeneratedRoot .. "/Runtime/Runtime.gen.cpp",
 		"%{IncludeDir.DDSLoader}/*.h",
 		"%{IncludeDir.DDSLoader}/*.cpp",
 		"%{IncludeDir.miniaudio}/*.h",
@@ -242,6 +264,7 @@ project "HitoriEngine"
 	includedirs
 	{
 		"Source/Runtime",
+		UhtGeneratedRoot .. "/Runtime",
 		"%{IncludeDir.LuaJIT}",
     	"%{IncludeDir.Sol2}",
 		"%{IncludeDir.stb}",
@@ -270,7 +293,7 @@ project "HitoriEditor"
 	pchheader "EnginePCH.h"
 	pchsource "Source/Editor/EditorPCH.cpp"
 
-	links { "HitoriEngine", "ImGui" }
+	links { "UHTCodegen", "HitoriEngine", "ImGui" }
 
 	-- 엔진은 정적 라이브러리라 exe가 참조하지 않는 .obj는 링크에서 빠지고,
 	-- 그 안의 클래스 자동 등록(DECLARE_CLASS의 FAutoRegister)도 실행되지 않는다. 엔진 전체를 강제로 링크한다.
@@ -280,6 +303,7 @@ project "HitoriEditor"
 	{
 		"Source/Editor/**.h",
 		"Source/Editor/**.cpp",
+		UhtGeneratedRoot .. "/Editor/Editor.gen.cpp",
 		"Source/ThirdParty/ImNeoSequencer/*.h",
 		"Source/ThirdParty/ImNeoSequencer/*.cpp",
 		"Source/Programs/**.h",
@@ -296,6 +320,8 @@ project "HitoriEditor"
 		"Source",             -- "Editor/OutputLog/ConsolePanel.h"처럼 Source 기준 include를 쓴다
 		"Source/Runtime",
 		"Source/Programs",
+		UhtGeneratedRoot .. "/Runtime",
+		UhtGeneratedRoot .. "/Editor",
 		"%{IncludeDir.LuaJIT}",
     	"%{IncludeDir.Sol2}",
 		"%{IncludeDir.ImGui}",

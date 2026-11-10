@@ -71,10 +71,11 @@ struct FAnimNode_AssetPlayerBase : public FAnimNode_Base
 
 	void SetNormalizedTime(float InTime);
 
-	void ResetPlayback()
-	{
-		NormalizedTime = 0.0f;
-	}
+	void ResetPlayback();
+
+	// Notify·RootMotion이 이번 프레임에 지나간 구간을 읽는다.
+	const FDeltaTimeRecord& GetDeltaTimeRecord() const { return DeltaTimeRecord; }
+	ETypeAdvanceAnim GetLastAdvanceResult() const { return LastAdvanceResult; }
 
 protected:
 	// 시간 진행 전에 필요한 데이터를 갱신한다.
@@ -84,6 +85,8 @@ protected:
 
 private:
 	float NormalizedTime = 0.0f;
+	FDeltaTimeRecord DeltaTimeRecord;
+	ETypeAdvanceAnim LastAdvanceResult = ETypeAdvanceAnim::Default;
 };
 
 // 클립 하나를 재생한다.

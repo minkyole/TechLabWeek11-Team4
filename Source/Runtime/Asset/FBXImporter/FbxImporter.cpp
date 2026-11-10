@@ -435,6 +435,7 @@ FSkeletalBone FFbxImporter::ProcessSkeleton(FbxNode* Node, const TMap<FbxNode*, 
 void FFbxImporter::Cook(FFbxImportResult&& ImportResult, FFbxCookedData& Cooked)
 {
 	Cooked.StaticMeshes = std::move(ImportResult.StaticMeshes);
+	Cooked.Anims = std::move(ImportResult.Anims);
 	FSkeletalMeshData& OutData = Cooked.SkeletalMesh;
 	OutData.Meshes = std::move(ImportResult.Meshes);
 	if (OutData.Meshes.IsEmpty()) return;

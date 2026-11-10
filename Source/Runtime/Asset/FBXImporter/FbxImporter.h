@@ -43,6 +43,7 @@ struct FFbxImportResult	// Fbx의 Import 결과로 나오는 값 구조체
 	TArray<FSkeletalMesh> Meshes;
 	TArray<FSkeletalBone> Bones;
 	TArray<FFbxStaticMeshPart> StaticMeshes;
+	TArray<FFbxAnimClip> Anims;
 };
 
 class FFbxImporter

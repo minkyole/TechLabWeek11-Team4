@@ -9,6 +9,7 @@
 #include "Render/Mesh.h"
 #include <algorithm>
 #include <cmath>
+#include "imgui_node_editor.h"
 
 namespace
 {
@@ -23,21 +24,22 @@ bool TextEdit(const char *Label, FString &Value)
 	}
 	return false;
 }
-bool NameEdit(const char *Label, FName &Value)
-{
-	auto text = Value.ToString();
-	if (TextEdit(Label, text))
-	{
-		Value = FName(text.c_str());
-		return true;
-	}
-	return false;
-}
 bool EnumEdit(const char *Label, int &Value, const char *Choices)
 {
 	return ImGui::Combo(Label, &Value, Choices);
 }
 } // namespace
+FStateMachineEditorPanel::~FStateMachineEditorPanel()
+{
+	ClearContexts();
+}
+FAnimAssetTransition *FStateMachineEditorPanel::FindTransition(int Id)
+{
+	for (auto &t : Working.Transitions)
+		if (t.Id == Id)
+			return &t;
+	return nullptr;
+}
 FAnimAssetState *FStateMachineEditorPanel::FindState(int Id)
 {
 	for (auto &s : Working.States)
@@ -79,12 +81,15 @@ void FStateMachineEditorPanel::SetOpen(bool Open)
 	}
 	if (!Open && Viewer)
 		Viewer->StopStateMachinePreview();
+	if (!Open)
+		ClearContexts();
 	IEditorPanel::SetOpen(Open);
 }
 void FStateMachineEditorPanel::ReleaseResources()
 {
 	if (Viewer)
 		Viewer->StopStateMachinePreview();
+	ClearContexts();
 	Working = {};
 	Dirty = false;
 }
@@ -135,16 +140,19 @@ void FStateMachineEditorPanel::LoadPending()
 		Dirty = true;
 	}
 	Selected = SelectedTransition = -1;
-	LinkFrom = -2;
+	ActiveRule = SelectedRuleNode = 0;
+	ClearContexts();
+	Working.EnsureRuleGraphs();
 	NextId = 1;
 	for (auto &s : Working.States)
 		NextId = std::max(NextId, s.Id + 1);
-	Pan = ImVec2(30, 70);
-	Zoom = 1;
+
 	Error.clear();
 }
 bool FStateMachineEditorPanel::Save()
 {
+	if (!Working.CompileRules(Error))
+		return false;
 	FString target = Path.empty() ? FString(SavePath) : Path;
 	if (!UAssetManager::Get().SaveAnimStateMachine(target, Working, Error, Path.empty()))
 		return false;
@@ -152,13 +160,13 @@ bool FStateMachineEditorPanel::Save()
 	Dirty = false;
 	return true;
 }
-void FStateMachineEditorPanel::AddState()
+void FStateMachineEditorPanel::AddState(ImVec2 Position)
 {
 	FAnimAssetState s;
 	s.Id = NextId++;
 	s.Name = "State_" + std::to_string(s.Id);
-	s.X = 40.0f * (s.Id % 5);
-	s.Y = 90.0f * (s.Id % 5);
+	s.X = Position.x;
+	s.Y = Position.y;
 	auto *mesh = UAssetManager::GetAssetByPath<USkeletalMesh>(Working.MeshKey);
 	if (mesh)
 	{
@@ -172,166 +180,6 @@ void FStateMachineEditorPanel::AddState()
 	if (Working.Entry == -1)
 		Working.Entry = s.Id;
 	Dirty = true;
-}
-void FStateMachineEditorPanel::DeleteSelection()
-{
-	if (SelectedTransition >= 0 && SelectedTransition < (int)Working.Transitions.size())
-	{
-		Working.Transitions.erase(Working.Transitions.begin() + SelectedTransition);
-		SelectedTransition = -1;
-		Dirty = true;
-	}
-	else if (Selected >= 0)
-	{
-		int id = Selected;
-		std::erase_if(Working.States, [&](auto &s) { return s.Id == id; });
-		std::erase_if(Working.Transitions, [&](auto &t) { return t.From == id || t.To == id; });
-		if (Working.Entry == id)
-			Working.Entry = -1;
-		Selected = -1;
-		SelectedTransition = -1;
-		LinkFrom = -2;
-		Dirty = true;
-	}
-}
-void FStateMachineEditorPanel::DrawGraph()
-{
-	ImGui::TextDisabled("Drag: move state | Middle drag: pan | Wheel: zoom | Select source, Link, then destination");
-	if (ImGui::Button("Add State"))
-		AddState();
-	ImGui::SameLine();
-	if (ImGui::Button("Link selected"))
-	{
-		if (Selected >= 0)
-			LinkFrom = Selected;
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("AnyState link"))
-		LinkFrom = -1;
-	ImGui::SameLine();
-	if (ImGui::Button("Delete"))
-		DeleteSelection();
-	if (LinkFrom != -2)
-	{
-		ImGui::SameLine();
-		ImGui::Text("Select destination (%s)", StateName(LinkFrom));
-		ImGui::SameLine();
-		if (ImGui::SmallButton("Cancel link"))
-			LinkFrom = -2;
-	}
-	ImGui::BeginChild("Canvas", ImVec2(0, 0), ImGuiChildFlags_Borders,
-					  ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
-	auto origin = ImGui::GetCursorScreenPos();
-	auto size = ImGui::GetContentRegionAvail();
-	auto *draw = ImGui::GetWindowDrawList();
-	auto &io = ImGui::GetIO();
-	if (ImGui::IsWindowHovered() && ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
-	{
-		Pan.x += io.MouseDelta.x;
-		Pan.y += io.MouseDelta.y;
-	}
-	if (ImGui::IsWindowHovered() && io.MouseWheel != 0)
-	{
-		float old = Zoom;
-		Zoom = std::clamp(Zoom + io.MouseWheel * .1f, .35f, 2.f);
-		auto m = io.MousePos;
-		Pan.x = (Pan.x - (m.x - origin.x)) * Zoom / old + (m.x - origin.x);
-		Pan.y = (Pan.y - (m.y - origin.y)) * Zoom / old + (m.y - origin.y);
-	}
-	auto pos = [&](const FAnimAssetState &s) {
-		return ImVec2(origin.x + Pan.x + s.X * Zoom, origin.y + Pan.y + s.Y * Zoom);
-	};
-	auto nodeCenter = [&](int id) {
-		auto *s = FindState(id);
-		if (s)
-		{
-			auto p = pos(*s);
-			return ImVec2(p.x + 80 * Zoom, p.y + 25 * Zoom);
-		}
-		return ImVec2(origin.x + Pan.x - 20, origin.y + Pan.y - 40);
-	};
-	draw->AddText(ImVec2(origin.x + Pan.x - 40, origin.y + Pan.y - 55), IM_COL32(210, 160, 90, 255), "AnyState");
-	UAssetAnimInstance *runtime = Viewer ? Viewer->GetStateMachinePreview() : nullptr;
-	int current = runtime ? runtime->GetCurrentAssetState() : -1;
-	for (int i = 0; i < (int)Working.Transitions.size(); ++i)
-	{
-		auto &t = Working.Transitions[i];
-		auto a = nodeCenter(t.From), b = nodeCenter(t.To);
-		float dx = b.x - a.x, dy = b.y - a.y, len = std::sqrt(dx * dx + dy * dy);
-		if (len < 1)
-		{
-			draw->AddCircle(ImVec2(a.x, a.y - 30 * Zoom), 30 * Zoom, IM_COL32(180, 180, 180, 255));
-			b = ImVec2(a.x + 25 * Zoom, a.y - 45 * Zoom);
-		}
-		ImVec2 mid = len < 1 ? ImVec2(a.x, a.y - 70 * Zoom)
-            : ImVec2((a.x + b.x) * .5f - dy / len * 22, (a.y + b.y) * .5f + dx / len * 22);
-		bool active = runtime && runtime->GetActiveTransitionIndex() == i;
-		ImU32 color = active ? IM_COL32(80, 230, 130, 255)
-							 : (i == SelectedTransition ? IM_COL32(255, 190, 70, 255) : IM_COL32(150, 160, 185, 255));
-		draw->AddLine(a, mid, color, 2);
-		draw->AddLine(mid, b, color, 2);
-		float angle = std::atan2(b.y - mid.y, b.x - mid.x);
-		draw->AddTriangleFilled(mid, ImVec2(mid.x - 12 * std::cos(angle - .5f), mid.y - 12 * std::sin(angle - .5f)),
-								ImVec2(mid.x - 12 * std::cos(angle + .5f), mid.y - 12 * std::sin(angle + .5f)), color);
-		ImGui::SetCursorScreenPos(ImVec2(mid.x - 9, mid.y - 9));
-		ImGui::PushID(100000 + i);
-		if (ImGui::InvisibleButton("edge", ImVec2(18, 18)))
-		{
-			SelectedTransition = i;
-			Selected = -1;
-		}
-		ImGui::PopID();
-	}
-	for (auto &s : Working.States)
-	{
-		auto p = pos(s);
-		ImVec2 end(p.x + 160 * Zoom, p.y + 50 * Zoom);
-		ImU32 color = s.Id == current ? IM_COL32(45, 125, 75, 255) : IM_COL32(50, 60, 85, 255);
-		draw->AddRectFilled(p, end, color, 5);
-		draw->AddRect(p, end, s.Id == Selected ? IM_COL32(255, 190, 70, 255) : IM_COL32(110, 120, 150, 255), 5.0f, 2.0f, ImDrawFlags_None);
-		draw->AddText(ImVec2(p.x + 8, p.y + 6), IM_COL32(255, 255, 255, 255), s.Name.c_str());
-		draw->AddText(ImVec2(p.x + 8, p.y + 25), IM_COL32(180, 195, 210, 255),
-					  s.BlendSpace ? "BlendSpace" : "Sequence");
-		if (s.Id == Working.Entry)
-		{
-			draw->AddText(ImVec2(p.x, p.y - 20), IM_COL32(110, 210, 255, 255), "Entry");
-		}
-		ImGui::SetCursorScreenPos(p);
-		ImGui::PushID(s.Id);
-		if (ImGui::InvisibleButton("state", ImVec2(160 * Zoom, 50 * Zoom)))
-		{
-			if (LinkFrom != -2)
-			{
-				FAnimAssetTransition t;
-				t.From = LinkFrom;
-				t.To = s.Id;
-				FAnimConditionDefinition c;
-				c.Type = EAnimConditionType::Always;
-				t.Options.Condition = (int)Working.Conditions.size();
-				Working.Conditions.push_back(c);
-				Working.Transitions.push_back(t);
-				SelectedTransition = (int)Working.Transitions.size() - 1;
-				Selected = -1;
-				LinkFrom = -2;
-				Dirty = true;
-			}
-			else
-			{
-				Selected = s.Id;
-				SelectedTransition = -1;
-			}
-		}
-		if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-		{
-			s.X += io.MouseDelta.x / Zoom;
-			s.Y += io.MouseDelta.y / Zoom;
-			Dirty = true;
-		}
-		ImGui::PopID();
-	}
-	ImGui::SetCursorScreenPos(origin);
-	ImGui::Dummy(size);
-	ImGui::EndChild();
 }
 void FStateMachineEditorPanel::DrawDetails()
 {
@@ -400,7 +248,12 @@ void FStateMachineEditorPanel::DrawDetails()
 		ImGui::TextUnformatted("Transition");
 		Dirty |= StateCombo("From", t.From, true);
 		Dirty |= StateCombo("To", t.To);
-		Dirty |= ImGui::InputInt("Condition index", &o.Condition);
+		ImGui::TextWrapped("Rule: %s", t.Rule.Summary().c_str());
+		if (ImGui::Button("Edit Transition Rule"))
+		{
+			ActiveRule = t.Id;
+			SelectedRuleNode = 0;
+		}
 		Dirty |= ImGui::InputInt("Priority", &o.Priority);
 		Dirty |= ImGui::InputFloat("Blend seconds", &o.Blend.Duration);
 		int curve = (int)o.Blend.Curve;
@@ -442,139 +295,11 @@ void FStateMachineEditorPanel::DrawDetails()
 	else
 		ImGui::TextDisabled("Select a state or transition.");
 }
-void FStateMachineEditorPanel::DrawParameters()
-{
-	if (ImGui::Button("Add Parameter"))
-	{
-		FAnimParameter p;
-		p.Name = FName(("Parameter_" + std::to_string(Working.Parameters.size() + 1)).c_str());
-		Working.Parameters.push_back(p);
-		Dirty = true;
-	}
-	for (int i = 0; i < (int)Working.Parameters.size(); ++i)
-	{
-		auto &p = Working.Parameters[i];
-		ImGui::PushID(i);
-		Dirty |= NameEdit("Name", p.Name);
-		int type = (int)p.Type;
-		if (EnumEdit("Type", type, "Bool\0Float\0Trigger\0"))
-		{
-			p.Type = (EAnimParameterType)type;
-			Dirty = true;
-		}
-		if (p.Type == EAnimParameterType::Bool)
-			Dirty |= ImGui::Checkbox("Default", &p.BoolValue);
-		if (p.Type == EAnimParameterType::Float)
-			Dirty |= ImGui::InputFloat("Default", &p.FloatValue);
-		bool remove = ImGui::SmallButton("Remove parameter");
-		ImGui::Separator();
-		ImGui::PopID();
-		if (remove)
-		{
-			Working.Parameters.erase(Working.Parameters.begin() + i);
-			Dirty = true;
-			break;
-		}
-	}
-}
-void FStateMachineEditorPanel::DrawConditions()
-{
-	ImGui::TextWrapped("Conditions use indices. AND/OR/NOT may reference earlier conditions only.");
-	if (ImGui::Button("Add Condition"))
-	{
-		Working.Conditions.emplace_back();
-		Dirty = true;
-	}
-	for (int i = 0; i < (int)Working.Conditions.size(); ++i)
-	{
-		ImGui::PushID(i);
-		auto &c = Working.Conditions[i];
-		auto label = "Condition " + std::to_string(i);
-		if (ImGui::TreeNode(label.c_str()))
-		{
-			int type = (int)c.Type;
-			if (EnumEdit("Type", type,
-						 "Always\0BoolEquals\0FloatCompare\0TriggerActive\0SourceFinished\0StateElapsedCompare\0And\0Or"
-						 "\0Not\0"))
-			{
-				c.Type = (EAnimConditionType)type;
-				c.Children.Reset();
-				Dirty = true;
-			}
-			if (c.Type == EAnimConditionType::BoolEquals || c.Type == EAnimConditionType::FloatCompare ||
-				c.Type == EAnimConditionType::TriggerActive)
-				Dirty |= NameEdit("Parameter", c.ParameterName);
-			if (c.Type == EAnimConditionType::BoolEquals)
-				Dirty |= ImGui::Checkbox("Equals", &c.BoolValue);
-			if (c.Type == EAnimConditionType::FloatCompare || c.Type == EAnimConditionType::StateElapsedCompare)
-			{
-				int op = (int)c.CompareOp;
-				if (EnumEdit("Compare", op, "Less\0LessEqual\0Greater\0GreaterEqual\0NearlyEqual\0NotNearlyEqual\0"))
-				{
-					c.CompareOp = (EAnimCompareOp)op;
-					Dirty = true;
-				}
-				Dirty |= ImGui::InputFloat("Value", &c.FloatValue);
-				Dirty |= ImGui::InputFloat("Tolerance", &c.Tolerance);
-			}
-			if (c.Type == EAnimConditionType::And || c.Type == EAnimConditionType::Or ||
-				c.Type == EAnimConditionType::Not)
-			{
-				for (int n = 0; n < i; ++n)
-				{
-					bool used = false;
-					for (int child : c.Children)
-						used |= child == n;
-					auto l = "Child " + std::to_string(n);
-					if (ImGui::Checkbox(l.c_str(), &used))
-					{
-						TArray<int> next;
-						for (int child : c.Children)
-							if (child != n && !(used && c.Type == EAnimConditionType::Not))
-								next.Add(child);
-						if (used)
-							next.Add(n);
-						c.Children = std::move(next);
-						Dirty = true;
-					}
-				}
-			}
-			if (ImGui::SmallButton("Remove condition"))
-			{
-				bool referenced = false;
-				for (auto &t : Working.Transitions)
-					referenced |= t.Options.Condition == i;
-				for (auto &condition : Working.Conditions)
-					for (int n : condition.Children)
-						referenced |= n == i;
-				if (referenced)
-					Error = "Condition is referenced. Change its references before removing it.";
-				else
-				{
-					Working.Conditions.erase(Working.Conditions.begin() + i);
-					for (auto &t : Working.Transitions)
-						if (t.Options.Condition > i)
-							--t.Options.Condition;
-					for (auto &condition : Working.Conditions)
-						for (auto &n : condition.Children)
-							if (n > i)
-								--n;
-					Dirty = true;
-					ImGui::TreePop();
-					ImGui::PopID();
-					break;
-				}
-			}
-			ImGui::TreePop();
-		}
-		ImGui::PopID();
-	}
-}
 void FStateMachineEditorPanel::DrawPreview()
 {
 	if (ImGui::Button("Apply to 3D Preview") && Viewer)
 	{
-		if (Working.Validate(Error))
+		if (Working.CompileRules(Error) && Working.Validate(Error))
 		{
 			Viewer->PreviewStateMachine(Working, Error);
 		}
@@ -591,7 +316,7 @@ void FStateMachineEditorPanel::DrawPreview()
 		auto data = instance->GetAssetData();
 		instance->Configure(data, false);
 	}
-	ImGui::Text("Current state ID: %d", instance->GetCurrentAssetState());
+	ImGui::Text("Current state: %s", StateName(instance->GetCurrentAssetState()));
 	if (instance->IsTransitioning())
 	{
 		int idx = instance->GetActiveTransitionIndex();
@@ -599,7 +324,7 @@ void FStateMachineEditorPanel::DrawPreview()
 		if (idx >= 0 && idx < (int)data.Transitions.size())
 		{
 			const auto &t = data.Transitions[idx];
-			ImGui::Text("Transition: %d -> %d", t.From, t.To);
+			ImGui::Text("Transition: %s -> %s", StateName(t.From), StateName(t.To));
 		}
 		ImGui::ProgressBar(instance->GetTransitionProgress());
 	}
@@ -637,7 +362,7 @@ void FStateMachineEditorPanel::OnRender()
 	Focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 	if (!open)
 		SetOpen(false);
-	if (visible)
+	if (visible && IsOpen())
 	{
 		if (ImGui::Button("Save"))
 			Save();
@@ -665,28 +390,38 @@ void FStateMachineEditorPanel::OnRender()
 			ImGui::TableNextColumn();
 			DrawGraph();
 			ImGui::TableNextColumn();
-			ImGui::BeginChild("Properties");
-			if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen))
-				DrawDetails();
-			if (ImGui::CollapsingHeader("Parameters"))
+			if (ImGui::BeginChild("Properties"))
 			{
-				ImGui::PushID("Parameters");
-				DrawParameters();
-				ImGui::PopID();
+				if (ImGui::CollapsingHeader("Selection", ImGuiTreeNodeFlags_DefaultOpen))
+				{
+					if (ActiveRule)
+					{
+						auto *t = FindTransition(ActiveRule);
+						if (t)
+						{
+							if (auto *n = t->Rule.Find(SelectedRuleNode))
+								DrawRuleProperties(*n);
+							else
+								ImGui::TextDisabled("Select a condition node.");
+						}
+					}
+					else
+						DrawDetails();
+				}
+				if (ImGui::CollapsingHeader("Parameters"))
+				{
+					ImGui::PushID("Parameters");
+					DrawParameters();
+					ImGui::PopID();
+				}
+				DrawRuleErrors();
+				if (ImGui::CollapsingHeader("Preview", ImGuiTreeNodeFlags_DefaultOpen))
+					DrawPreview();
 			}
-			if (ImGui::CollapsingHeader("Conditions"))
-			{
-				ImGui::PushID("Conditions");
-				DrawConditions();
-				ImGui::PopID();
-			}
-			if (ImGui::CollapsingHeader("Preview", ImGuiTreeNodeFlags_DefaultOpen))
-				DrawPreview();
 			ImGui::EndChild();
 			ImGui::EndTable();
 		}
-		if (Focused && !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Delete))
-			DeleteSelection();
+
 		if (Focused && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S))
 			Save();
 	}
@@ -700,6 +435,7 @@ void FStateMachineEditorPanel::OnRender()
 			{
 				PendingClose = false;
 				IEditorPanel::SetOpen(false);
+				ClearContexts();
 				if (Viewer)
 					Viewer->StopStateMachinePreview();
 			}

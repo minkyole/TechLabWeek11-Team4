@@ -1,36 +1,45 @@
 # State Machine Editor
 
-## Create and edit
+## Create and connect states
 
-1. In Content Drawer, right-click the Assets folder where the file should live, then choose **Create > Animation > State Machine**.
-2. Select the skeletal mesh and set an `.animsm` save path under Assets.
-3. Add states and select a Sequence or BlendSpace for each one. Use **Set as Entry** for the starting state.
-4. In Parameters, declare Bool, Float and Trigger values. For a BlendSpace state, bind **Axis parameter** to a declared Float.
-5. Select a source state, click **Link selected**, then click the destination state. **AnyState link** creates a transition from any state. The small arrow marker selects a transition.
-6. Edit its condition index and transition settings. A new link initially uses an Always condition; change that condition before testing if an unconditional transition is not intended.
-7. Conditions are listed by index. AND/OR/NOT reference earlier conditions; NOT requires exactly one child. Referenced conditions cannot be deleted until their references are removed.
-8. Save. Double-click the `.animsm` file in Content Drawer to reopen it.
+1. In Content Drawer, right-click an Assets folder and choose **Create > Animation > State Machine**. Select the skeletal mesh and an `.animsm` save path under Assets.
+2. Right-click the graph background and choose **Add State**. Select a Sequence or BlendSpace in the state Details. Declare Bool, Float and Trigger parameters under Parameters; bind each BlendSpace axis to a Float parameter.
+3. Drag a state's **Out** pin to another state's **In** pin to create a transition. Dragging a pin onto empty space offers to create and connect a state. Entry selects the initial state; AnyState can transition into any state. Both are protected from deletion.
+4. Each transition has its own small badge between two links. Click either link or the badge to select the transition. Details shows its endpoints, rule summary, blend time, priority, interrupt policy, restart flag and consumed triggers. Badges can be moved independently, including for reverse, parallel and self transitions.
+5. Double-click the badge or either link, or choose **Edit Transition Rule**, to open its condition graph. Click **State Machine** in the breadcrumb to return.
 
-Drag a state to move it, middle-drag to pan, and use the wheel to zoom. Delete removes the selection; Ctrl+S saves. Removing a state also removes its transitions. Removing Entry requires choosing a new Entry. Undo/Redo is not included.
+Left-drag moves nodes or connects pins. Middle-drag pans; the wheel zooms. Frame All and Frame Selection focus the canvas. Right-click menus offer contextual actions. Select several nodes/links and press Delete to remove them. Removing a state also removes its transitions; disconnecting or removing the initial state requires reconnecting Entry. Ctrl+S saves. Node movement changes the asset; panning, zoom and selection do not.
 
-## Preview
+## Edit a transition rule
 
-Expand Preview and click **Apply to 3D Preview**. This opens Skeletal Mesh Viewer using a private snapshot of the working data, including unsaved edits. Change the preview's Bool/Float values or press a Trigger button to test transitions. Play/Pause and Reset control this instance. Current state and active transitions are highlighted.
+Conditions are named nodes, not indices. Connect Bool outputs to inputs and finish at the protected **Can Enter Transition** node. For example:
 
-Lua updates are disabled in preview. Apply again after editing to rebuild the preview. Sequence and BlendSpace playback windows are hidden while state machine preview owns the viewer. Opening another mesh or closing the state machine editor returns the viewer to ordinary animation preview.
+```
+[IsGrounded == true] -------\
+                            AND --> [Can Enter Transition]
+[AttackRequested active] ---/
+```
 
-## Apply to a character
+Right-click empty space or drag a pin into empty space to add a compatible node. Supported nodes are Bool Constant, Bool Compare, Float Compare, Trigger Active, Source Finished, State Elapsed, AND, OR and NOT. Comparisons select a declared parameter from a type-filtered dropdown and compare it to the value inside the node. Separate Float value nodes and comparisons between two parameters are not included.
 
-Set the skeletal mesh component's **StateMachineAssetPath** to the file path, for example `Assets/Animation/Character.animsm`. It must use the same mesh as the state machine. The path persists with the scene and component duplication. Clear the path to return to the default Lua instance.
+AND/OR have **+ Input** and **- Input** controls. NOT and the final output take one input. Connecting to an occupied input replaces its old connection; an output can feed several inputs. Cyclic rule links are rejected. Cyclic state transitions and self transitions are allowed.
 
-C++ can call `GetStateMachineAnimInstance()` on a Character, or cast the mesh component's `GetAnimInstance()` to `UStateMachineAnimInstance`, then use `SetFloat`, `SetBool`, `SetTrigger` and `ResetTrigger`. Actor Lua scripts can continue using `self:GetAnimInstance()` for the common parameter API.
+New transitions start with **false -> Can Enter Transition**, so they cannot fire until configured. Missing required connections and invalid parameters are highlighted on a node and listed in Rule Errors. Click an error to open its rule. Invalid graphs block save and preview application. Unused nodes retain their layout but do not produce runtime conditions. Unused predicate nodes must still have valid parameter/value settings.
 
-An optional update script on the asset must define `UpdateAnimation(anim, dt)`. It receives the common parameter API and `GetMovementComponent()`; it cannot create states or players. See `Assets/Scripts/Animation/StateMachineUpdate.lua`. Declare the parameters used by the script in the asset first. Existing `CharacterAnim.lua` is for the original Lua-built graph and is not an asset-update script.
+Parameter renames update rule references, BlendSpace bindings and consumed triggers inside the asset. Removing or changing the type of a referenced parameter is blocked with a list of its users. Lua script strings must be renamed manually.
 
-External writes occur before the optional Lua update; Lua wins if both write the same parameter. BlendSpace bindings are applied next, followed by state machine update and pose evaluation. Each character owns its playback state. Asset saves do not rebuild already-running characters; reapply the path or restart play to use the new definition.
+## Preview and apply
 
-## Boundaries
+**Apply to 3D Preview** opens Skeletal Mesh Viewer with a private snapshot of the working data, including unsaved edits. Play/Pause, Reset, Bool/Float edits and Trigger buttons control this instance. The state graph highlights the current state and the exact active transition. Apply again after editing. Lua updates are disabled in preview.
 
-Each state contains one Sequence or one nonempty 1D BlendSpace. Transition conditions support Always, BoolEquals, FloatCompare, TriggerActive, SourceFinished, StateElapsedCompare, And, Or and Not. Lua callback conditions remain available in the original Lua-built instance only. Free-form AnimGraph, nested state machines and time scrubbing are not included.
+For a character, set its skeletal mesh component's **StateMachineAssetPath** to the `.animsm` file, for example `Assets/NewStateMachine.animsm`. The mesh must match. The path persists with scene serialization and duplication. Clear it to return to the default Lua instance.
 
-Build validation does not run the editor or verify behavior in play mode.
+C++ can use `GetStateMachineAnimInstance()` or cast the component's animation instance to `UStateMachineAnimInstance`. Actor Lua scripts can use `self:GetAnimInstance()` and `SetBool`, `SetFloat`, `SetTrigger` or `ResetTrigger`. An optional asset update script must provide `UpdateAnimation(anim, dt)`; see `Assets/Scripts/Animation/StateMachineUpdate.lua`.
+
+## Compatibility and limits
+
+Existing Version 1 `.animsm` files open without manual migration. Their conditions are converted into independent per-transition graphs in memory. Editing one transition no longer changes other transitions that previously shared its condition. Opening a file does not rewrite it; saving adds optional editor metadata and regenerates the existing runtime condition arrays. State IDs, state positions, transition order and behavior are preserved. No `NodeEditor.json` sidecar is created.
+
+Each state still contains one Sequence or one nonempty 1D BlendSpace. Undo/Redo, copy/paste, a free-form AnimGraph, nested state machines, general Blueprint operations and live rebuilding of running characters are outside this version. Save does not change existing runtime snapshots; reapply or restart play to use edits.
+
+Implementation verification covers Debug x64 compilation and linking only. The application and gameplay behavior are not run automatically.

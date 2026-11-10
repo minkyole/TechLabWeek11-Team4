@@ -6,6 +6,8 @@
 #include "Core/Misc/FileHelper.h"
 #include "Render/Mesh.h"
 #include <cmath>
+#include <algorithm>
+#include <stdexcept>
 #include <set>
 #include <unordered_map>
 
@@ -33,10 +35,79 @@ bool AssetPath(const FString &Path, fs::path &Native, FString &Key, FString &Err
 	Key = FFileHelper::ToUtf8Path(relative);
 	return true;
 }
+
+json RuleJson(const FAnimRuleGraph &g)
+{
+	json data = {{"Nodes", json::array()}, {"Links", json::array()}};
+	for (const auto &n : g.Nodes)
+	{
+		const auto &c = n.Condition;
+		data["Nodes"].push_back({{"Id", n.Id},
+								 {"Result", n.Result},
+								 {"Inputs", n.InputCount},
+								 {"X", n.X},
+								 {"Y", n.Y},
+								 {"Type", (int)c.Type},
+								 {"Parameter", c.ParameterName.ToString()},
+								 {"Bool", c.BoolValue},
+								 {"Op", (int)c.CompareOp},
+								 {"Float", c.FloatValue},
+								 {"Tolerance", c.Tolerance}});
+	}
+	for (const auto &l : g.Links)
+		data["Links"].push_back({{"Id", l.Id}, {"From", l.From}, {"To", l.To}, {"Input", l.Input}});
+	return data;
+}
+FAnimRuleGraph ReadRule(const json &data)
+{
+	FAnimRuleGraph g;
+	if (!data.at("Nodes").is_array() || data.at("Nodes").empty() || !data.at("Links").is_array())
+		throw std::invalid_argument("Transition editor metadata must contain a rule graph.");
+	for (const auto &v : data.at("Nodes"))
+	{
+		FAnimRuleNode n;
+		n.Id = v.at("Id");
+		n.Result = v.at("Result");
+		n.InputCount = v.at("Inputs");
+		n.X = v.at("X");
+		n.Y = v.at("Y");
+		auto &c = n.Condition;
+		c.Type = (EAnimConditionType)v.at("Type").get<int>();
+		c.ParameterName = FName(v.at("Parameter").get<FString>().c_str());
+		c.BoolValue = v.at("Bool");
+		c.CompareOp = (EAnimCompareOp)v.at("Op").get<int>();
+		c.FloatValue = v.at("Float");
+		c.Tolerance = v.at("Tolerance");
+		g.Nodes.push_back(n);
+	}
+	for (const auto &v : data.at("Links"))
+		g.Links.push_back({v.at("Id"), v.at("From"), v.at("To"), v.at("Input")});
+	return g;
+}
 } // namespace
 bool FAnimStateMachineAssetData::Validate(FString &Error) const
 {
+	if (std::any_of(Transitions.begin(), Transitions.end(), [](const auto &t) { return !t.Rule.Nodes.empty(); }))
+	{
+		auto compiled = *this;
+		if (!compiled.CompileRules(Error))
+			return false;
+		for (auto &t : compiled.Transitions)
+			t.Rule.Nodes.clear();
+		return compiled.Validate(Error);
+	}
 	Error.clear();
+	if (!std::isfinite(EntryX) || !std::isfinite(EntryY) || !std::isfinite(AnyX) || !std::isfinite(AnyY))
+	{
+		Error = "Invalid Entry or AnyState position.";
+		return false;
+	}
+	for (const auto &t : Transitions)
+		if (t.HasPosition && (!std::isfinite(t.X) || !std::isfinite(t.Y)))
+		{
+			Error = "Invalid transition position.";
+			return false;
+		}
 	auto fail = [&](const FString &s) {
 		Error = s;
 		return false;
@@ -149,6 +220,15 @@ bool FAnimStateMachineAssetData::Validate(FString &Error) const
 }
 bool FAnimStateMachineAssetData::Build(UStateMachineAnimInstance &I, FString &Error) const
 {
+	if (std::any_of(Transitions.begin(), Transitions.end(), [](const auto &t) { return !t.Rule.Nodes.empty(); }))
+	{
+		auto compiled = *this;
+		if (!compiled.CompileRules(Error))
+			return false;
+		for (auto &t : compiled.Transitions)
+			t.Rule.Nodes.clear();
+		return compiled.Build(I, Error);
+	}
 	if (!Validate(Error))
 		return false;
 	auto failed = [&]() {
@@ -227,6 +307,14 @@ UAnimStateMachineAsset *UAssetManager::LoadAnimStateMachine(const FString &Path,
 		d.MeshKey = j.at("Mesh");
 		d.Entry = j.at("Entry");
 		d.UpdateScript = j.value("UpdateScript", FString{});
+		if (j.contains("Editor"))
+		{
+			const auto &e = j.at("Editor");
+			d.EntryX = e.value("EntryX", d.EntryX);
+			d.EntryY = e.value("EntryY", d.EntryY);
+			d.AnyX = e.value("AnyX", d.AnyX);
+			d.AnyY = e.value("AnyY", d.AnyY);
+		}
 		for (auto &v : j.at("Parameters"))
 		{
 			FAnimParameter p;
@@ -267,6 +355,7 @@ UAnimStateMachineAsset *UAssetManager::LoadAnimStateMachine(const FString &Path,
 		for (auto &v : j.at("Transitions"))
 		{
 			FAnimAssetTransition t;
+			t.Id = v.value("Id", 0);
 			t.From = v.at("From");
 			t.To = v.at("To");
 			t.Options.Condition = v.at("Condition");
@@ -277,9 +366,20 @@ UAnimStateMachineAsset *UAssetManager::LoadAnimStateMachine(const FString &Path,
 			t.Options.bRestartIfSameState = v.at("Restart");
 			for (auto &n : v.at("Consume"))
 				t.Options.ConsumeTriggers.Add(FName(n.get<FString>().c_str()));
+			if (v.contains("Editor"))
+			{
+				const auto &e = v.at("Editor");
+				t.X = e.at("X");
+				t.Y = e.at("Y");
+				t.HasPosition = true;
+				t.Rule = ReadRule(e.at("Rule"));
+			}
 			d.Transitions.push_back(t);
 		}
 		if (!d.Validate(Error))
+			return nullptr;
+		d.EnsureRuleGraphs();
+		if (!d.CompileRules(Error))
 			return nullptr;
 		auto *asset = GetAssetByPath<UAnimStateMachineAsset>(key);
 		if (!asset)
@@ -297,9 +397,13 @@ UAnimStateMachineAsset *UAssetManager::LoadAnimStateMachine(const FString &Path,
 		return nullptr;
 	}
 }
-bool UAssetManager::SaveAnimStateMachine(const FString &Path, const FAnimStateMachineAssetData &d, FString &Error,
+bool UAssetManager::SaveAnimStateMachine(const FString &Path, const FAnimStateMachineAssetData &Source, FString &Error,
 										 bool CreateOnly)
 {
+	auto d = Source;
+	d.EnsureRuleGraphs();
+	if (!d.CompileRules(Error))
+		return false;
 	fs::path native;
 	FString key;
 	if (!AssetPath(Path, native, key, Error) || !d.Validate(Error))
@@ -324,6 +428,7 @@ bool UAssetManager::SaveAnimStateMachine(const FString &Path, const FAnimStateMa
 			  {"Parameters", json::array()},
 			  {"Conditions", json::array()},
 			  {"Transitions", json::array()}};
+	j["Editor"] = {{"EntryX", d.EntryX}, {"EntryY", d.EntryY}, {"AnyX", d.AnyX}, {"AnyY", d.AnyY}};
 	for (auto &p : d.Parameters)
 		j["Parameters"].push_back(
 			{{"Name", p.Name.ToString()}, {"Type", (int)p.Type}, {"Bool", p.BoolValue}, {"Float", p.FloatValue}});
@@ -356,7 +461,9 @@ bool UAssetManager::SaveAnimStateMachine(const FString &Path, const FAnimStateMa
 		json consume = json::array();
 		for (auto n : t.Options.ConsumeTriggers)
 			consume.push_back(n.ToString());
-		j["Transitions"].push_back({{"From", t.From},
+		j["Transitions"].push_back({{"Id", t.Id},
+									{"Editor", {{"X", t.X}, {"Y", t.Y}, {"Rule", RuleJson(t.Rule)}}},
+									{"From", t.From},
 									{"To", t.To},
 									{"Condition", t.Options.Condition},
 									{"Priority", t.Options.Priority},

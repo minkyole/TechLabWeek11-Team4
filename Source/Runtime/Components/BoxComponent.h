@@ -1,14 +1,12 @@
 #pragma once
 
 #include "ShapeComponent.h"
+#include "BoxComponent.generated.h"
 
+UCLASS()
 class UBoxComponent : public UShapeComponent
 {
-	DECLARE_CLASS(UBoxComponent, UShapeComponent)
-	REFLECT_START(UBoxComponent)
-		PROPERTY(BoxExtent)
-	REFLECT_END()
-
+	GENERATED_BODY()
 public:
 	virtual FCollisionShape GetCollisionShape() const override;
 	virtual FBox CalcLocalBounds() const override;
@@ -17,5 +15,6 @@ public:
 	FVector GetScaledBoxExtent() const;
 
 protected:
+	UPROPERTY(EditAnywhere)
 	FVector BoxExtent{ 0.5f, 0.5f, 0.5f };
 };

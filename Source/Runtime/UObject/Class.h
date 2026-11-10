@@ -90,10 +90,18 @@ public:
 				UObject* Reference = Value;
 				Slot << Reference;
 
-				// 선언된 타입과 호환되는 참조만 반영
-				if (Slot.GetUnderlyingArchive().IsLoading() && (!Reference || Reference->IsA<std::remove_pointer_t<T>>()))
+				if (Slot.GetUnderlyingArchive().IsLoading())
 				{
-					Value = static_cast<T>(Reference);
+					if (!Reference || Reference->IsA<std::remove_pointer_t<T>>())
+					{
+						Value = static_cast<T>(Reference);
+					}
+					else
+					{
+						HTR_LOG(Warning, "Load: expected {}, got {}, keeping default",
+						        std::remove_pointer_t<T>::GetPrivateStaticClass()->GetName(),
+						        Reference->GetClass()->GetName());
+					}
 				}
 			}
 			else

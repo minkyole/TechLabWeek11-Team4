@@ -30,6 +30,7 @@ namespace CommonAnimClips
 		{ "JumpStart", "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Start", ECommonClipRootMode::ForceLock },
 		{ "JumpLoop", "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Loop", ECommonClipRootMode::ForceLock },
 		{ "JumpLand", "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Land", ECommonClipRootMode::ForceLock },
+		{ "Jump", "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Loop", ECommonClipRootMode::ForceLock },
 		{ "Death", "Models/UAL1_Standard_RM.fbx#Anim/Armature|Death01", ECommonClipRootMode::ForceLock },
 	};
 

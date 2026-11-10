@@ -15,6 +15,41 @@
 namespace ed = ax::NodeEditor;
 namespace
 {
+template <typename DrawItems>
+void RuleCombo(const char* Label, const char* Preview, bool InCanvas, DrawItems Draw)
+{
+	if (!InCanvas)
+	{
+		if (ImGui::BeginCombo(Label, Preview))
+		{
+			Draw();
+			ImGui::EndCombo();
+		}
+		return;
+	}
+
+	ImGui::PushID(Label);
+	const float width = ImGui::CalcItemWidth();
+	const std::string buttonLabel = std::string(Preview) + "  v###Value";
+	const bool open = ImGui::Button(buttonLabel.c_str(), ImVec2(width, 0));
+	ImVec2 popupPosition = ed::CanvasToScreen(ImGui::GetItemRectMin());
+	popupPosition.y += ImGui::GetItemRectSize().y * ed::GetCurrentZoom();
+	ImGui::SameLine();
+	ImGui::TextUnformatted(Label);
+	// Suspend and resume in the canvas window, outside the popup's Begin/End pair.
+	ed::Suspend();
+	if (open)
+		ImGui::OpenPopup("Options");
+	ImGui::SetNextWindowPos(popupPosition, ImGuiCond_Appearing);
+	if (ImGui::BeginPopup("Options"))
+	{
+		Draw();
+		ImGui::EndPopup();
+	}
+	ed::Resume();
+	ImGui::PopID();
+}
+
 enum EGraphKind : uintptr_t
 {
 	StateNode = 1,
@@ -1032,19 +1067,15 @@ bool FStateMachineEditorPanel::ParameterCombo(const char* Label, FName& Name, EA
 		valid |= p.Name == Name && p.Type == Type;
 	if (!valid)
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, .4f, .3f, 1));
-	// Keep the widget in canvas space. Suspend only while drawing popup contents.
-	if (ImGui::BeginCombo(Label, valid ? Name.ToString().c_str() : "Select parameter"))
+	RuleCombo(Label, valid ? Name.ToString().c_str() : "Select parameter", InCanvas, [&]()
 	{
-		if (InCanvas) ed::Suspend();
 		for (auto& p : Working.Parameters)
 			if (p.Type == Type && ImGui::Selectable(p.Name.ToString().c_str(), p.Name == Name))
 			{
 				Name = p.Name;
 				changed = true;
 			}
-		if (InCanvas) ed::Resume();
-		ImGui::EndCombo();
-	}
+	});
 	if (!valid)
 		ImGui::PopStyleColor();
 	return changed;
@@ -1075,18 +1106,15 @@ void FStateMachineEditorPanel::DrawRuleProperties(FAnimRuleNode& n, bool InCanva
 	{
 		int op = (int)c.CompareOp;
 		const char* operators[] = {"<", "<=", ">", ">=", "Nearly Equal", "Not Nearly Equal"};
-		if (ImGui::BeginCombo("Compare", op >= 0 && op < 6 ? operators[op] : "Select comparison"))
+		RuleCombo("Compare", op >= 0 && op < 6 ? operators[op] : "Select comparison", InCanvas, [&]()
 		{
-			if (InCanvas) ed::Suspend();
 			for (int i = 0; i < 6; ++i)
 				if (ImGui::Selectable(operators[i], op == i))
 				{
 					c.CompareOp = (EAnimCompareOp)i;
 					Dirty = true;
 				}
-			if (InCanvas) ed::Resume();
-			ImGui::EndCombo();
-		}
+		});
 		Dirty |= ImGui::InputFloat("Value", &c.FloatValue);
 		if (c.CompareOp == EAnimCompareOp::NearlyEqual || c.CompareOp == EAnimCompareOp::NotNearlyEqual)
 			Dirty |= ImGui::InputFloat("Tolerance", &c.Tolerance);

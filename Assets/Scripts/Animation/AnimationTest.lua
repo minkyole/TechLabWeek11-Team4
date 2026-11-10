@@ -40,7 +40,7 @@ end
 
 local walkSpeed = 5.0
 local runSpeed = 10.0
-local jumpSpeed = 15.0
+local jumpSpeed = 10.0
 
 function Tick(dt)
 	-- print("Tick!\n")

@@ -37,6 +37,7 @@ FSkeletalMeshViewerPanel::~FSkeletalMeshViewerPanel()
 bool FSkeletalMeshViewerPanel::Init()
 {
 	PreviewComponent = NewObject<USkeletalMeshComponent>();
+	PreviewComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 	BoneGizmoTarget = NewObject<USceneComponent>();
 	PreviewComponent->SetFlags(EObjectFlags::RF_Transient);
 	BoneGizmoTarget->SetFlags(EObjectFlags::RF_Transient);
@@ -90,6 +91,13 @@ void FSkeletalMeshViewerPanel::ReleaseResources()
 	if (UAnimSingleNodeInstance* AnimInstance = GetPreviewAnimInstance())
 	{
 		AnimInstance->SetAnimationAsset(nullptr);
+	}
+	for (auto& Clip : PreviewClips)
+	{
+		if (Clip.Sequence)
+		{
+			delete(Clip.Sequence.get()->GetDataModel());
+		}
 	}
 	PreviewClips.Empty();
 	SelectedClipIndex = -1;
@@ -2065,7 +2073,7 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 		const UAnimDataModel* Model = Clip ? Clip->GetDataModel() : nullptr;
 		if (Model)
 		{
-			ImGui::TextDisabled("%.2fs | %d frames @ %.0f fps",
+			ImGui::TextDisabled("%.2fs | %d frames | %.0f fps",
 				Model->GetPlayLength(),
 				Model->GetNumberOfFrames(),
 				Model->GetFrameRate().AsDecimal());
@@ -2948,7 +2956,7 @@ UAnimSingleNodeInstance* FSkeletalMeshViewerPanel::GetPreviewAnimInstance() cons
 		return (nullptr);
 	}
 
-	return (Cast<UAnimSingleNodeInstance>(PreviewComponent->GetAnimInstance()));
+	return (PreviewComponent->GetSingleNodeInstance());
 }
 
 
@@ -2958,6 +2966,14 @@ void FSkeletalMeshViewerPanel::BuildPreviewTestClips()
 	if (UAnimSingleNodeInstance* AnimInstance = GetPreviewAnimInstance())
 	{
 		AnimInstance->SetAnimationAsset(nullptr);
+	}
+
+	for (auto& Clip : PreviewClips)
+	{
+		if (Clip.Sequence)
+		{
+			delete(Clip.Sequence.get()->GetDataModel());
+		}
 	}
 	PreviewClips.Empty();
 

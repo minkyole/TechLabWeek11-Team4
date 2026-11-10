@@ -97,6 +97,7 @@ void USkeletalMeshComponent::InitializeAnimInstance()
 
 			AnimInstance.reset(NewObject<UAnimInstance>(this, ClassToSpawn));
 		}
+	}
 
 	if (!AnimInstance->IsInitialized())
 	{

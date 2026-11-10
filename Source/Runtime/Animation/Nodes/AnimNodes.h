@@ -71,7 +71,12 @@ struct FAnimNode_AssetPlayerBase : public FAnimNode_Base
 
 	void SetNormalizedTime(float InTime);
 
+	// 진행 방향의 시작점으로 돌린다. 역재생이면 1에서 시작해야 바로 끝나지 않는다.
 	void ResetPlayback();
+
+	// 방향은 PlayRate 부호 하나로만 정한다. bool을 따로 두면 두 값이 서로 어긋날 수 있다.
+	void SetReversePlay(bool bReverse);
+	bool IsReversePlay() const { return PlayRate < 0.0f; }
 
 	// Notify·RootMotion이 이번 프레임에 지나간 구간을 읽는다.
 	const FDeltaTimeRecord& GetDeltaTimeRecord() const { return DeltaTimeRecord; }

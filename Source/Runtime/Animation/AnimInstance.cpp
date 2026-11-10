@@ -124,8 +124,8 @@ void UAnimSingleNodeInstance::NativeInitializeAnimation()
 
 	RootNode = &SequencePlayer;
 
-	// 재초기화 시 클립과 재생 설정은 유지하고 시간은 처음으로 돌린다.
-	SequencePlayer.SetNormalizedTime(0.0f);
+	// 재초기화 시 클립과 재생 설정은 유지하고 시간은 진행 방향의 시작점으로 돌린다.
+	SequencePlayer.ResetPlayback();
 }
 
 void UAnimSingleNodeInstance::SetAnimationAsset(
@@ -135,7 +135,9 @@ void UAnimSingleNodeInstance::SetAnimationAsset(
 		return;
 
 	SequencePlayer.Sequence = InSequence;
-	SequencePlayer.SetNormalizedTime(0.0f);
+
+	// 역재생 중에 클립을 바꾸면 끝(1)에서 시작해야 바로 멈추지 않는다
+	SequencePlayer.ResetPlayback();
 
 	// 클립 교체와 재생/일시정지는 별도 제어로 둔다.
 	// bPlyaing, bLoop, PlayRate는 유지한다.
@@ -176,19 +178,28 @@ float UAnimSingleNodeInstance::GetPlayRate() const
 	return SequencePlayer.PlayRate;
 }
 
+void UAnimSingleNodeInstance::SetReversePlay(bool bReverse)
+{
+	SequencePlayer.SetReversePlay(bReverse);
+}
+
+bool UAnimSingleNodeInstance::IsReversePlay() const
+{
+	return SequencePlayer.IsReversePlay();
+}
+
 void UAnimSingleNodeInstance::SetPosition(float InPosition)
 {
 	const float Length = GetLength();
 
-	if (InPosition < 0.0f)
+	// 클립이 없으면 0/0이 NaN이 되어 SetNormalizedTime이 무시하므로 처음으로 둔다
+	if (Length <= 0.0f)
 	{
-		InPosition = 0.0f;
-	}
-	else if (InPosition > Length)
-	{
-		InPosition = Length;
+		SequencePlayer.SetNormalizedTime(0.0f);
+		return;
 	}
 
+	// 범위 밖 값은 SetNormalizedTime이 [0, 1]로 클램프한다
 	SequencePlayer.SetNormalizedTime(InPosition / Length);
 }
 
@@ -204,4 +215,14 @@ float UAnimSingleNodeInstance::GetLength() const
 		return SequencePlayer.Sequence->GetPlayLength();
 	}
 	return 0.f;
+}
+
+bool UAnimSingleNodeInstance::IsFinished() const
+{
+	return SequencePlayer.IsFinished();
+}
+
+const FDeltaTimeRecord& UAnimSingleNodeInstance::GetDeltaTimeRecord() const
+{
+	return SequencePlayer.GetDeltaTimeRecord();
 }

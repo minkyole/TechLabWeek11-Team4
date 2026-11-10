@@ -20,7 +20,8 @@
 #include "Camera/CameraModifier_CameraShake.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Editor/MapTools/MapWallGenerator.h"
-
+#include "UObject/Class.h"
+#include "UObject/UObjectHash.h"
 #include "Components/RotatingMovementComponent.h"
 #include "Components/ProjectileMovementComponent.h"
 #include "Asset/AssetManager.h"
@@ -966,25 +967,97 @@ bool FDetailsPanel::DrawTextureProperty(UTexture2D*& Value)
 	return bSelectionChanged;
 }
 
+// 현재 생성 규칙에 대응하는 기본값 원본 조회
+const UObject* FDetailsPanel::FindDefaultObjectForInstance(const UObject* Object) const
+{
+	if (!Object || Object->IsTemplate())
+	{
+		return nullptr;
+	}
+
+	UClass* Class = Object->GetClass();
+	if (!Class || Class->IsCreatingDefaultObject())
+	{
+		return nullptr;
+	}
+
+	// 일반 객체와 동적 컴포넌트의 클래스 기본값 조회
+	if (!Object->HasAnyFlags(EObjectFlags::RF_DefaultSubObject))
+	{
+		return Class->GetDefaultObject();
+	}
+
+	// 소유 기본 객체에 대응하는 기본 서브오브젝트 조회
+	const UObject* DefaultOuter = FindDefaultObjectForInstance(Object->GetOuter());
+	if (!DefaultOuter)
+	{
+		return nullptr;
+	}
+
+	UObject* DefaultObject = FindObjectWithOuter(DefaultOuter, Class, Object->GetFName());
+	return DefaultObject && DefaultObject->HasAnyFlags(EObjectFlags::RF_DefaultSubObject) ? DefaultObject : nullptr;
+}
+
+// 값 프로퍼티의 실제 기본값 차이 비교
+bool FDetailsPanel::IsPropertyDifferentFromDefault(const UObject* Object, const FProperty& Property, const UObject* DefaultObject) const
+{
+	// 기본값 원본이 없는 경우와 객체 참조의 비교 보류
+	if (!DefaultObject || Property.GetObjectFunction)
+	{
+		return false;
+	}
+
+	const void* ValueAddress = Property.ContainerPtrToValuePtr(Object);
+	const void* DefaultValueAddress = Property.ContainerPtrToValuePtr(DefaultObject);
+	return !Property.Identical(ValueAddress, DefaultValueAddress);
+}
+
 // UClass에 등록된 프로퍼티를 타입에 맞는 위젯으로 그린다
-void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImFont* CustomFont)
+void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImFont* CustomFont, const UObject* DefaultObject)
 {
 	void* ValuePtr = reinterpret_cast<char*>(Object) + Property.Offset;
 	const FString PropertyName = Property.Name.ToString();
 	const FString Label = "##" + PropertyName;
+	const bool bDifferentFromDefault = IsPropertyDifferentFromDefault(Object, Property, DefaultObject);
 	ImGui::PushID(PropertyName.c_str());
-	// 패널이 넓으면 라벨 | 값을 한 줄에, 좁거나 라벨이 길면 라벨 아래 줄에 값을 놓는다.
+
+	// 복원 버튼까지 포함한 이름 영역의 너비 계산
 	const float StartX = ImGui::GetCursorPosX();
 	const float AvailableWidth = ImGui::GetContentRegionAvail().x;
 	const float LabelWidth = AvailableWidth * 0.45f;
-
-	const bool bInline = Property.Type != EPropertyType::Transform && AvailableWidth >= 260.0f && ImGui::CalcTextSize(PropertyName.c_str()).x < LabelWidth;
+	const ImGuiStyle& Style = ImGui::GetStyle();
+	const float ResetWidth = ImGui::CalcTextSize("Reset").x + Style.FramePadding.x * 2.0f;
+	const float NameWidth = ImGui::CalcTextSize(PropertyName.c_str()).x;
+	const float HeaderWidth = NameWidth + (bDifferentFromDefault ? Style.ItemSpacing.x + ResetWidth : 0.0f);
+	const bool bInline = Property.Type != EPropertyType::Transform && AvailableWidth >= 260.0f && HeaderWidth < LabelWidth;
 
 	ImGui::AlignTextToFramePadding();
 	ImGui::TextWrapped("%s", PropertyName.c_str());
 
+	// 기존 편집 경로를 사용하는 선택 프로퍼티의 기본값 복원
+	if (bDifferentFromDefault)
+	{
+		if (HeaderWidth <= AvailableWidth)
+		{
+			ImGui::SameLine();
+		}
+
+		if (ImGui::SmallButton("Reset"))
+		{
+			const void* DefaultValueAddress = Property.ContainerPtrToValuePtr(DefaultObject);
+			Object->ApplyPropertyValue(Property.Name, DefaultValueAddress);
+		}
+
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+		{
+			ImGui::SetTooltip("기본값 복원");
+		}
+	}
+
 	if (bInline)
+	{
 		ImGui::SameLine(StartX + LabelWidth);
+	}
 
 	ImGui::SetNextItemWidth(-1.0f);
 
@@ -1141,7 +1214,7 @@ void FDetailsPanel::DrawProperties(UObject* Object, ImFont* CustomFont)
 	{
 		return;
 	}
-
+	const UObject* DefaultObject = FindDefaultObjectForInstance(Object);
 	TArray<UClass*> ClassChain;
 	for (UClass* Class = Object->GetClass(); Class; Class = Class->Super)
 	{
@@ -1180,7 +1253,7 @@ void FDetailsPanel::DrawProperties(UObject* Object, ImFont* CustomFont)
 
 				const bool bReadOnly = Property.HasAnyFlags(CPF_EditConst);
 				if (bReadOnly) ImGui::BeginDisabled();
-				DrawProperty(Object, Property, CustomFont);
+				DrawProperty(Object, Property, CustomFont, DefaultObject);
 				if (bReadOnly) ImGui::EndDisabled();
 			}
 		}

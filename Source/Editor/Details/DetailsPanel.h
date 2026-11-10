@@ -58,8 +58,10 @@ public:
 	ImFont* GetCustomFont() { return CustomFont; }
 
 private:
-	void DrawProperty(UObject* Object, const FProperty& Property, ImFont* CustomFont);
+	void DrawProperty(UObject* Object, const FProperty& Property, ImFont* CustomFont, const UObject* DefaultObject);
 	void DrawProperties(UObject* Object, ImFont* CustomFont);
+	const UObject* FindDefaultObjectForInstance(const UObject* Object) const;
+	bool IsPropertyDifferentFromDefault(const UObject* Object, const FProperty& Property, const UObject* DefaultObject) const;
 	bool DrawTextureProperty(UTexture2D*& Value);
 	bool DrawFontSlot(UFont*& Value);
 	void DrawObjectLabel(UObject* Object);

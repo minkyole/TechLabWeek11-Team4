@@ -1,10 +1,13 @@
 #include "HeaderTool.h"
+#include "HeaderLexer.h"
 
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <fstream>
+
 
 // 입력 해석과 헤더 탐색의 순차 실행
 int FHeaderTool::Run(int ArgumentCount, wchar_t* Arguments[])
@@ -21,12 +24,33 @@ int FHeaderTool::Run(int ArgumentCount, wchar_t* Arguments[])
 	// 한글 경로를 포함한 입력 목록의 UTF-8 출력
 	const std::u8string RootText = ProjectRoot.generic_u8string();
 	std::cout << "Project: " << std::string(RootText.begin(), RootText.end()) << '\n';
+	std::size_t TotalTokens = 0;
 	for (const std::filesystem::path& HeaderFile : HeaderFiles)
 	{
 		const std::u8string HeaderText = HeaderFile.generic_u8string();
-		std::cout << std::string(HeaderText.begin(), HeaderText.end()) << '\n';
+		const std::string HeaderName(HeaderText.begin(), HeaderText.end());
+		std::ifstream Input(ProjectRoot / HeaderFile, std::ios::binary | std::ios::ate);
+		const std::streamoff SourceSize = Input.tellg();
+		if (SourceSize < 0)
+		{
+			throw std::runtime_error(HeaderName + ": Cannot open or size header");
+		}
+		std::string SourceText(static_cast<std::size_t>(SourceSize), '\0');
+		Input.seekg(0);
+		if (!Input.read(SourceText.data(), static_cast<std::streamsize>(SourceText.size())))
+		{
+			throw std::runtime_error(HeaderName + ": Cannot read header");
+		}
+
+		// 원문 수명 안에서 수행하는 어휘 분석
+		FHeaderLexer Lexer(SourceText, HeaderName);
+		const std::vector<FHeaderToken> Tokens = Lexer.Tokenize();
+		const std::size_t TokenCount = Tokens.size() - 1;
+		TotalTokens += TokenCount;
+		std::cout << HeaderName << ": " << TokenCount << " token(s).\n";
 	}
-	std::cout << "Discovered " << HeaderFiles.size() << " header(s).\n";
+	std::cout << "Tokenized " << HeaderFiles.size() << " header(s), " << TotalTokens << " token(s).\n";
+
 	return 0;
 }
 

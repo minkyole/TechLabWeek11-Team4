@@ -15,6 +15,7 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/CommonAnimClips.h"
+#include "Animation/AnimNotifyFile.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "Render/GeometryGenerator.h"
@@ -695,6 +696,8 @@ const FFbxAssetSet* UAssetManager::LoadFbxAssets(const FString& Path)
 		// 재사용한 경우에도 넣어야 인덱스로 접근하는 코드와 순서가 맞는다.
 		Assets.Animations.Add(Sequence);
 	}
+
+	FAnimNotifyFile::Load(SourcePath, Assets.Animations);
 
 	const FString SourceName = ToUTF8String(SourceFile.stem());
 	for (int32 Index = 0; Index < Data.StaticMeshes.Num(); ++Index)

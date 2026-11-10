@@ -1,0 +1,27 @@
+{
+    "Clips": {
+        "Armature|A_TPose": [
+            {
+                "Class": "UAnimNotify_CameraShake",
+                "Duration": 0.0,
+                "Name": "NewNotify",
+                "Properties": {
+                    "ShakeDuration": 0.30000001192092896,
+                    "ShakeScale": 1.0
+                },
+                "Time": 0.7666666507720947
+            },
+            {
+                "Duration": 0.0,
+                "Name": "LeftFoot",
+                "Time": 1.0
+            },
+            {
+                "Duration": 0.0,
+                "Name": "gd",
+                "Time": 1.2666666507720947
+            }
+        ]
+    },
+    "Version": 2
+}

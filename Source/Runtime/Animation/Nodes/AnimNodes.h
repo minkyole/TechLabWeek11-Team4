@@ -95,10 +95,20 @@ protected:
 	virtual void ExtractRootMotion(
 	    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta) {}
 
+	// 이번 프레임에 지나간 구간의 Notify를 인스턴스 큐에 넣는다. 시간이 실제로 움직인 프레임에만 불린다.
+	virtual void GatherNotifies(
+	    const FAnimationUpdateContext& Context, float Length, bool bIncludeStart) {}
+
+	// 이번 프레임에 걸쳐 있는 구간 Notify(NotifyState)를 인스턴스에 알린다. 멈춘 프레임에도 매번 불린다.
+	virtual void GatherNotifyStates(const FAnimationUpdateContext& Context) {}
+
 private:
+	void AdvancePlayback(const FAnimationUpdateContext& Context);
+
 	float NormalizedTime = 0.0f;
 	FDeltaTimeRecord DeltaTimeRecord;
 	ETypeAdvanceAnim LastAdvanceResult = ETypeAdvanceAnim::Default;
+	bool bIncludeStartInNextAdvance = true;
 };
 
 // 클립 하나를 재생한다.
@@ -116,6 +126,9 @@ struct FAnimNode_SequencePlayer : public FAnimNode_AssetPlayerBase
 protected:
 	void ExtractRootMotion(
 	    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta) override;
+	void GatherNotifies(
+	    const FAnimationUpdateContext& Context, float Length, bool bIncludeStart) override;
+	void GatherNotifyStates(const FAnimationUpdateContext& Context) override;
 };
 
 struct FAnimNode_BlendSpacePlayer : public FAnimNode_AssetPlayerBase
@@ -134,7 +147,13 @@ protected:
 
 	void ExtractRootMotion(
 	    const FAnimationUpdateContext& Context, float PrevTime, float MovedDelta) override;
+	void GatherNotifies(
+	    const FAnimationUpdateContext& Context, float Length, bool bIncludeStart) override;
+	void GatherNotifyStates(const FAnimationUpdateContext& Context) override;
 
 private:
+	// NotifyTriggerMode에 따라 Notify를 검출할 샘플만 고른다.
+	void GetNotifySamples(TArray<FBlendSampleWeight>& OutSamples) const;
+
 	TArray<FBlendSampleWeight> SampleWeights;
 };

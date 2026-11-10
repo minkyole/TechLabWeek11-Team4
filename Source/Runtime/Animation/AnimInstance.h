@@ -3,6 +3,7 @@
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "Animation/Nodes/AnimNodes.h"
+#include "Animation/AnimNotifyEvent.h"
 
 struct FAnimNode_Base;
 class USkeletalMeshComponent;
@@ -39,6 +40,12 @@ public:
 	// rootmotion [none|ignore|on|default] : 모든 인스턴스에 강제값을 건다. default는 해제
 	static bool ExecRootMotionCommand(const FString& CommandLine, FString& OutMessage);
 
+	void QueueAnimNotify(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence, float Weight = 1.0f);
+	void QueueAnimNotifyState(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence, float Weight = 1.0f);
+	void TriggerAnimNotifies();
+	void EndAllNotifyStates();
+	const TArray<FQueuedAnimNotify>& GetQueuedNotifies() const { return NotifyQueue; }
+
 protected:
 	virtual void NativeInitializeAnimation() {};               // 그래프를 만든다 (한 번)
 	virtual void NativeUnInitializeAnimation() {};             // 그래프를 정리한다 (한 번)
@@ -61,6 +68,10 @@ private:
 	// 디버그 비교용이라 인스턴스마다 찾아다니지 않고 전역 하나로 덮어쓴다
 	inline static bool bHasRootMotionOverride = false;
 	inline static ERootMotionMode RootMotionOverride = ERootMotionMode::RootMotionFromEverything;
+
+	TArray<FQueuedAnimNotify> NotifyQueue;
+	TArray<FQueuedAnimNotify> NotifyStateQueue;
+	TArray<FQueuedAnimNotify> ActiveNotifyStates;
 };
 
 class UAnimSingleNodeInstance : public UAnimInstance

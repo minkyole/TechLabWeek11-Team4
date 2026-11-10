@@ -28,6 +28,9 @@ public:
 	void OnOverlap(AActor* OtherActor);
 	void OnEndOverlap(AActor* OtherActor);
 	void OnHit(AActor* OtherActor, const FHitResult& Hit);
+	void OnAnimNotify(const FString& NotifyName);
+	void OnAnimNotifyBegin(const FString& NotifyName);
+	void OnAnimNotifyEnd(const FString& NotifyName);
 
 	bool CreateScriptFromTemplate(const std::filesystem::path& NewScriptPath);
 	bool LoadScript();
@@ -47,6 +50,9 @@ private:
 	sol::protected_function OverlapFunction;
 	sol::protected_function EndOverlapFunction;
 	sol::protected_function HitFunction;
+	sol::protected_function AnimNotifyFunction;
+	sol::protected_function AnimNotifyBeginFunction;
+	sol::protected_function AnimNotifyEndFunction;
 
 	FLuaVM* LuaVM = nullptr;
 	sol::state* State = nullptr;

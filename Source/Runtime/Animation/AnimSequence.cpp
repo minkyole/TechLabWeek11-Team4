@@ -1,5 +1,6 @@
 #include "EnginePCH.h"
 #include "AnimSequence.h"
+#include "Animation/AnimNotifies/AnimNotify.h"
 #include "Render/Mesh.h"
 
 namespace
@@ -13,6 +14,56 @@ namespace
 UAnimSequenceBase::UAnimSequenceBase()
 {
 	DataModel = CreateDefaultSubobject<UAnimDataModel>(FName("AnimDataModel"));
+}
+
+UAnimSequenceBase::~UAnimSequenceBase()
+{
+	ClearNotifies();
+}
+
+void UAnimSequenceBase::RemoveNotifyAt(int32 Index)
+{
+	if (Index < 0 || Index >= Notifies.Num())
+	{
+		return;
+	}
+	delete Notifies[Index].Notify;
+	Notifies.RemoveAt(Index);
+}
+
+void UAnimSequenceBase::ClearNotifies()
+{
+	for (FAnimNotifyEvent& Event : Notifies)
+	{
+		delete Event.Notify;
+		Event.Notify = nullptr;
+	}
+	Notifies.Empty();
+}
+
+void UAnimSequenceBase::OnNotifyObjectDestroyed(const UAnimNotify* DestroyedNotify)
+{
+	for (FAnimNotifyEvent& Event : Notifies)
+	{
+		if (Event.Notify == DestroyedNotify)
+		{
+			Event.Notify = nullptr;
+		}
+	}
+}
+
+void UAnimSequenceBase::SetNotifyObject(int32 Index, UAnimNotify* NewNotify)
+{
+	if (Index < 0 || Index >= Notifies.Num())
+	{
+		delete NewNotify;
+		return;
+	}
+	if (Notifies[Index].Notify != NewNotify)
+	{
+		delete Notifies[Index].Notify;
+		Notifies[Index].Notify = NewNotify;
+	}
 }
 
 // 

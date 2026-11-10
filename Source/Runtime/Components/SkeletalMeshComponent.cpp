@@ -15,6 +15,8 @@
 #include "Animation/AnimTestClips.h"
 #include "Asset/AssetManager.h"
 #include "Serialization/Archive.h"
+#include "Animation/AnimNotifyEvent.h"
+#include "GameFramework/Actor/Character.h"
 
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
@@ -335,6 +337,30 @@ bool USkeletalMeshComponent::ConsumeRootMotionWorld(FVector& OutWorldDelta, FQua
 	// 회전 축도 컴포넌트 공간 기준이라 월드 회전으로 감싸서 월드 축으로 바꾼다
 	OutWorldRotation = (WorldQuat * ComponentRot * WorldQuat.Inverse()).Normalized();
 	return true;
+}
+
+void USkeletalMeshComponent::HandleAnimNotify(const FAnimNotifyEvent& Notify)
+{
+	if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	{
+		Character->HandleAnimNotify(Notify);
+	}
+}
+
+void USkeletalMeshComponent::HandleAnimNotifyStateBegin(const FAnimNotifyEvent& Notify)
+{
+	if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	{
+		Character->HandleAnimNotifyStateBegin(Notify);
+	}
+}
+
+void USkeletalMeshComponent::HandleAnimNotifyStateEnd(const FAnimNotifyEvent& Notify)
+{
+	if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	{
+		Character->HandleAnimNotifyStateEnd(Notify);
+	}
 }
 
 bool USkeletalMeshComponent::RefreshAnimationPose()

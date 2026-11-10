@@ -235,111 +235,109 @@ bool UAnimInstance::IsInitialized() const
 }
 
 
+FAnimNode_AssetPlayerBase& UAnimSingleNodeInstance::ActivePlayer()
+{
+	return BlendSpacePlayer.BlendSpace ? static_cast<FAnimNode_AssetPlayerBase&>(BlendSpacePlayer) : SequencePlayer;
+}
+
+const FAnimNode_AssetPlayerBase& UAnimSingleNodeInstance::ActivePlayer() const
+{
+	return BlendSpacePlayer.BlendSpace ? static_cast<const FAnimNode_AssetPlayerBase&>(BlendSpacePlayer) : SequencePlayer;
+}
+
 void UAnimSingleNodeInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
-
-	RootNode = &SequencePlayer;
-
-	// 재초기화 시 클립과 재생 설정은 유지하고 시간은 진행 방향의 시작점으로 돌린다.
-	SequencePlayer.ResetPlayback();
+	RootNode = &ActivePlayer();
+	ActivePlayer().ResetPlayback();
+	if (IsInitialized()) UpdateAnimation(0.0f);
 }
 
-void UAnimSingleNodeInstance::SetAnimationAsset(
-    UAnimSequence* InSequence)
+void UAnimSingleNodeInstance::SetAnimationAsset(UAnimSequence* InSequence)
 {
-	if (SequencePlayer.Sequence == InSequence)
-		return;
-
+	if (!BlendSpacePlayer.BlendSpace && SequencePlayer.Sequence == InSequence) return;
+	const bool Playing = ActivePlayer().bPlaying;
+	const bool Looping = ActivePlayer().bLoop;
+	const float Rate = ActivePlayer().PlayRate;
+	BlendSpacePlayer.BlendSpace = nullptr;
 	SequencePlayer.Sequence = InSequence;
-
-	// 역재생 중에 클립을 바꾸면 끝(1)에서 시작해야 바로 멈추지 않는다
+	SequencePlayer.bPlaying = Playing; SequencePlayer.bLoop = Looping; SequencePlayer.PlayRate = Rate;
 	SequencePlayer.ResetPlayback();
-
-	// 클립 교체와 재생/일시정지는 별도 제어로 둔다.
-	// bPlyaing, bLoop, PlayRate는 유지한다.
+	RootNode = &SequencePlayer;
 }
 
-UAnimSequence* UAnimSingleNodeInstance::GetAnimationAsset() const
+UAnimSequence* UAnimSingleNodeInstance::GetAnimationAsset() const { return SequencePlayer.Sequence; }
+
+void UAnimSingleNodeInstance::SetBlendSpaceAsset(UBlendSpace1D* InBlendSpace)
 {
-	return SequencePlayer.Sequence;
+	if (!InBlendSpace) { SetAnimationAsset(nullptr); return; }
+	if (BlendSpacePlayer.BlendSpace == InBlendSpace) return;
+	const bool Playing = ActivePlayer().bPlaying;
+	const bool Looping = ActivePlayer().bLoop;
+	const float Rate = ActivePlayer().PlayRate;
+	SequencePlayer.Sequence = nullptr;
+	BlendSpacePlayer.BlendSpace = InBlendSpace;
+	BlendSpacePlayer.bPlaying = Playing; BlendSpacePlayer.bLoop = Looping; BlendSpacePlayer.PlayRate = Rate;
+	BlendSpacePlayer.ResetPlayback();
+	const FBlendParameter* Axis = InBlendSpace->GetBlendParameter(0);
+	BlendSpacePlayer.X = Axis ? Axis->Min : 0.0f;
+	RootNode = &BlendSpacePlayer;
+	if (IsInitialized()) UpdateAnimation(0.0f);
 }
 
-void UAnimSingleNodeInstance::SetPlaying(bool bInPlaying)
+UBlendSpace1D* UAnimSingleNodeInstance::GetBlendSpaceAsset() const
 {
-	SequencePlayer.bPlaying = bInPlaying;
+	return Cast<UBlendSpace1D>(BlendSpacePlayer.BlendSpace);
 }
 
-bool UAnimSingleNodeInstance::IsPlaying() const
+void UAnimSingleNodeInstance::SetBlendSpaceInput(float X)
 {
-	return SequencePlayer.Sequence != nullptr && SequencePlayer.bPlaying;
+	if (!std::isfinite(X) || !BlendSpacePlayer.BlendSpace) return;
+	const FBlendParameter* Axis = BlendSpacePlayer.BlendSpace->GetBlendParameter(0);
+	if (!Axis || !std::isfinite(Axis->Min) || !std::isfinite(Axis->Max) || Axis->Min >= Axis->Max) return;
+	BlendSpacePlayer.X = std::clamp(X, Axis->Min, Axis->Max);
+	if (IsInitialized()) UpdateAnimation(0.0f);
 }
 
-void UAnimSingleNodeInstance::SetLooping(bool bInLooping)
-{
-	SequencePlayer.bLoop = bInLooping;
-}
+void UAnimSingleNodeInstance::SetPlaying(bool Value) { ActivePlayer().bPlaying = Value; }
+bool UAnimSingleNodeInstance::IsPlaying() const { return ActivePlayer().GetAnimationAsset() && ActivePlayer().bPlaying; }
+void UAnimSingleNodeInstance::SetLooping(bool Value) { ActivePlayer().bLoop = Value; }
+bool UAnimSingleNodeInstance::IsLooping() const { return ActivePlayer().bLoop; }
+void UAnimSingleNodeInstance::SetPlayRate(float Value) { if (std::isfinite(Value)) ActivePlayer().PlayRate = Value; }
+float UAnimSingleNodeInstance::GetPlayRate() const { return ActivePlayer().PlayRate; }
 
-bool UAnimSingleNodeInstance::IsLooping() const
+void UAnimSingleNodeInstance::SetPosition(float Value)
 {
-	return SequencePlayer.bLoop;
-}
-
-void UAnimSingleNodeInstance::SetPlayRate(float InPlayRate)
-{
-	SequencePlayer.PlayRate = InPlayRate;
-}
-
-float UAnimSingleNodeInstance::GetPlayRate() const
-{
-	return SequencePlayer.PlayRate;
-}
-
-void UAnimSingleNodeInstance::SetReversePlay(bool bReverse)
-{
-	SequencePlayer.SetReversePlay(bReverse);
-}
-
-bool UAnimSingleNodeInstance::IsReversePlay() const
-{
-	return SequencePlayer.IsReversePlay();
-}
-
-void UAnimSingleNodeInstance::SetPosition(float InPosition)
-{
+	if (!std::isfinite(Value)) return;
 	const float Length = GetLength();
-
-	// 클립이 없으면 0/0이 NaN이 되어 SetNormalizedTime이 무시하므로 처음으로 둔다
-	if (Length <= 0.0f)
-	{
-		SequencePlayer.SetNormalizedTime(0.0f);
-		return;
-	}
-
-	// 범위 밖 값은 SetNormalizedTime이 [0, 1]로 클램프한다
-	SequencePlayer.SetNormalizedTime(InPosition / Length);
+	ActivePlayer().SetNormalizedTime(Length > 0.0f ? std::clamp(Value / Length, 0.0f, 1.0f) : 0.0f);
 }
 
-float UAnimSingleNodeInstance::GetPosition() const
-{
-	return SequencePlayer.GetNormalizedTime() * GetLength();
-}
+float UAnimSingleNodeInstance::GetPosition() const { return ActivePlayer().GetNormalizedTime() * GetLength(); }
 
 float UAnimSingleNodeInstance::GetLength() const
 {
-	if (SequencePlayer.Sequence)
-	{
-		return SequencePlayer.Sequence->GetPlayLength();
-	}
-	return 0.f;
+	if (!BlendSpacePlayer.BlendSpace && SequencePlayer.Sequence && !SequencePlayer.Sequence->GetDataModel()) return 0.0f;
+	const float Length = ActivePlayer().GetEffectivePlayLength();
+	return std::isfinite(Length) && Length > 0.0f ? Length : 0.0f;
 }
 
 bool UAnimSingleNodeInstance::IsFinished() const
 {
-	return SequencePlayer.IsFinished();
+	return ActivePlayer().IsFinished();
 }
 
 const FDeltaTimeRecord& UAnimSingleNodeInstance::GetDeltaTimeRecord() const
 {
-	return SequencePlayer.GetDeltaTimeRecord();
+	return ActivePlayer().GetDeltaTimeRecord();
+}
+
+void UAnimSingleNodeInstance::SetReversePlay(bool bReverse)
+{
+	ActivePlayer().SetReversePlay(bReverse);
+}
+
+bool UAnimSingleNodeInstance::IsReversePlay() const
+{
+	return ActivePlayer().IsReversePlay();
 }

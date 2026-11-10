@@ -110,6 +110,9 @@ class UBlendSpace1D : public UBlendSpace
 public:
 	UBlendSpace1D();
 
+	// Copy authored data without changing object identity or path.
+	void CopyDefinitionFrom(const UBlendSpace1D& Other);
+
 	int32 GetDimension() const override
 	{
 		return 1;

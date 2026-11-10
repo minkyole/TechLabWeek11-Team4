@@ -267,6 +267,9 @@ project "HitoriEditor"
 		"Source/Editor/**.cpp",
 		"Source/ThirdParty/ImNeoSequencer/*.h",
 		"Source/ThirdParty/ImNeoSequencer/*.cpp",
+		"Source/ThirdParty/ImGuiNodeEditor/*.h",
+		"Source/ThirdParty/ImGuiNodeEditor/*.inl",
+		"Source/ThirdParty/ImGuiNodeEditor/*.cpp",
 		"Source/Programs/**.h",
 		"Source/Programs/**.cpp",
 		"Source/Editor/**.rc",   -- 창·exe 아이콘
@@ -277,6 +280,7 @@ project "HitoriEditor"
 		"Source",             -- "Editor/OutputLog/ConsolePanel.h"처럼 Source 기준 include를 쓴다
 		"Source/Runtime",
 		"Source/Programs",
+		"Source/ThirdParty/ImGuiNodeEditor",
 		"%{IncludeDir.LuaJIT}",
     	"%{IncludeDir.Sol2}",
 		"%{IncludeDir.ImGui}",
@@ -295,6 +299,8 @@ project "HitoriEditor"
 	}
 
 	filter "files:Source/ThirdParty/ImNeoSequencer/*.cpp"
+		flags { "NoPCH" }
+	filter "files:Source/ThirdParty/ImGuiNodeEditor/*.cpp"
 		flags { "NoPCH" }
 	filter {}
 

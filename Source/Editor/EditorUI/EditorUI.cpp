@@ -80,6 +80,7 @@ void FEditorUI::OnRender()
 
 				ImGui::DockBuilderDockWindow("Level Editor", rootDockId);
 				ImGui::DockBuilderDockWindow("Skeletal Mesh Viewer", rootDockId);
+				ImGui::DockBuilderDockWindow("Blend Space Editor", rootDockId);
 				ImGui::DockBuilderFinish(rootDockId);
 			}
 
@@ -114,7 +115,7 @@ void FEditorUI::OnRender()
 		{
 			ImGui::SetNextWindowClass(&LevelViewportClass);
 		}
-		else if (!bIsSkelViewer)
+		else if (!bIsSkelViewer && strcmp(Name, "Blend Space Editor") != 0)
 		{
 			// 레벨 에디터 서브 패널들은 LevelEditorClass를 적용하여 오직 Level Editor 창 안에만 도킹됨!
 			ImGui::SetNextWindowClass(&LevelEditorClass);

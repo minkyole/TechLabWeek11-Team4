@@ -39,7 +39,7 @@ void BindMovementAPI(sol::state& LuaState)
 	    "SetMaxSpeed",
 	    &UCharacterMovementComponent::SetMaxSpeed,
 
-		"SetAcceleration",
+	    "SetAcceleration",
 	    &UCharacterMovementComponent::SetAcceleration,
 
 	    "SetBrakingDeceleration",
@@ -50,6 +50,21 @@ void BindMovementAPI(sol::state& LuaState)
 
 	    "GetGroundSpeed",
 	    &UCharacterMovementComponent::GetGroundSpeed,
+
+	    "IsGrounded",
+	    &UCharacterMovementComponent::IsGrounded,
+
+		"SetVerticalVelocity",
+	    &UCharacterMovementComponent::SetVerticalVelocity,
+
+	    "GetVerticalVelocity",
+	    &UCharacterMovementComponent::GetVerticalVelocity,
+
+	    "SetGravityAcceleration",
+	    &UCharacterMovementComponent::SetGravityAcceleration,
+
+	    "SetGravityScale",
+	    &UCharacterMovementComponent::SetGravityScale,
 
 	    "StopMovementImmediately",
 	    &UCharacterMovementComponent::StopMovementImmediately);
@@ -68,6 +83,8 @@ void BindMovementAPI(sol::state& LuaState)
 
 	// 애니메이션 스크립트:
 	// anim:GetMovementComponent()
+ auto Common = LuaState.get<sol::usertype<UStateMachineAnimInstance>>("StateMachineAnimInstance");
+ Common.set_function("GetMovementComponent", [](const UStateMachineAnimInstance& Anim)->UCharacterMovementComponent* { auto* Mesh=Anim.GetSkeletalMeshComponent();return Mesh?FindCharacterMovement(Mesh->GetOwner()):nullptr; });
 	sol::usertype<ULuaAnimInstance> AnimType =
 	    LuaState.get<sol::usertype<ULuaAnimInstance>>(
 	        "LuaAnimInstance");

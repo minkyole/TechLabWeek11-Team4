@@ -197,6 +197,34 @@ namespace
 
 void BindAnimationAPI(sol::state& LuaState)
 {
+	auto Common = LuaState.new_usertype<UStateMachineAnimInstance>("StateMachineAnimInstance", sol::no_constructor);
+	Common["SetBool"] = &UStateMachineAnimInstance::SetBool;
+	Common["SetFloat"] = &UStateMachineAnimInstance::SetFloat;
+	Common["SetTrigger"] = &UStateMachineAnimInstance::SetTrigger;
+	Common["ResetTrigger"] = &UStateMachineAnimInstance::ResetTrigger;
+	Common["IsGraphReady"] = &UStateMachineAnimInstance::IsGraphReady;
+	Common["GetLastError"] = &UStateMachineAnimInstance::GetLastError;
+	Common["IsSourceFinished"] = &UStateMachineAnimInstance::IsSourceFinished;
+	Common["GetCurrentState"] = &UStateMachineAnimInstance::GetCurrentState;
+	Common["GetBool"] = [](const UStateMachineAnimInstance &I, const FString &N) {
+		bool V = false;
+		if (!I.TryGetBool(N, V))
+			throw std::runtime_error("Invalid bool parameter.");
+		return V;
+	};
+	Common["IsTriggerActive"] = [](const UStateMachineAnimInstance &I, const FString &N) {
+		bool V = false;
+		if (!I.TryGetTrigger(N, V))
+			throw std::runtime_error("Invalid trigger parameter.");
+		return V;
+	};
+	Common["GetFloat"] = [](const UStateMachineAnimInstance &I, const FString &N) {
+		float V = 0;
+		if (!I.TryGetFloat(N, V))
+			throw std::runtime_error("Invalid float parameter.");
+		return V;
+	};
+
 	LuaState.new_usertype<FLuaAnimConditionContext>(
 	    "AnimConditionContext",
 	    sol::no_constructor,
@@ -218,7 +246,7 @@ void BindAnimationAPI(sol::state& LuaState)
 
 	auto AnimType = LuaState.new_usertype<ULuaAnimInstance>(
 	    "LuaAnimInstance",
-	    sol::no_constructor);
+	    sol::no_constructor, sol::base_classes, sol::bases<UStateMachineAnimInstance>());
 
 	AnimType["CreateSequencePlayer"] =
 	    [](ULuaAnimInstance& Anim,

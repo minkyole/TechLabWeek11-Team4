@@ -11,8 +11,10 @@
 #include "Animation/TestAnimInstance.h"
 #include "Animation/MyAnimInstance.h"
 #include "Animation/LuaAnimInstance.h"
+#include "Animation/AssetAnimInstance.h"
 #include "Animation/AnimTestClips.h"
 #include "Asset/AssetManager.h"
+#include "Serialization/Archive.h"
 #include "Animation/AnimNotifyEvent.h"
 #include "GameFramework/Actor/Character.h"
 
@@ -60,8 +62,8 @@ void USkeletalMeshComponent::BeginPlay()
 		}
 	}
 	// ---- Debug [4-4] 끝 ----
-	ULuaAnimInstance* LuaInstance =
-	    Cast<ULuaAnimInstance>(GetAnimInstance());
+	UStateMachineAnimInstance* LuaInstance =
+	    Cast<UStateMachineAnimInstance>(GetAnimInstance());
 
 	if (!LuaInstance || !LuaInstance->IsGraphReady())
 		return;
@@ -108,6 +110,7 @@ void USkeletalMeshComponent::InitializeAnimInstance()
 		}
 		else
 		{
+			if (!StateMachineAssetPath.empty()) AnimClass = UAssetAnimInstance::StaticClass();
 			UClass* ClassToSpawn =
 			    (AnimClass && AnimClass->IsChildOf(UAnimInstance::StaticClass()))
 			        ? AnimClass
@@ -268,8 +271,8 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 
 	SCOPE_CYCLE_COUNTER(SkinningStats::STAT_AnimEvaluate);
 
-	if (ULuaAnimInstance* LuaInstance =
-	        Cast<ULuaAnimInstance>(AnimInstance.get()))
+	if (UStateMachineAnimInstance* LuaInstance =
+	        Cast<UStateMachineAnimInstance>(AnimInstance.get()))
 	{
 		if (!LuaInstance->IsGraphReady())
 		{
@@ -373,5 +376,45 @@ void USkeletalMeshComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue)
 		Packet.Material = Material;
 		Packet.StartIndex = Section.StartIndex;
 		Packet.IndexCount = Section.IndexCount;
+	}
+}
+
+void USkeletalMeshComponent::SetStateMachineAssetPath(const FString &Path)
+{
+
+	ClearAnimInstance();
+	StateMachineAssetPath = Path;
+	AnimationMode = EAnimationMode::AnimationBlueprint;
+	AnimClass = Path.empty() ? ULuaAnimInstance::StaticClass() : UAssetAnimInstance::StaticClass();
+	InitializeAnimInstance();
+}
+
+void USkeletalMeshComponent::PostEditChangeProperty(const FProperty &Property)
+{
+	Super::PostEditChangeProperty(Property);
+	if (Property.Name == FName("StateMachineAssetPath"))
+	{
+		auto path = StateMachineAssetPath;
+		SetStateMachineAssetPath(path);
+	}
+}
+void USkeletalMeshComponent::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+	ClearAnimInstance();
+	InitializeAnimInstance();
+}
+
+void USkeletalMeshComponent::Serialize(FStructuredArchive::FRecord Record)
+{
+	Super::Serialize(Record);
+	if (Record.GetUnderlyingArchive().IsLoading())
+	{
+		ClearAnimInstance();
+		if (!StateMachineAssetPath.empty())
+		{
+			AnimationMode = EAnimationMode::AnimationBlueprint;
+			AnimClass = UAssetAnimInstance::StaticClass();
+		}
 	}
 }

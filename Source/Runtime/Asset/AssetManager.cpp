@@ -24,6 +24,7 @@
 #include "Core/ResourcePaths.h"
 #include <algorithm>
 #include <cctype>
+#include "Core/Misc/FileHelper.h"
 
 
 namespace
@@ -267,7 +268,7 @@ namespace
 
 	FString MakeAssetKey(const FString& Path)
 	{
-		return fs::relative(Path, "Assets").generic_string();
+		return ToUTF8String(fs::relative(FFileHelper::ToNativePath(Path), "Assets"));
 	}
 }
 
@@ -314,17 +315,32 @@ void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgre
 		FString Key = ToUTF8String(fs::relative(Files[i], AssetRoot));
 		FString Path = ToUTF8String(Files[i]);
 		AssetPathMap.Add(Key, Path);
-		LoadAsset(Key, Path);
+		if (GetAssetExtension(Path) != ".blendspace" && GetAssetExtension(Path) != ".animsm") LoadAsset(Key, Path);
 
 		if (OnProgress)
 		{
 			OnProgress(i + 1, Total, Key);
 		}
 	}
+	// Resolve composite assets after all animation sub-assets have been registered.
+	for (const fs::path& File : Files)
+	{
+		if (GetAssetExtension(ToUTF8String(File)) == ".blendspace")
+			LoadAsset(ToUTF8String(fs::relative(File, AssetRoot)), ToUTF8String(File));
+	}
+	for (const fs::path& File : Files)
+		if (GetAssetExtension(ToUTF8String(File)) == ".animsm") LoadAsset(ToUTF8String(fs::relative(File, AssetRoot)), ToUTF8String(File));
 }
 
 void UAssetManager::LoadAsset(const FString& Key, const FString& Path) {
 	const FString Extension{ GetAssetExtension(Path) };
+	if (Extension == ".animsm") { FString Error; if (!LoadAnimStateMachine(Path, Error)) HTR_LOG(Error, "[AnimStateMachine] {}: {}", Path, Error); return; }
+	if (Extension == ".blendspace")
+	{
+		FString Error;
+		if (!LoadBlendSpace(Path, Error)) HTR_LOG(Error, "[BlendSpace] {}: {}", Path, Error);
+		return;
+	}
 	if (Extension == ".png" || Extension == ".dds") {
 		if (UTexture2D* Texture{ LoadTexture(Path) }) {
 			AssetMap[Key] = Texture;
@@ -339,7 +355,7 @@ void UAssetManager::LoadAsset(const FString& Key, const FString& Path) {
 	if (Extension == ".obj") {
 		LoadObjStaticMesh(Path);
 	}
-	if (Extension == ".fbx")
+	if (Extension == ".fbx" || IsFbxBakePath(FFileHelper::ToNativePath(Path)))
 	{
 		LoadFbxAssets(Path);
 	}

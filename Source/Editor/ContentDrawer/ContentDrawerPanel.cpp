@@ -2,6 +2,8 @@
 #include "Editor/ContentDrawer/ContentDrawerPanel.h"
 #include "Asset/AssetManager.h"
 #include "Text/Font.h"
+#include "Render/Mesh.h"
+#include "Core/Misc/FileHelper.h"
 #include "Editor/HitoriEd/EditorDragDrop.h"
 
 namespace
@@ -158,6 +160,11 @@ void FContentDrawerPanel::OnRender()
 					{
 						CurrentPath /= Path.filename(); // 하위 폴더로 이동
 					}
+					else if (OnOpenStateMachine && _stricmp(Path.extension().string().c_str(), ".animsm") == 0) { OnOpenStateMachine(PathString); }
+					else if (OnOpenBlendSpace && _stricmp(Path.extension().string().c_str(), ".blendspace") == 0)
+					{
+						OnOpenBlendSpace(PathString);
+					}
 					else if (OnOpenSkeletalMesh && (_stricmp(Path.extension().string().c_str(), ".fbx") == 0 ||
 						UAssetManager::IsFbxBakePath(Path)))
 					{
@@ -171,6 +178,7 @@ void FContentDrawerPanel::OnRender()
 			}
 			ImGui::EndTable();
 		}
+		DrawBlendSpaceCreation();
 	}
 	ImGui::EndChild();
 	ImGui::End();
@@ -220,5 +228,62 @@ void FContentDrawerPanel::RenderFolderTree(const fs::path& Path, fs::path& Selec
 	if (IterateError)
 	{
 		ImGui::TextUnformatted("Could not read this folder.");
+	}
+}
+
+void FContentDrawerPanel::DrawBlendSpaceCreation()
+{
+	bool Create = false, CreateStateMachine = false;
+	if (ImGui::BeginPopupContextWindow("CreateAssetContext", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+	{
+		if (ImGui::BeginMenu("Create"))
+		{
+			if (ImGui::BeginMenu("Animation"))
+			{
+				Create = ImGui::MenuItem("BlendSpace 1D");
+ CreateStateMachine=ImGui::MenuItem("State Machine");
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::EndPopup();
+	}
+	if(CreateStateMachine && OnCreateStateMachine) OnCreateStateMachine(FFileHelper::ToUtf8Path(CurrentPath));
+	if (Create)
+	{
+		CreateFolder = CurrentPath;
+		CreateError.clear();
+		ImGui::OpenPopup("Create BlendSpace 1D");
+	}
+	if (ImGui::BeginPopupModal("Create BlendSpace 1D", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::InputText("Name", NewBlendSpaceName, sizeof(NewBlendSpaceName));
+		const auto Meshes = UAssetManager::Get().GetSkeletalMeshAssets();
+		if (ImGui::BeginCombo("Skeletal Mesh", NewBlendSpaceMeshKey.empty() ? "Select a mesh" : NewBlendSpaceMeshKey.c_str()))
+		{
+			for (auto* Mesh : Meshes)
+				if (ImGui::Selectable(Mesh->GetPath().c_str(), Mesh->GetPath() == NewBlendSpaceMeshKey)) NewBlendSpaceMeshKey = Mesh->GetPath();
+			ImGui::EndCombo();
+		}
+		if (ImGui::Button("Create"))
+		{
+			const FString Name(NewBlendSpaceName);
+			if (Name.empty() || Name.find_first_of("<>:\"/\\|?*.") != FString::npos || Name.back() == ' ')
+				CreateError = "Enter a file name without an extension or reserved characters.";
+			else
+			{
+				const FString Path = FFileHelper::ToUtf8Path(CreateFolder / FFileHelper::ToNativePath(Name + ".blendspace"));
+				auto* Mesh = UAssetManager::GetAssetByPath<USkeletalMesh>(NewBlendSpaceMeshKey);
+				if (UAssetManager::Get().CreateBlendSpace1D(Path, Mesh, CreateError))
+				{
+					ImGui::CloseCurrentPopup();
+					if (OnOpenBlendSpace) OnOpenBlendSpace(Path);
+				}
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
+		if (!CreateError.empty()) ImGui::TextWrapped("%s", CreateError.c_str());
+		ImGui::EndPopup();
 	}
 }

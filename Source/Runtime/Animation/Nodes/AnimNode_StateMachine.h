@@ -92,6 +92,9 @@ struct FAnimNode_StateMachine : public FAnimNode_Base
 	void Evaluate(FPoseContext& Output) override;
 
 	FAnimStateId GetCurrentState() const { return CurrentState; }
+	bool IsTransitioning() const { return bTransitioning; }
+ int GetActiveTransitionIndex() const { return ActiveTransitionIndex; }
+	float GetTransitionProgress() const { return bTransitioning && BlendDuration > 0 ? std::clamp(BlendElapsed / BlendDuration, 0.0f, 1.0f) : 1.0f; }
 
 	// void ProcessState(UMyAnimInstance* AnimInstance);
 
@@ -124,6 +127,7 @@ private:
 	TArray<uint8> ConditionResults;
 	float StateElpased = 0.0f;
 	int32 ActiveTransitionPriority = 0;
+ int32 ActiveTransitionIndex = -1;
 	EAnimTransitionInterruptPolicy ActiveInterruptPolicy =
 	    EAnimTransitionInterruptPolicy::Always;
 

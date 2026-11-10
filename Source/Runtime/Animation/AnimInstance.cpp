@@ -144,8 +144,8 @@ void UAnimSingleNodeInstance::SetAnimationAsset(UAnimSequence* InSequence)
 	const float Rate = ActivePlayer().PlayRate;
 	BlendSpacePlayer.BlendSpace = nullptr;
 	SequencePlayer.Sequence = InSequence;
-	SequencePlayer.ResetPlayback();
 	SequencePlayer.bPlaying = Playing; SequencePlayer.bLoop = Looping; SequencePlayer.PlayRate = Rate;
+	SequencePlayer.ResetPlayback();
 	RootNode = &SequencePlayer;
 }
 
@@ -160,8 +160,8 @@ void UAnimSingleNodeInstance::SetBlendSpaceAsset(UBlendSpace1D* InBlendSpace)
 	const float Rate = ActivePlayer().PlayRate;
 	SequencePlayer.Sequence = nullptr;
 	BlendSpacePlayer.BlendSpace = InBlendSpace;
-	BlendSpacePlayer.ResetPlayback();
 	BlendSpacePlayer.bPlaying = Playing; BlendSpacePlayer.bLoop = Looping; BlendSpacePlayer.PlayRate = Rate;
+	BlendSpacePlayer.ResetPlayback();
 	const FBlendParameter* Axis = InBlendSpace->GetBlendParameter(0);
 	BlendSpacePlayer.X = Axis ? Axis->Min : 0.0f;
 	RootNode = &BlendSpacePlayer;
@@ -203,4 +203,24 @@ float UAnimSingleNodeInstance::GetLength() const
 	if (!BlendSpacePlayer.BlendSpace && SequencePlayer.Sequence && !SequencePlayer.Sequence->GetDataModel()) return 0.0f;
 	const float Length = ActivePlayer().GetEffectivePlayLength();
 	return std::isfinite(Length) && Length > 0.0f ? Length : 0.0f;
+}
+
+bool UAnimSingleNodeInstance::IsFinished() const
+{
+	return ActivePlayer().IsFinished();
+}
+
+const FDeltaTimeRecord& UAnimSingleNodeInstance::GetDeltaTimeRecord() const
+{
+	return ActivePlayer().GetDeltaTimeRecord();
+}
+
+void UAnimSingleNodeInstance::SetReversePlay(bool bReverse)
+{
+	ActivePlayer().SetReversePlay(bReverse);
+}
+
+bool UAnimSingleNodeInstance::IsReversePlay() const
+{
+	return ActivePlayer().IsReversePlay();
 }

@@ -215,9 +215,10 @@ void USkeletalMeshComponent::SetAnimation(UAnimSequence* NewAnimToPlay)
 	{
 		SingleNode->SetAnimationAsset(NewAnimToPlay);
 
-		// SetAnimationAsset은 같은 클립이면 아무것도 안 하므로,
-		// "다시 지정 = 처음부터"를 보장하려고 위치를 명시적으로 되돌린다.
-		SingleNode->SetPosition(0.0f);
+		// SetAnimationAsset은 같은 클립이면 아무것도 안 하므로 위치를 되돌린다. 역재생이면 처음은 끝(Length)이다
+		const float StartPosition = SingleNode->IsReversePlay() ? SingleNode->GetLength() : 0.0f;
+		SingleNode->SetPosition(StartPosition);
+		AnimationData.SavedPosition = StartPosition;
 	}
 }
 

@@ -57,10 +57,19 @@ public:
 	void SetPlayRate(float InPlayRate);
 	float GetPlayRate() const;
 
+	void SetReversePlay(bool bReverse);
+	bool IsReversePlay() const;
+
 	void SetPosition(float InPosition);
 	float GetPosition() const;
 
 	float GetLength() const;
+
+	// 루프가 아니고 진행 방향의 끝에 닿았는지. 뷰어가 자동 정지할 때 쓴다.
+	bool IsFinished() const;
+
+	// 이번 프레임에 지나간 구간. 정규화 시간 단위라 초가 필요하면 GetLength()를 곱한다.
+	const FDeltaTimeRecord& GetDeltaTimeRecord() const;
 
 protected:
 	void NativeInitializeAnimation() override;

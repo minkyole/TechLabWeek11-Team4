@@ -246,12 +246,13 @@ private:
 	struct FPreviewClip
 	{
 		FString Name;
-		TUniquePtr<UAnimSequence> Sequence;
+		UAnimSequence* Sequence = nullptr;
 		TArray<FPreviewNotifyStub> Notifies;
 	};
 
 	UAnimSingleNodeInstance* GetPreviewAnimInstance() const;
-	void BuildPreviewTestClips();
+	void ClearPreviewClips();
+	void BuildPreviewClips();
 	void SelectPreviewClip(int32 ClipIndex);
 
 

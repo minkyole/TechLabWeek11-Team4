@@ -657,12 +657,34 @@ const FFbxAssetSet* UAssetManager::LoadFbxAssets(const FString& Path)
 		}
 	}
 
-	for (const FFbxAnimClip& Clip : Data.Anims)
+	// 메시 포인터를 SetSkeletalMesh에 넘겨야 하므로 메시 등록 뒤에 클립을 등록한다.
+	for (int32 Index = 0; Index < Data.Anims.Num(); ++Index)
 	{
-		UAnimSequence* Sequence = NewObject<UAnimSequence>();
-		Sequence->BuildFromTracks(Clip.FrameRate, Clip.NumFrames, Clip.Tracks);
-		Sequence->SetSkeletalMesh(Assets.SkeletalMesh);
-		RegisterAsset(Key + "#Animation/" + std::to_string(Assets.Animations.Num()), Sequence);
+		const FFbxAnimClip& Clip = Data.Anims[Index];
+		// "Armature|Idle"처럼 구분자가 섞인 이름도 키 한 칸에 들어가도록 경로 문자를 바꾼다.
+		FString ClipName = Clip.Name.empty() ? "Anim_" + std::to_string(Index) : Clip.Name;
+		std::replace(ClipName.begin(), ClipName.end(), '/', '_');
+		std::replace(ClipName.begin(), ClipName.end(), '\\', '_');
+		FString AnimKey = Key + "#Anim/" + ClipName;
+
+		// 이미 재생 노드가 쥐고 있을 수 있는 포인터라서 새로 만들지 않고 그대로 쓴다.
+		UAnimSequence* Sequence = GetAssetByPath<UAnimSequence>(AnimKey);
+		// 같은 FBX 안에서 이름이 겹치면 두 번째 클립을 버리지 않도록 인덱스를 붙인다.
+		if (Sequence && Assets.Animations.Find(Sequence) != INDEX_NONE)
+		{
+			ClipName += "_" + std::to_string(Index);
+			AnimKey = Key + "#Anim/" + ClipName;
+			Sequence = GetAssetByPath<UAnimSequence>(AnimKey);
+		}
+		if (!Sequence)
+		{
+			Sequence = NewObject<UAnimSequence>();
+			Sequence->SetName(FName(ClipName));
+			Sequence->BuildFromTracks(Clip.FrameRate, Clip.NumFrames, Clip.Tracks);
+			Sequence->SetSkeletalMesh(Assets.SkeletalMesh);
+			RegisterAsset(AnimKey, Sequence);
+		}
+		// 재사용한 경우에도 넣어야 인덱스로 접근하는 코드와 순서가 맞는다.
 		Assets.Animations.Add(Sequence);
 	}
 

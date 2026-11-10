@@ -27,6 +27,20 @@
 #include <filesystem>
 #include <functional>
 
+namespace
+{
+	float SRGBToLinear(float C)
+	{
+		C = std::clamp(C, 0.0f, 1.0f);
+		return C <= 0.04045f ? C / 12.92f : std::pow((C + 0.055f) / 1.055f, 2.4f);
+	}
+
+	FVector SRGBToLinear(const FVector& C)
+	{
+		return FVector(SRGBToLinear(C.X), SRGBToLinear(C.Y), SRGBToLinear(C.Z));
+	}
+}
+
 FSkeletalMeshViewerPanel::FSkeletalMeshViewerPanel()
 {
 	ResetLighting();
@@ -91,19 +105,7 @@ void FSkeletalMeshViewerPanel::ReleaseResources()
 {
 	ResetPreviewModes();
 	BoneGizmo.SetTarget(nullptr, false);
-	// 클립을 지우기 전에 인스턴스에서 먼저 떼어 낸다.
-	if (UAnimSingleNodeInstance* AnimInstance = GetPreviewAnimInstance())
-	{
-		AnimInstance->SetAnimationAsset(nullptr);
-	}
-	for (auto& Clip : PreviewClips)
-	{
-		if (Clip.Sequence)
-		{
-			delete(Clip.Sequence.get()->GetDataModel());
-		}
-	}
-	PreviewClips.Empty();
+	ClearPreviewClips();
 	SelectedClipIndex = -1;
 	delete PreviewComponent;
 	PreviewComponent = nullptr;
@@ -180,7 +182,7 @@ void FSkeletalMeshViewerPanel::SetSelectedMesh(USkeletalMesh* Mesh)
 	FocusOnMesh();
 
 	// 메시가 바뀌면 AnimInstance가 새로 만들어지므로 클립과 선택을 다시 맞춘다.
-	BuildPreviewTestClips();
+	BuildPreviewClips();
 	SelectPreviewClip(-1);
 }
 
@@ -867,7 +869,7 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 	FLightingConstants LightingConstants{};
 	if (bEnableSkyLight)
 	{
-		LightingConstants.Ambient.Color = SkyColor * SkyLightIntensity;
+		LightingConstants.Ambient.Color = SRGBToLinear(SkyColor);
 		LightingConstants.Ambient.Intensity = SkyLightIntensity;
 	}
 	else
@@ -881,7 +883,7 @@ void FSkeletalMeshViewerPanel::RenderPreview()
 		const FRotator LightRot(LightPitch, LightYaw, 0.0f);
 		const FQuat LightQuat(LightRot);
 		LightingConstants.Directional.Direction = LightQuat.GetForwardVector().GetSafeNormal();
-		LightingConstants.Directional.Color = LightColor;
+		LightingConstants.Directional.Color = SRGBToLinear(LightColor);
 		LightingConstants.Directional.Intensity = LightIntensity;
 		LightingConstants.Directional.SourceAngle = 0.0f;
 	}
@@ -2136,7 +2138,7 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 			for (int32 i = 0; i < PreviewClips.Num(); ++i)
 			{
 				const bool bSelected = (i == SelectedClipIndex);
-				const bool bPlayable = IsPlayableClip(PreviewClips[i].Sequence.get());
+				const bool bPlayable = IsPlayableClip(PreviewClips[i].Sequence);
 				ImGui::PushID(i);
 				ImGui::BeginDisabled(!bPlayable);
 				if (ImGui::Selectable(PreviewClips[i].Name.c_str(), bSelected) && !bSelected)
@@ -2167,7 +2169,7 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 		// 콤보에서 선택이 바뀌었을 수 있어 다시 확인한다.
 		ImGui::SameLine();
 		const UAnimSequence* Clip = (SelectedClipIndex >= 0 && SelectedClipIndex < PreviewClips.Num())
-			? PreviewClips[SelectedClipIndex].Sequence.get()
+			? PreviewClips[SelectedClipIndex].Sequence
 			: nullptr;
 		const UAnimDataModel* Model = Clip ? Clip->GetDataModel() : nullptr;
 		if (Model)
@@ -3064,112 +3066,44 @@ UAnimSingleNodeInstance* FSkeletalMeshViewerPanel::GetPreviewAnimInstance() cons
 
 
 
-void FSkeletalMeshViewerPanel::BuildPreviewTestClips()
+void FSkeletalMeshViewerPanel::ClearPreviewClips()
 {
+	// 클립을 지우기 전에 인스턴스에서 먼저 떼어 낸다.
 	if (UAnimSingleNodeInstance* AnimInstance = GetPreviewAnimInstance())
 	{
 		AnimInstance->SetAnimationAsset(nullptr);
 	}
 
-	for (auto& Clip : PreviewClips)
-	{
-		if (Clip.Sequence)
-		{
-			delete(Clip.Sequence.get()->GetDataModel());
-		}
-	}
+	// 클립은 에셋 매니저 소유이므로 목록만 비운다.
 	PreviewClips.Empty();
+}
+
+void FSkeletalMeshViewerPanel::BuildPreviewClips()
+{
+	ClearPreviewClips();
 
 	if (!SelectedMesh)
 	{
 		return;
 	}
 
-	const TArray<FSkeletalBone>& Bones = SelectedMesh->MeshData.Bones;
-	if (Bones.Num() < 2)
+	if (const FFbxAssetSet* Assets = UAssetManager::Get().FindFbxAssets(SelectedMesh->GetPath()))
 	{
-		return;
-	}
-
-	auto AddClip = [this](const char* Name, int32 NumFrames) -> UAnimDataModel*
-	{
-		FPreviewClip& Clip = PreviewClips.AddDefaulted_GetRef();
-		Clip.Name = Name;
-		Clip.Sequence.reset(NewObject<UAnimSequence>());
-		Clip.Sequence->SetSkeletalMesh(SelectedMesh);
-
-		UAnimDataModel* Model = Clip.Sequence->GetDataModel();
-		Model->SetFrameRate(FFrameRate(30, 1));
-		Model->SetNumberOfFrames(NumFrames);
-		return Model;
-	};
-
-	auto AddRotationTrack = [](UAnimDataModel* Model, const FString& TrackName, const FQuat& BaseRot,
-	                           const FVector& Axis, float AngleRad, bool bPingPong)
-	{
-		const int32 TrackIndex = Model->AddBoneTrack(FName(TrackName));
-		const FQuat EndRot = (BaseRot * FQuat::MakeFromAxisAngle(Axis, AngleRad)).Normalized();
-
-		TArray<FQuat> RotKeys;
-		const int32 NumKeys = Model->GetNumberOfKeys();
-		for (int32 Key = 0; Key < NumKeys; ++Key)
+		for (UAnimSequence* Sequence : Assets->Animations)
 		{
-			float T = static_cast<float>(Key) / static_cast<float>(NumKeys - 1);
-			if (bPingPong)
+			if (!Sequence)
 			{
-				T = 1.0f - std::fabs(2.0f * T - 1.0f);
+				continue;
 			}
-			RotKeys.Add(FMath::SlerpShortestPath(BaseRot, EndRot, T));
-		}
-		Model->SetBoneTrackKeys(TrackIndex, {}, RotKeys, {});
-	};
 
-	auto RefRotOf = [&Bones](int32 BoneIndex)
-	{
-		return FQuat(Bones[BoneIndex].RefPoseTransform.Rotation).Normalized();
-	};
-
-	constexpr float HalfPi = 3.14159265f * 0.5f;
-
-	{
-		UAnimDataModel* Model = AddClip("Test_Rotate1s", 30);
-		AddRotationTrack(Model, Bones[1].Name, RefRotOf(1), FVector(0.0f, 0.0f, 1.0f), HalfPi, false);
-
-		TArray<FPreviewNotifyStub>& Notifies = PreviewClips.Last().Notifies;
-		Notifies.Add({ "Footstep_L", 0.25f, 0.0f });
-		Notifies.Add({ "Footstep_R", 0.75f, 0.0f });
-		Notifies.Add({ "AttackWindow", 0.40f, 0.30f });
-	}
-
-	{
-		UAnimDataModel* Model = AddClip("Test_Multi3s", 90);
-		const int32 BoneCount = Bones.Num();
-		const int32 Candidates[3] = { 1, std::max(1, BoneCount / 3), std::max(1, (BoneCount * 2) / 3) };
-		const FVector Axes[3] = { FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f) };
-
-		for (int32 i = 0; i < 3; ++i)
-		{
-			bool bDuplicate = false;
-			for (int32 j = 0; j < i; ++j)
+			FPreviewClip& Clip = PreviewClips.AddDefaulted_GetRef();
+			Clip.Sequence = Sequence;
+			Clip.Name = Sequence->GetName();
+			if (Clip.Name.empty() || Clip.Name == "None")
 			{
-				bDuplicate |= (Candidates[j] == Candidates[i]);
-			}
-			if (!bDuplicate)
-			{
-				AddRotationTrack(Model, Bones[Candidates[i]].Name, RefRotOf(Candidates[i]), Axes[i], HalfPi * 0.5f, true);
+				Clip.Name = "Clip " + std::to_string(PreviewClips.Num() - 1);
 			}
 		}
-
-		TArray<FPreviewNotifyStub>& Notifies = PreviewClips.Last().Notifies;
-		Notifies.Add({ "Sound_Whoosh", 0.5f, 0.0f });
-		Notifies.Add({ "Trail", 1.0f, 1.2f });
-		Notifies.Add({ "Hit", 1.5f, 0.0f });
-		Notifies.Add({ "End", 3.0f, 0.0f });
-	}
-
-	{
-		UAnimDataModel* Model = AddClip("Test_Mismatch", 30);
-		AddRotationTrack(Model, "NotABone_Mismatch", FQuat(), FVector(0.0f, 0.0f, 1.0f), HalfPi, false);
 	}
 }
 
@@ -3178,7 +3112,7 @@ void FSkeletalMeshViewerPanel::SelectPreviewClip(int32 ClipIndex)
 {
 	CapturePreviewPlayback();
 	SelectedClipIndex = ClipIndex >= 0 && ClipIndex < PreviewClips.Num() &&
-		IsPlayableClip(PreviewClips[ClipIndex].Sequence.get()) ? ClipIndex : -1;
+		IsPlayableClip(PreviewClips[ClipIndex].Sequence) ? ClipIndex : -1;
 	SequencePlayback = FPreviewPlaybackState();
 	SequencePlayback.Rate = PreviewPlaySpeed;
 	if (auto* Instance = GetPreviewAnimInstance())
@@ -3453,7 +3387,7 @@ void FSkeletalMeshViewerPanel::ActivatePreviewMode(EPreviewMode Mode)
 	const auto& State = Mode == EPreviewMode::Sequence ? SequencePlayback : BlendSpacePlayback;
 	if (Mode == EPreviewMode::Sequence)
 	{
-		Instance->SetAnimationAsset(PreviewClips[SelectedClipIndex].Sequence.get());
+		Instance->SetAnimationAsset(PreviewClips[SelectedClipIndex].Sequence);
 		PreviewPlayDirection = State.Rate < 0 ? -1 : 1;
 		PreviewPlaySpeed = std::abs(State.Rate);
 		PreviewCustomSpeed = PreviewPlaySpeed;

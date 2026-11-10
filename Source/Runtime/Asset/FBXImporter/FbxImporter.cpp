@@ -380,6 +380,44 @@ FSkeletalMesh FFbxImporter::ProcessMesh(FbxMesh* Mesh, const TMap<FbxNode*, int3
 	return SkeletalMesh;
 }
 
+namespace
+{
+	// 바인드 포즈와 애니메이션 키가 같은 식을 쓰도록 '본 계층 부모 기준 로컬'을 한곳에서 만든다.
+	FbxAMatrix EvaluateBoneLocal(FbxNode* BoneNode, FbxNode* ParentBoneNode, const FbxTime& Time)
+	{
+		FbxAMatrix Local = BoneNode->EvaluateGlobalTransform(Time);
+		if (ParentBoneNode)
+		{
+			// FBX 행렬은 열벡터 규약이라 부모 역행렬을 왼쪽에 곱한다.
+			Local = ParentBoneNode->EvaluateGlobalTransform(Time).Inverse() * Local;
+		}
+		return Local;
+	}
+
+	// SRT의 X, Y, Z에 커브가 하나라도 있으면 true
+	bool HasTransformCurve(FbxNode* Node, FbxAnimLayer* Layer)
+	{
+		auto HasCurve = [Layer](FbxPropertyT<FbxDouble3>& Property)
+		{
+			return Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_X)
+				|| Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_Y)
+				|| Property.GetCurve(Layer, FBXSDK_CURVENODE_COMPONENT_Z);
+		};
+		return HasCurve(Node->LclTranslation) || HasCurve(Node->LclRotation) || HasCurve(Node->LclScaling);
+	}
+
+	// 본 자신뿐 아니라 부모 본까지 사이에 낀 일반 노드(Armature 등)가 움직여도 이 본의 로컬이 바뀐다.
+	bool IsBoneAnimated(FbxNode* BoneNode, FbxNode* ParentBoneNode, FbxAnimLayer* Layer)
+	{
+		if (!Layer) return false;
+		for (FbxNode* Node = BoneNode; Node && Node != ParentBoneNode; Node = Node->GetParent())
+		{
+			if (HasTransformCurve(Node, Layer)) return true;
+		}
+		return false;
+	}
+}
+
 FSkeletalBone FFbxImporter::ProcessSkeleton(FbxNode* Node, const TMap<FbxNode*, int32>& BoneIndexByNode)
 {
 	if (!Node || !Node->GetScene())
@@ -433,6 +471,16 @@ FSkeletalBone FFbxImporter::ProcessSkeleton(FbxNode* Node, const TMap<FbxNode*, 
 			return SkeletalBone;
 		}
 	}
+
+	// 애니메이션 전용 FBX는 BindPose가 없는 경우가 많아, 애니메이션을 뺀 노드 기본값을 바인드 포즈로 쓴다.
+	const FbxAMatrix Local = EvaluateBoneLocal(Node, ParentBoneNode, FBXSDK_TIME_INFINITE);
+	const FbxVector4 T = Local.GetT();
+	const FbxVector4 S = Local.GetS();
+	const FbxQuaternion Q = Local.GetQ();
+	SkeletalBone.RefPoseTransform = FTransform(FVector(float(T[0]), float(T[1]), float(T[2])),
+		FVector(float(S[0]), float(S[1]), float(S[2])),
+		FQuat(float(Q[0]), float(Q[1]), float(Q[2]), float(Q[3])).Normalized().ToFRotator());
+	return SkeletalBone;
 }
 
 void FFbxImporter::ProcessAnimations(FbxScene* Scene, const TMap<FbxNode*, int32>& BoneIndexByNode, FFbxImportResult& OutResult)
@@ -478,8 +526,8 @@ void FFbxImporter::ProcessAnimations(FbxScene* Scene, const TMap<FbxNode*, int32
 		Clip.Name = Stack->GetName();
 		Clip.FrameRate = FrameRate;
 
-		// TODO(human): DurationSeconds와 Clip.FrameRate로 Clip.NumFrames를 정한다.
-		Clip.NumFrames = 0;
+		// 버림하면 1.0 * 30 = 29.999 같은 오차로 마지막 프레임이 사라져서 반올림한다.
+		Clip.NumFrames = FMath::Max(0, static_cast<int32>(std::lround(DurationSeconds * Clip.FrameRate.AsDecimal())));
 
 		// 레이어 합성은 평가기가 해 주므로, 베이스 레이어는 '움직이는 본인가' 판정에만 쓴다.
 		FbxAnimLayer* BaseLayer = Stack->GetMember<FbxAnimLayer>(0);
@@ -500,13 +548,41 @@ void FFbxImporter::ProcessAnimations(FbxScene* Scene, const TMap<FbxNode*, int32
 	}
 }
 
-// 4-3에서 커브 판정과 프레임별 샘플링으로 바꾼다. 지금은 바인드 포즈 1키만 넣어 둔다.
 void FFbxImporter::SampleBoneTrack(FbxNode* BoneNode, FbxNode* ParentBoneNode, FbxAnimLayer* Layer, const FbxTime& StartTime,
 	const FFbxAnimClip& Clip, const FSkeletalBone& Bone, FRawAnimSequenceTrack& OutTrack)
 {
-	OutTrack.PosKeys.Add(Bone.RefPoseTransform.Location);
-	OutTrack.RotKeys.Add(Bone.RefPoseTransform.GetOrientation());
-	OutTrack.ScaleKeys.Add(Bone.RefPoseTransform.Scale);
+	// 안 움직이는 본은 노드 기본값이 아니라 바인드 포즈 1키로 둔다. 둘이 다르면 스킨이 틀어지기 때문이다.
+	if (!BoneNode || !IsBoneAnimated(BoneNode, ParentBoneNode, Layer))
+	{
+		OutTrack.PosKeys.Add(Bone.RefPoseTransform.Location);
+		OutTrack.RotKeys.Add(Bone.RefPoseTransform.GetOrientation());
+		OutTrack.ScaleKeys.Add(Bone.RefPoseTransform.Scale);
+		return;
+	}
+
+	const int32 NumKeys = Clip.NumFrames + 1;
+	OutTrack.PosKeys.Reserve(NumKeys);
+	OutTrack.RotKeys.Reserve(NumKeys);
+	OutTrack.ScaleKeys.Reserve(NumKeys);
+
+	// float 간격을 누적하면 오차가 쌓여서, 매 키를 시작 시각 + i * 간격으로 새로 계산한다.
+	const double Interval = static_cast<double>(Clip.FrameRate.Denominator) / Clip.FrameRate.Numerator;
+	const double StartSeconds = StartTime.GetSecondDouble();
+	for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
+	{
+		FbxTime Time;
+		Time.SetSecondDouble(StartSeconds + KeyIndex * Interval);
+
+		// 평가기가 레이어 합성, 오일러→회전, Pre/Post Rotation, 피벗을 모두 반영한 결과를 준다.
+		const FbxAMatrix Local = EvaluateBoneLocal(BoneNode, ParentBoneNode, Time);
+		const FbxVector4 T = Local.GetT();
+		const FbxVector4 S = Local.GetS();
+		const FbxQuaternion Q = Local.GetQ();
+
+		OutTrack.PosKeys.Add(FVector(float(T[0]), float(T[1]), float(T[2])));
+		OutTrack.RotKeys.Add(FQuat(float(Q[0]), float(Q[1]), float(Q[2]), float(Q[3])).Normalized());
+		OutTrack.ScaleKeys.Add(FVector(float(S[0]), float(S[1]), float(S[2])));
+	}
 }
 
 void FFbxImporter::Cook(FFbxImportResult&& ImportResult, FFbxCookedData& Cooked)

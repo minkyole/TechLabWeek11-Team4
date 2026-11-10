@@ -20,6 +20,9 @@ private:
 
 	// 생성 결과의 UTF-8 바이트 저장
 	void SaveGeneratedFile(const std::filesystem::path& Path, std::string_view Text) const;
+		
+	// 현재 출력 목록에서 제외된 도구 소유 파일의 정리
+	void RemoveStaleGeneratedFiles(const std::vector<std::filesystem::path>& ExpectedFiles) const;
 
 	// 절대 경로로 정규화한 프로젝트 루트
 	std::filesystem::path ProjectRoot;

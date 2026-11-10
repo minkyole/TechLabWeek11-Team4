@@ -3,6 +3,7 @@
 #include "HeaderParser.h"
 
 #include <filesystem>
+#include <string_view>
 
 // 생성 파일의 원본 경로와 선언 목록의 연결
 struct FHeaderFile
@@ -15,6 +16,12 @@ struct FHeaderFile
 class FHeaderGenerator
 {
 public:
+	// 생성 헤더의 소유권 식별 표식
+	static constexpr std::string_view GeneratedHeaderMarker = "// UHT 생성 파일의 클래스 본문 연결";
+
+	// 생성 소스의 소유권 식별 표식
+	static constexpr std::string_view GeneratedSourceMarker = "// UHT 생성 파일의 모듈별 프로퍼티 등록";
+
 	// 출력 이름과 반영 이름 충돌의 일괄 검증
 	void Validate(const std::vector<FHeaderFile>& Headers) const;
 

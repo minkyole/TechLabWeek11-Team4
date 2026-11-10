@@ -79,20 +79,32 @@ int FHeaderTool::Run(int ArgumentCount, wchar_t* Arguments[])
 	FHeaderGenerator Generator;
 	Generator.Validate(ReflectedHeaders);
 
+	// 이번 실행에서 유지할 생성 파일 목록
+	std::vector<std::filesystem::path> ExpectedFiles;
+
 	// 반영 클래스가 있는 헤더의 생성 본문 저장
 	for (const FHeaderFile& Header : ReflectedHeaders)
 	{
 		std::filesystem::path Name = Header.RelativePath.filename();
 		Name.replace_extension(".generated.h");
 
-		SaveGeneratedFile(OutputDirectory / Generator.ModuleName(Header.RelativePath) / Name, Generator.GenerateHeader(Header));
+		const std::filesystem::path OutputPath = OutputDirectory / Generator.ModuleName(Header.RelativePath) / Name;
+
+		SaveGeneratedFile(OutputPath, Generator.GenerateHeader(Header));
+		ExpectedFiles.push_back(OutputPath);
 	}
 
 	// 반영 클래스 개수와 무관한 모듈별 등록 파일 저장
 	for (const std::string_view Module : { "Runtime", "Editor" })
 	{
-		SaveGeneratedFile(OutputDirectory / Module / (std::string(Module) + ".gen.cpp"), Generator.GenerateModule(ReflectedHeaders, Module));
+		const std::filesystem::path OutputPath = OutputDirectory / Module / (std::string(Module) + ".gen.cpp");
+
+		SaveGeneratedFile(OutputPath, Generator.GenerateModule(ReflectedHeaders, Module));
+		ExpectedFiles.push_back(OutputPath);
 	}
+
+	// 전체 저장 성공 후의 오래된 생성 파일 정리
+	RemoveStaleGeneratedFiles(ExpectedFiles);
 
 	std::cout << "Tokenized " << HeaderFiles.size() << " header(s), " << TotalTokens << " token(s).\n";
 	std::cout << "Parsed " << TotalClasses << " class(es), " << TotalProperties << " property(ies).\n";
@@ -152,9 +164,26 @@ void FHeaderTool::DiscoverHeaders()
 	std::sort(HeaderFiles.begin(), HeaderFiles.end());
 }
 
-// 디렉터리 준비와 파일 닫기까지 포함한 생성 결과 저장
+// 바이트가 달라진 생성 결과만 기록하는 저장
 void FHeaderTool::SaveGeneratedFile(const std::filesystem::path& Path, std::string_view Text) const
 {
+	if (std::filesystem::exists(Path) && std::filesystem::file_size(Path) == Text.size())
+	{
+		std::ifstream Reader(Path, std::ios::binary);
+		std::string Existing(Text.size(), '\0');
+
+		if (!Reader.read(Existing.data(), static_cast<std::streamsize>(Existing.size())))
+		{
+			const std::u8string Name = Path.generic_u8string();
+			throw std::runtime_error("Cannot read generated file: " + std::string(Name.begin(), Name.end()));
+		}
+
+		if (Existing == Text)
+		{
+			return;
+		}
+	}
+
 	std::filesystem::create_directories(Path.parent_path());
 
 	std::ofstream Writer(Path, std::ios::binary | std::ios::trunc);
@@ -165,5 +194,80 @@ void FHeaderTool::SaveGeneratedFile(const std::filesystem::path& Path, std::stri
 	{
 		const std::u8string Name = Path.generic_u8string();
 		throw std::runtime_error("Cannot write generated file: " + std::string(Name.begin(), Name.end()));
+	}
+}
+
+// 생성 표식과 실제 파일 동일성에 따른 오래된 출력 정리
+void FHeaderTool::RemoveStaleGeneratedFiles(const std::vector<std::filesystem::path>& ExpectedFiles) const
+{
+	std::vector<std::filesystem::path> StaleFiles;
+
+	for (const std::string_view Module : { "Runtime", "Editor" })
+	{
+		const std::filesystem::path Directory = OutputDirectory / Module;
+		if (!std::filesystem::is_directory(std::filesystem::symlink_status(Directory)))
+		{
+			continue;
+		}
+
+		for (const std::filesystem::directory_entry& Entry : std::filesystem::directory_iterator(Directory))
+		{
+			if (!std::filesystem::is_regular_file(Entry.symlink_status()))
+			{
+				continue;
+			}
+
+			const std::filesystem::path& Path = Entry.path();
+			const std::u8string Name = Path.filename().generic_u8string();
+			const bool bIsHeader = Name.ends_with(u8".generated.h");
+			const bool bIsSource = Name.ends_with(u8".gen.cpp");
+			if (!bIsHeader && !bIsSource)
+			{
+				continue;
+			}
+
+			// 대소문자 표기 변경에도 유지되는 실제 파일 비교
+			const bool bExpected = std::any_of(
+			    ExpectedFiles.begin(), ExpectedFiles.end(),
+			    [&Path](const std::filesystem::path& ExpectedPath)
+			    {
+				    return std::filesystem::equivalent(Path, ExpectedPath);
+			    });
+
+			if (bExpected)
+			{
+				continue;
+			}
+
+			std::ifstream Reader(Path, std::ios::binary);
+			std::string FirstLine;
+			std::getline(Reader, FirstLine);
+			if (!Reader.is_open() || Reader.bad())
+			{
+				const std::u8string FullName = Path.generic_u8string();
+				throw std::runtime_error("Cannot inspect generated file: " +
+					std::string(FullName.begin(), FullName.end()));
+			}
+
+			if (!FirstLine.empty() && FirstLine.back() == '\r')
+			{
+				FirstLine.pop_back();
+			}
+
+			const std::string_view Marker = bIsHeader
+			                                    ? FHeaderGenerator::GeneratedHeaderMarker
+			                                    : FHeaderGenerator::GeneratedSourceMarker;
+
+			if (FirstLine == Marker)
+			{
+				StaleFiles.push_back(Path);
+			}
+		}
+	}
+
+	// 디렉터리를 보존하는 생성 파일별 삭제
+	for (const std::filesystem::path& Path : StaleFiles)
+	{
+		std::filesystem::remove(Path);
 	}
 }

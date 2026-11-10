@@ -116,7 +116,7 @@ std::string FHeaderGenerator::GenerateHeader(const FHeaderFile& Header) const
 {
 	const std::string Id = FileId(Header.RelativePath);
 	std::ostringstream Output;
-	Output << "// UHT 생성 파일의 클래스 본문 연결\n#pragma once\n\n";
+	Output << GeneratedHeaderMarker << "\n#pragma once\n\n";
 	Output << "#include \"UObject/Class.h\"\n#include \"UObject/ReflectionMacros.h\"\n\n";
 	for (const FHeaderClass& Class : Header.Classes)
 	{
@@ -132,7 +132,7 @@ std::string FHeaderGenerator::GenerateHeader(const FHeaderFile& Header) const
 std::string FHeaderGenerator::GenerateModule(const std::vector<FHeaderFile>& Headers, std::string_view Module) const
 {
 	std::ostringstream Output;
-	Output << "// UHT 생성 파일의 모듈별 프로퍼티 등록\n#include \"EnginePCH.h\"\n#include \"UObject/Class.h\"\n";
+	Output << GeneratedSourceMarker << "\n#include \"EnginePCH.h\"\n#include \"UObject/Class.h\"\n";
 	for (const FHeaderFile& Header : Headers)
 	{
 		if (Module == "Editor" || ModuleName(Header.RelativePath) == Module)

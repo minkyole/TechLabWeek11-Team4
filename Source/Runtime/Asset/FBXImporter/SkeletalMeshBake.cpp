@@ -12,7 +12,7 @@ namespace
 {
 	constexpr uint32 BakeMagic = 0x4B424B53; // SKBK
 	// 바이너리 형식이나 FBX 임포트·쿠킹 규칙이 바뀌면 버전을 올린다.
-	constexpr uint32 BakeVersion = 3;
+	constexpr uint32 BakeVersion = 4;
 
 	class FBakeReader
 	{
@@ -152,10 +152,35 @@ namespace
 		});
 	}
 
+	// FName은 실행마다 내부 인덱스가 달라서 문자열로 저장한다.
+	bool TransferName(FBakeWriter& Writer, const FName& Name) { return Writer.String(Name.ToString()); }
+	bool TransferName(FBakeReader& Reader, FName& Name)
+	{
+		FString Value;
+		if (!Reader.String(Value)) return false;
+		Name = FName(Value);
+		return true;
+	}
+
+	template<typename A, typename T>
+	bool TransferAnims(A& Archive, T& Anims)
+	{
+		return Archive.Records(Anims, [](auto& Ar, auto& Clip)
+		{
+			return Ar.String(Clip.Name) && Ar.Pod(Clip.FrameRate) && Ar.Pod(Clip.NumFrames) &&
+				Ar.Records(Clip.Tracks, [](auto& TrackAr, auto& Track)
+				{
+					auto& Keys = Track.InternalTrack;
+					return TransferName(TrackAr, Track.Name) &&
+						TrackAr.Array(Keys.PosKeys) && TrackAr.Array(Keys.RotKeys) && TrackAr.Array(Keys.ScaleKeys);
+				});
+		});
+	}
+
 	template<typename A, typename T>
 	bool TransferMeshData(A& Archive, T& Data)
 	{
-		return TransferSkeletalMesh(Archive, Data.SkeletalMesh) &&
+		return TransferSkeletalMesh(Archive, Data.SkeletalMesh) && TransferAnims(Archive, Data.Anims) &&
 			Archive.Records(Data.StaticMeshes, [](auto& Ar, auto& Part)
 			{
 				auto& Mesh = Part.MeshData;
@@ -210,9 +235,26 @@ namespace
 		return HasTriangles;
 	}
 
+	bool ValidateAnims(const TArray<FFbxAnimClip>& Anims)
+	{
+		for (const FFbxAnimClip& Clip : Anims)
+		{
+			// 분모가 0이면 AsDecimal에서 0으로 나누게 된다.
+			if (Clip.FrameRate.Numerator <= 0 || Clip.FrameRate.Denominator <= 0 || Clip.NumFrames < 0)
+				return false;
+			for (const FBoneAnimationTrack& Track : Clip.Tracks)
+			{
+				if (!Track.InternalTrack.IsValid()) return false;
+			}
+		}
+		return true;
+	}
+
 	bool Validate(const FFbxCookedData& Data)
 	{
 		if (!Data.SkeletalMesh.Meshes.IsEmpty() && !ValidateSkeletalMesh(Data.SkeletalMesh))
+			return false;
+		if (!ValidateAnims(Data.Anims))
 			return false;
 		for (const FFbxStaticMeshPart& Part : Data.StaticMeshes)
 		{

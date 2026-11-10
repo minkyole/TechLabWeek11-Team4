@@ -11,11 +11,21 @@
 #include "Core/EngineString.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "BoneWeightHeatmap.h"
+#include <functional>
+#include <utility>
 
 #include "Render/ViewMode.h"
+#include "Render/ToneMapRenderer.h"
 
 class FGridRenderer;
+class UAnimSequence;
+class UAnimSingleNodeInstance;
+class UAnimDataModel;
+class UBlendSpace1D;
 
+struct FAnimStateMachineAssetData;
+class UAssetAnimInstance;
 class FSkeletalMeshViewerPanel : public IEditorPanel
 {
 public:
@@ -25,6 +35,7 @@ public:
 	void SetRenderer(FRenderer* InRenderer) { Renderer = InRenderer; }
 	void SetGridRenderer(FGridRenderer* InGridRenderer) { GridRenderer = InGridRenderer; }
 	void SetGizmoRenderer(FGizmoRenderer* InGizmoRenderer) { GizmoRenderer = InGizmoRenderer; }
+	void SetToneMapRenderer(FToneMapRenderer* InToneMapRenderer) { ToneMapRenderer = InToneMapRenderer; }
 
 	virtual bool Init() override;
 	virtual void Tick(float DeltaTime) override;
@@ -33,6 +44,9 @@ public:
 
 	// ImGui BeginRenderPass(메인 스왑체인) 시작 전에 호출되어 독립 렌더 타깃에 프리뷰 씬을 렌더링
 	void RenderPreview();
+ bool PreviewStateMachine(const FAnimStateMachineAssetData& Data, FString& Error);
+ UAssetAnimInstance* GetStateMachinePreview() const;
+ void StopStateMachinePreview();
 
 	// 다중 애셋 탭 오픈 및 선택
 	bool OpenAsset(const FString& Path);
@@ -46,6 +60,7 @@ public:
 	bool IsHoveredOrInteracting() const { return bViewportHovered || bIsInteracting; }
 
 	void RequestFocus() { bNeedFocus = true; }
+	void SetOpenBlendSpaceEditorCallback(std::function<void(const FString&)> Callback) { OnOpenBlendSpaceEditor = std::move(Callback); }
 
 	// 현재 프리뷰에서 수정한 본 Transform을 RefPose로 확정하고 .bin 파일에 저장
 	bool SaveCurrentMesh();
@@ -75,6 +90,10 @@ private:
 	void DrawSkeletonTreeWindow(const struct ImGuiWindowClass& WindowClass);
 	void DrawAssetDetailsWindow(const struct ImGuiWindowClass& WindowClass);
 	void DrawPreviewSettingsWindow(const struct ImGuiWindowClass& WindowClass);
+	void DrawBlendSpaceWindow(const struct ImGuiWindowClass& WindowClass);
+	void DrawBlendSpaceGraph();
+	void DrawAnimationWindow(const struct ImGuiWindowClass& WindowClass);
+	void DrawPreviewTimeline(const UAnimDataModel* Model);
 	void DrawMeshDetailsUI();
 	void DrawBoneHierarchyUI();
 	void DrawLightingSettingsUI();
@@ -91,6 +110,7 @@ private:
 	FRenderer* Renderer = nullptr;
 	FGridRenderer* GridRenderer = nullptr;
 	FGizmoRenderer* GizmoRenderer = nullptr;
+	FToneMapRenderer* ToneMapRenderer = nullptr;
 
 	// 임시 프리뷰 객체는 에디터가 종료되기 전에 해제한다.
 	USkeletalMeshComponent* PreviewComponent = nullptr;
@@ -111,6 +131,7 @@ private:
 
 	// 렌더 타깃 및 뷰포트
 	TUniquePtr<FTexture2D> ColorTarget;
+	TUniquePtr<FTexture2D> HDRTarget;
 	TUniquePtr<FTexture2D> DepthTarget;
 	FRenderingInfo RenderingInfo{};
 	uint32 ViewportWidth = 0;
@@ -126,6 +147,13 @@ private:
 	bool bSkeletonTreeOpen = true;
 	bool bAssetDetailsOpen = true;
 	bool bPreviewSettingsOpen = true;
+	bool bAnimationOpen = true;
+	bool bBlendSpaceOpen = true;
+	bool bBlendSpaceDockInitialized = false;
+	bool bViewportFocused = false;
+	bool bBlendSpaceWindowFocused = false;
+	bool bAnimationWasVisible = false;
+	bool bBlendSpaceWasVisible = false;
 	bool bResetLayout = false;
 
 	// 레벨 에디터와 같은 공전 및 자유 이동 카메라 조작을 사용한다.
@@ -151,15 +179,31 @@ private:
 	FVector SkyColor = FVector(0.6f, 0.7f, 0.85f);
 	FVector GroundColor = FVector(0.25f, 0.25f, 0.28f);
 	float SkyLightIntensity = 1.0f;
+	float PreviewExposure = 1.0f;
+
+	// 뷰어 표시 모드. View Mode 메뉴의 라디오 그룹(하나만 선택)이며, 체크 표시는 이 값 하나로 계산한다.
+	// 렌더러의 EViewMode에는 히트맵이 없으므로 GetRendererViewMode()로 변환해 넘긴다.
+	enum class EViewerDisplayMode : uint8
+	{
+		LitBlinnPhong,
+		LitLambert,
+		Unlit,
+		WorldNormal,
+		BoneWeightHeatmap,
+	};
+	EViewMode GetRendererViewMode() const;
+	EToneMapMode GetToneMapMode() const;
+	bool IsBoneWeightHeatmapMode() const { return DisplayMode == EViewerDisplayMode::BoneWeightHeatmap; }
 
 	// 뷰 모드 및 렌더 옵션
-	EViewMode ViewerMode = EViewMode::Lit_BlinnPhong;
+	EViewerDisplayMode DisplayMode = EViewerDisplayMode::LitBlinnPhong;
 	bool bShowGrid = true;
-	bool bWireframe = false;
+	bool bWireframe = false;   // 표시 모드와 독립 토글 (히트맵 위에도 겹쳐 그릴 수 있다)
 	FVector4 BackgroundClearColor = FVector4(0.12f, 0.12f, 0.12f, 1.0f); // 언리얼 기본 프리뷰 배경색
 
 	// 골격(Bone) 표시 및 하이라이트 옵션
 	bool bShowBones = true;
+	bool bShowBoneGizmo = true;
 	bool bDrawBoneCones = true;      // true: 입체 원뿔(Cone/Pyramid) 렌더링, false: 선(Line) 렌더링
 	bool bShowAllBoneNames = false;  // 모든 본 이름 표시 여부 (선택된 본은 항상 표시)
 	float BoneConeWidthRatio = 0.10f;
@@ -188,4 +232,110 @@ private:
 	// Save As New .bin 모달 팝업 상태
 	bool bShowSaveAsModal = false;
 	char SaveAsNameBuffer[128] = "";
+
+	//BoneWeightHeatmap 관련 변수
+	FBoneWeightHeatmap BoneWeightHeatmap;
+
+	struct FPreviewClip
+	{
+		FString Name;
+		UAnimSequence* Sequence = nullptr;
+	};
+
+	UAnimSingleNodeInstance* GetPreviewAnimInstance() const;
+	void ClearPreviewClips();
+	void BuildPreviewClips();
+	void SelectPreviewClip(int32 ClipIndex);
+
+
+	enum class EPreviewMode { None, Sequence, BlendSpace, StateMachine };
+	struct FPreviewPlaybackState
+	{
+		float NormalizedTime = 0.0f;
+		float Rate = 1.0f;
+		bool Playing = true;
+		bool Looping = true;
+	};
+	EPreviewMode PreviewMode = EPreviewMode::None;
+	FPreviewPlaybackState SequencePlayback, BlendSpacePlayback;
+	UBlendSpace1D* SelectedBlendSpace = nullptr; // Registered asset, non-owning.
+	float BlendSpaceInput = 0.0f;
+	FString BlendSpaceMessage;
+	std::function<void(const FString&)> OnOpenBlendSpaceEditor;
+	void CapturePreviewPlayback();
+	void ActivatePreviewMode(EPreviewMode Mode);
+	void ResetPreviewModes();
+	bool HasActivePreview() const;
+	bool IsBlendSpacePlayable() const;
+	void SelectPreviewBlendSpace(UBlendSpace1D* Asset);
+	void ApplyBlendSpaceInput(float Value);
+	void RefreshPreviewPose();
+	bool HasPreviewClip() const;
+	bool BlockEditDuringAnimationPreview();
+	bool IsPreviewAtEnd() const;
+	void UpdatePreviewPlaybackEnd();
+	void TogglePreviewPlayback();
+	int32 GetPreviewCurrentFrame() const;
+	void ScrubPreviewToTime(float Seconds);
+	void ApplyPreviewPlayRate();
+	void PlayPreviewInDirection(int32 Direction);
+	void StepPreviewFrame(int32 Delta);
+	void SetPreviewPlaySpeed(float Speed);
+	void HandlePreviewShortcuts();
+
+	void DrawNotifyProperties(const UAnimDataModel* Model);
+	void DrawNotifyObjectProperties(int32 Index, class UAnimNotify* NotifyObject);
+	void SelectPreviewNotify(int32 Index);
+	TArray<FString> CollectUsedNotifyNames() const;
+	bool DrawAudioFilePicker(const char* Folder, FString& InOutPath);
+	void RefreshAudioFileList(const char* Folder);
+	TArray<FString> AudioFileList;
+
+	UAnimSequence* GetSelectedPreviewSequence() const;
+	int32 AddPreviewNotify(float Time, float Duration);
+	void RemovePreviewNotify(int32 Index);
+	void SetPreviewNotifyTime(int32 Index, float Time, bool bSnapToFrame);
+	int32 SortPreviewNotifies(int32 KeepIndex);
+	void SetPreviewNotifyDuration(int32 Index, float Duration);
+	void RenamePreviewNotify(int32 Index, const FString& Name);
+	void SetPreviewNotifyClass(int32 Index, class UClass* NotifyClass);
+	void OnPreviewNotifyPropertyChanged(int32 Index, const struct FProperty& Property);
+	bool SavePreviewNotifies();
+
+	struct FFiredPreviewNotify
+	{
+		FAnimNotifyEvent Event;
+		FString Label;
+		double FiredAt = 0.0;
+	};
+
+	void HandlePreviewNotify(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence);
+	void HandlePreviewNotifyStateBegin(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence);
+	void HandlePreviewNotifyStateEnd(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence);
+	void AddFiredPreviewNotify(const FAnimNotifyEvent& Event, const FString& Label);
+	bool IsPreviewNotifyFlashing(const FAnimNotifyEvent& Event) const;
+	void DrawFiredNotifies();
+
+	uint32 PreviewNotifyHandle = 0;
+	uint32 PreviewNotifyStateBeginHandle = 0;
+	uint32 PreviewNotifyStateEndHandle = 0;
+	TArray<FFiredPreviewNotify> FiredNotifies;
+	std::unique_ptr<class FCameraShakePattern> PreviewShake;
+	float PreviewShakeScale = 1.0f;
+	bool bPreviewCameraShake = true;
+
+	int32 SelectedNotifyIndex = -1;
+	bool bDraggingNotify = false;
+	float NotifyDragOffset = 0.0f;
+	int32 NotifyPopupIndex = -1;
+	float NotifyPopupTime = 0.0f;
+	char NotifyNameBuffer[64] = "";
+	bool bNotifyDirty = false;
+
+	TArray<FPreviewClip> PreviewClips;
+	int32 SelectedClipIndex = -1; // -1 = None
+	int32 PreviewPlayDirection = 1;
+	float PreviewPlaySpeed = 1.0f;
+	float PreviewCustomSpeed = 1.0f;
+	bool bAnimationWindowFocused = false;
 };

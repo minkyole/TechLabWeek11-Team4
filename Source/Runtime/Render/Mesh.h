@@ -95,6 +95,14 @@ public:
 	TArray<FSkeletalMeshSection> Sections;
 	FBox RenderBounds;
 
+	// 파트 하나가 본 행렬 버퍼에서 차지하는 칸 수 = Bones.Num() + 1 (마지막 칸은 MeshTransform).
+	uint32 BoneStride = 0;
+	TArray<FBox> BoneBounds;
+	TArray<uint8> BoneBoundsValid;
+
+	FBox UnweightedBounds;
+	bool bHasUnweightedBounds = false;
+
     const FSkeletalMeshData& GetMeshData() const { return MeshData; }
 	UMaterial* GetMaterial(uint32 SlotIndex) const;
     void RegisterProxy(FSkeletalMeshSceneProxy* Proxy);

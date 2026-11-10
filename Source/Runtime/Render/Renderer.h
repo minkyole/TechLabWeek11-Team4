@@ -1,4 +1,4 @@
-        #pragma once
+#pragma once
 
 #include "RenderPacket.h"
 #include "Texture2D.h"
@@ -67,7 +67,7 @@ struct alignas(16) FViewConstants
 	// 여러 Cascade를 사용하는 View에서만 전환 비율을 전달한다.
 	float DirectionalCascadeTransitionFraction = 0.0f;
 	uint32 VisualizeShadowCascades = 0;
-	float ViewPadding = 0.0f;
+	uint32 BoneWeightHeatmapStatus = 0;
 };
 
 static_assert(sizeof(FViewConstants) == 144, "UberLit.hlsl cbuffer ViewConstants 크기와 맞아야 한다");
@@ -341,7 +341,8 @@ public:
 private:
 	void DrawPackets(uint32 Begin, uint32 End, const FMatrix& ViewProjection);
 	void DrawStaticGroups();
-	void BindMaterial(UMaterial* Material);
+	// bSkinned면 UberLit의 GPU_SKINNING 변형을 쓴다. 스킨 변형을 쓸 수 없으면 false(그리면 바인드 포즈가 나온다).
+	bool BindMaterial(UMaterial* Material, bool bSkinned = false);
 	void UpdateMaterialParams(const FRenderPacket& RenderPacket);
 	void UpdatePerObjectConstants(const FRenderPacket& RenderPacket, const FMatrix& ViewProjection);
 	void UpdatePerObjectConstants(const FMatrix& World, bool bReceiveShadow, bool bReceiveDecal);

@@ -1,4 +1,7 @@
 #pragma pack_matrix(row_major)
+#if GPU_SKINNING
+#include "SkinCommon.hlsli"
+#endif
 // View별 행렬과 렌더 타깃 픽셀 크기·Outline 확장량을 전달한다.
 cbuffer constants : register(b0)
 {
@@ -16,6 +19,10 @@ struct VS_INPUT
     float4 tangent : TANGENT;
     float2 uv : TEXCOORD;
     float4 color : COLOR;
+#if GPU_SKINNING
+    uint4 boneIndices : BLENDINDICES;
+    float4 boneWeights : BLENDWEIGHT;
+#endif
 };
 
 
@@ -30,6 +37,11 @@ struct PS_INPUT
 PS_INPUT mainVS(VS_INPUT input)
 {
     PS_INPUT output;
+
+#if GPU_SKINNING
+    // 바인드 포즈 정점을 현재 자세로 옮긴 뒤 기존 확장 계산을 그대로 쓴다.
+    SkinVertex(input.boneIndices, input.boneWeights, input.position, input.normal, input.tangent.xyz);
+#endif
     
     const matrix worldViewProjection = mul(World, ViewProjection);
     

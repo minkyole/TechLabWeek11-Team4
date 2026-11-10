@@ -306,6 +306,9 @@ project "HitoriEditor"
 		UhtGeneratedRoot .. "/Editor/Editor.gen.cpp",
 		"Source/ThirdParty/ImNeoSequencer/*.h",
 		"Source/ThirdParty/ImNeoSequencer/*.cpp",
+		"Source/ThirdParty/ImGuiNodeEditor/*.h",
+		"Source/ThirdParty/ImGuiNodeEditor/*.inl",
+		"Source/ThirdParty/ImGuiNodeEditor/*.cpp",
 		"Source/Programs/**.h",
 		"Source/Programs/**.cpp",
 		"Source/Editor/**.rc",   -- 창·exe 아이콘
@@ -322,6 +325,7 @@ project "HitoriEditor"
 		"Source/Programs",
 		UhtGeneratedRoot .. "/Runtime",
 		UhtGeneratedRoot .. "/Editor",
+		"Source/ThirdParty/ImGuiNodeEditor",
 		"%{IncludeDir.LuaJIT}",
     	"%{IncludeDir.Sol2}",
 		"%{IncludeDir.ImGui}",
@@ -340,6 +344,8 @@ project "HitoriEditor"
 	}
 
 	filter "files:Source/ThirdParty/ImNeoSequencer/*.cpp"
+		flags { "NoPCH" }
+	filter "files:Source/ThirdParty/ImGuiNodeEditor/*.cpp"
 		flags { "NoPCH" }
 	filter {}
 

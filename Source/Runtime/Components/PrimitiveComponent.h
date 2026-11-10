@@ -13,6 +13,9 @@ struct FOutlineGeometry
 {
 	FVertexBuffer* VertexBuffer = nullptr;
 	FIndexBuffer* IndexBuffer = nullptr;
+	// GPU 스키닝 메시면 본 행렬 버퍼(t30, t31). 있으면 아웃라인이 스킨 변형 셰이더로 그린다.
+	FStructuredBuffer* SkinMatrices = nullptr;
+	FStructuredBuffer* NormalMatrices = nullptr;
 };
 
 enum class EPrimitiveType

@@ -32,6 +32,11 @@
 #include "Editor/Outliner/OutlinerPanel.h"
 #include "Editor/Sequence/SequencePanel.h"
 #include "Editor/SkeletalMeshViewer/SkeletalMeshViewerPanel.h"
+#include "Editor/BlendSpaceEditor/BlendSpaceEditorPanel.h"
+#include "Editor/StateMachineEditor/StateMachineEditorPanel.h"
+#include "Animation/AssetAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "UObject/UObjectIterator.h"
 #include "Sequence/SequenceActor.h"
 #include "Editor/HitoriEd/EditorFileUtils.h"
 #include "Editor/HitoriEd/EditorResourcePaths.h"
@@ -189,10 +194,53 @@ bool UEditorEngine::Init()
 	EditorControlsPanel = EditorUI->AddEditorPanel<FEditorControlsPanel>();
 	ViewportsPanel = EditorUI->AddEditorPanel<FViewportsPanel>();
 	ContentDrawerPanel = EditorUI->AddEditorPanel<FContentDrawerPanel>();
+	BlendSpaceEditorPanel = EditorUI->AddEditorPanel<FBlendSpaceEditorPanel>();
+ StateMachineEditorPanel=EditorUI->AddEditorPanel<FStateMachineEditorPanel>();
+ StateMachineEditorPanel->SetPIEDebugProvider([this](const FString &AssetKey, const FString &Signature) {
+	 FStateMachinePIEFrame Frame;
+	 if (!PlayWorld)
+		 return Frame;
+	 Frame.Session = PlayWorld->GetUUID();
+	 if (AssetKey.empty())
+		 return Frame;
+	 for (TObjectIterator<AActor> It; It; ++It)
+	 {
+		 auto *Actor = *It;
+		 if (Actor->GetWorld() != PlayWorld || Actor->IsActorBeingDestroyed())
+			 continue;
+		 for (auto *Component : Actor->GetComponents())
+		 {
+			 auto *Mesh = Cast<USkeletalMeshComponent>(Component);
+			 if (!Mesh || StateMachineAssetKey(Mesh->GetStateMachineAssetPath()) != AssetKey)
+				 continue;
+			 auto *Instance = Cast<UAssetAnimInstance>(Mesh->GetAnimInstance());
+			 if (!Instance)
+				 continue;
+			 FStateMachinePIETarget Target;
+			 Target.ActorId = Actor->GetUUID();
+			 Target.ComponentId = Mesh->GetUUID();
+			 Target.Label = Actor->GetName() + " / " + Mesh->GetName();
+			 Target.Observation = ObserveStateMachine(*Instance, Signature);
+			 Frame.Targets.push_back(std::move(Target));
+		 }
+	 }
+	 std::sort(Frame.Targets.begin(), Frame.Targets.end(), [](const auto &A, const auto &B) {
+		 if (A.Label != B.Label)
+			 return A.Label < B.Label;
+		 return A.ActorId != B.ActorId ? A.ActorId < B.ActorId : A.ComponentId < B.ComponentId;
+	 });
+	 return Frame;
+ });
+ ContentDrawerPanel->SetOpenStateMachineCallback([this](const FString &P) { StateMachineEditorPanel->OpenAsset(P); });
+ ContentDrawerPanel->SetCreateStateMachineCallback([this](const FString& P){StateMachineEditorPanel->NewAsset(P);});
+	ContentDrawerPanel->SetOpenBlendSpaceCallback([this](const FString& Path) { BlendSpaceEditorPanel->OpenAsset(Path); });
 	SkeletalMeshViewerPanel = EditorUI->AddEditorPanel<FSkeletalMeshViewerPanel>();
+ StateMachineEditorPanel->SetViewer(SkeletalMeshViewerPanel);
+	SkeletalMeshViewerPanel->SetOpenBlendSpaceEditorCallback([this](const FString& Path) { BlendSpaceEditorPanel->OpenAsset(Path); });
 	SkeletalMeshViewerPanel->SetRenderer(Renderer);
 	SkeletalMeshViewerPanel->SetGridRenderer(GridRenderer.get());
 	SkeletalMeshViewerPanel->SetGizmoRenderer(GizmoRenderer.get());
+	SkeletalMeshViewerPanel->SetToneMapRenderer(ToneMapRenderer.get());
 	DetailsPanel->SetOpenSkeletalMeshViewerCallback([this](USkeletalMesh* Mesh)
 	{
 		SkeletalMeshViewerPanel->OpenMesh(Mesh);
@@ -551,7 +599,7 @@ void UEditorEngine::BeginFrame(const float DeltaTime)
 	FStatOverlay::Tick(DeltaTime);
 	EditorControlsPanel->FEditorControlsPanel::DeltaTime = DeltaTime;
 
-	if (!ImGui::GetIO().WantTextInput && FInputSystem::IsKeyPressed(EKeyCode::Delete))
+	if (!StateMachineEditorPanel->IsKeyboardFocused() && !BlendSpaceEditorPanel->IsKeyboardFocused() && !ImGui::GetIO().WantTextInput && FInputSystem::IsKeyPressed(EKeyCode::Delete))
 		DeleteActor(OutlinerPanel->GetSelectedActor());
 }
 
@@ -1538,7 +1586,11 @@ void UEditorEngine::PreExit()
 	EditorWorld->ClearWorld();
 	// PIE 창이 열린 채 종료하면 Device가 살아 있을 때 Swapchain과 타깃을 먼저 정리한다.
 	DestroyPIEWindow();
+	if (StateMachineEditorPanel) StateMachineEditorPanel->ReleaseResources();
 	SkeletalMeshViewerPanel->ReleaseResources();
+	// Panels outlive the global UObject sweep. Release the owned draft first
+	// so its unique_ptr cannot delete an already-destroyed UObject later.
+	if (BlendSpaceEditorPanel) BlendSpaceEditorPanel->ReleaseResources();
 	ImGuiRenderer->Shutdown();
 
 	Super::PreExit();

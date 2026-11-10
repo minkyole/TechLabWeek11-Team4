@@ -25,6 +25,14 @@ void FOutlineRenderer::Init(FRenderer* InRenderer)
 	OutlinePipelineState.BlendState = EBlendState::Opaque;
 	OutlinePipelineState.DepthStencilState = EDepthStencilState::StencilOutline;
 
+	// GPU 스키닝 변형. 셰이더만 다르고 상태는 같다.
+	FShaderProgram* SkinnedShader = FRenderResourceManager::GetShaderProgram(
+		"Resources/Shader/OutlineShader.hlsl", FRenderResourceManager::GetSkinningMacros());
+	SkinnedMaskPipelineState = MaskPipelineState;
+	SkinnedMaskPipelineState.Shader = SkinnedShader;
+	SkinnedOutlinePipelineState = OutlinePipelineState;
+	SkinnedOutlinePipelineState.Shader = SkinnedShader;
+
 	static_assert(sizeof(FOutlineData) == 208, "Outline constant buffer layout mismatch");
 	ConstantBuffer = RenderCommand::CreateConstantBuffer(sizeof(FOutlineData));
 }
@@ -50,6 +58,14 @@ void FOutlineRenderer::OnRender(const FOutline& InOutline, const FMatrix& InView
 		return;
 	}
 
+	// 본 행렬 버퍼가 있으면 바인드 포즈 정점을 셰이더에서 스키닝한다.
+	const bool bSkinned = Geometry.SkinMatrices && Geometry.NormalMatrices;
+	if (bSkinned)
+	{
+		RenderCommand::BindShaderResource(30, Geometry.SkinMatrices, EShaderBindFlagBits::Vertex);
+		RenderCommand::BindShaderResource(31, Geometry.NormalMatrices, EShaderBindFlagBits::Vertex);
+	}
+
 	RenderCommand::BindVertexBuffer(Geometry.VertexBuffer);
 	RenderCommand::BindIndexBuffer(Geometry.IndexBuffer);
 	RenderCommand::BindConstantBuffer(0, ConstantBuffer.get(), EShaderBindFlagBits::Vertex);
@@ -64,13 +80,13 @@ void FOutlineRenderer::OnRender(const FOutline& InOutline, const FMatrix& InView
 
 	// 1패스: 두께 0(확장 없음)으로 선택 메시 영역을 스텐실에 찍는다.
 	FOutlineData MaskConst = { World, NormalMatrix, ViewProj, FVector4(ViewportWidth, ViewportHeight, 0.0f, 0.0f) };
-	RenderCommand::BindPipelineState(MaskPipelineState);
+	RenderCommand::BindPipelineState(bSkinned ? SkinnedMaskPipelineState : MaskPipelineState);
 	RenderCommand::UpdateBufferData(ConstantBuffer.get(), &MaskConst, sizeof(MaskConst));
 	RenderCommand::DrawIndexed(IndexCount);
 
 	// 2패스: 확장 메시 중 스텐실 바깥 부분만 노란색으로 그린다.
 	FOutlineData OutlineConst = { World, NormalMatrix, ViewProj, FVector4(ViewportWidth, ViewportHeight, 2.0f, 0.0f) };
-	RenderCommand::BindPipelineState(OutlinePipelineState);
+	RenderCommand::BindPipelineState(bSkinned ? SkinnedOutlinePipelineState : OutlinePipelineState);
 	RenderCommand::UpdateBufferData(ConstantBuffer.get(), &OutlineConst, sizeof(OutlineConst));
 	RenderCommand::DrawIndexed(IndexCount);
 

@@ -131,15 +131,63 @@ UMaterial* USkeletalMesh::GetMaterial(uint32 SlotIndex) const
 	return UAssetManager::GetAssetByPath<UMaterial>("DefaultMaterial");
 }
 
+namespace
+{
+	// 비어 있는 상자는 첫 점으로 시작하고, 이후로는 점을 포함하도록 넓힌다.
+	void ExpandBoxByPoint(FBox& Box, uint8& bValid, const FVector& Point)
+	{
+		if (!bValid)
+		{
+			Box.Min = Point;
+			Box.Max = Point;
+			bValid = 1;
+			return;
+		}
+		Box.Expand(FBox{ Point, Point });
+	}
+}
+
 void USkeletalMesh::RebuildRenderData()
 {
+	// GPU 스키닝 바운드용 BoneAABB. InvBind가 바뀌는 경우에도 여기서 다시 계산된다.
+	const uint32 NumBones = static_cast<uint32>(MeshData.Bones.Num());
+	BoneBounds.Init(FBox{}, NumBones);
+	BoneBoundsValid.Init(0, NumBones);
+	uint8 bUnweightedValid = 0;
+	UnweightedBounds = FBox{};
+
 	bool bHasVertex = false;
 	for (int i = 0; i < MeshData.Meshes.Num(); i++)
 	{
 		const FSkeletalMesh& Mesh = MeshData.Meshes[i];
+		const bool bHasInvBind = Mesh.InverseBindPoseMat.Num() == static_cast<int32>(NumBones);
 		for (int j = 0; j < Mesh.Vertices.Num(); j++)
 		{
-			const FVector Position = Mesh.MeshTransform.TransformPosition(Mesh.Vertices[j].Vertex.Position);
+			const FSkeletalVertex& SkinVertex = Mesh.Vertices[j];
+			bool bWeighted = false;
+			if (bHasInvBind)
+			{
+				for (int32 Slot = 0; Slot < 4; ++Slot)
+				{
+					if (!IsValidBoneInfluence(SkinVertex, Slot, NumBones))
+					{
+						continue;
+					}
+					const uint32 Bone = SkinVertex.BoneIndices[Slot];
+					// 정점을 본의 바인드 공간으로 옮겨 그 본의 상자에 넣는다.
+					const FVector BoneSpacePosition = Mesh.InverseBindPoseMat[Bone].TransformPosition(SkinVertex.Vertex.Position);
+					ExpandBoxByPoint(BoneBounds[Bone], BoneBoundsValid[Bone], BoneSpacePosition);
+					bWeighted = true;
+				}
+			}
+
+			const FVector Position = Mesh.MeshTransform.TransformPosition(SkinVertex.Vertex.Position);
+			if (!bWeighted)
+			{
+				// 본 없이 MeshTransform만 적용되는 정점은 포즈와 무관한 고정 상자에 모은다.
+				ExpandBoxByPoint(UnweightedBounds, bUnweightedValid, Position);
+			}
+
 			if (!bHasVertex)
 			{
 				RenderBounds.Min = Position;
@@ -157,6 +205,7 @@ void USkeletalMesh::RebuildRenderData()
 			}
 		}
 	}
+	bHasUnweightedBounds = bUnweightedValid != 0;
 	// 정점이 없으면 이전 계산 결과를 남기지 않고 원점으로 초기화한다.
 	if (!bHasVertex)
 	{

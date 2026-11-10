@@ -18,4 +18,6 @@
   </Project>
   <Project Path="Source\Programs\UHT\UHT.vcxproj" Id="1626880B-822F-887C-0BAB-9E7C77B3937C">
   </Project>
+  <Project Path="Intermediate\ProjectFiles\UHTCodegen.vcxproj" Id="EBED7E05-D7A5-C052-40AD-99AE2C845B43">
+  </Project>
 </Solution>

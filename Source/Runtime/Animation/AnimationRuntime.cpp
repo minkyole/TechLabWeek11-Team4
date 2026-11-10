@@ -98,3 +98,47 @@ void FAnimationRuntime::BlendTwoPosesTogether(
 		}
 	}
 }
+
+ETypeAdvanceAnim FAnimationRuntime::AdvanceTime(bool bAllowLooping, float MoveDelta, float& InOutTime, float& OutMovedDelta)
+{
+	OutMovedDelta = 0.0f;
+
+	if (!std::isfinite(MoveDelta) || MoveDelta == 0.0f)
+	{
+		return ETypeAdvanceAnim::Default;
+	}
+
+	// float끼리 더하면 경계 근처에서 1.0을 넘었는지 판정이 흔들려서 double로 계산한다
+	const double OldTime = InOutTime;
+	const double NewTime = OldTime + MoveDelta;
+
+	if (bAllowLooping)
+	{
+		// floor는 음수 쪽으로 내림이라 역방향(-0.1 → 0.9)도 같은 식으로 되감긴다
+		double Wrapped = NewTime - std::floor(NewTime);
+
+		// -1e-9 같은 값은 되감으면 0.999999999가 되고, float로 바꾸면 1.0이 돼서 범위를 벗어난다
+		if (static_cast<float>(Wrapped) >= 1.0f)
+		{
+			Wrapped = 0.0;
+		}
+
+		InOutTime = static_cast<float>(Wrapped);
+
+		// 루프는 원하던 만큼 다 움직였다. 몇 바퀴 돌았는지 Notify가 알아야 해서 되감기 전 값을 준다
+		OutMovedDelta = MoveDelta;
+
+		const bool bCrossed = NewTime >= 1.0 || NewTime < 0.0;
+		return bCrossed ? ETypeAdvanceAnim::Looped : ETypeAdvanceAnim::Default;
+	}
+
+	const double Clamped = std::clamp(NewTime, 0.0, 1.0);
+	InOutTime = static_cast<float>(Clamped);
+
+	// 끝에 멈춘 뒤에는 0이 기록돼야 끝 지점 Notify가 매 프레임 다시 울리지 않는다
+	OutMovedDelta = static_cast<float>(Clamped - OldTime);
+
+	// 반대쪽 끝에서 출발하는 경우를 잘못 판정하지 않도록 진행 방향의 끝만 본다
+	const bool bHitEnd = MoveDelta > 0.0f ? Clamped >= 1.0 : Clamped <= 0.0;
+	return bHitEnd ? ETypeAdvanceAnim::Finished : ETypeAdvanceAnim::Default;
+}

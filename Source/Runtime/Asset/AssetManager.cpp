@@ -13,15 +13,19 @@
 #include "Asset/FBXImporter/FbxImporter.h"
 #include "Asset/FBXImporter/SkeletalMeshBake.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/CommonAnimClips.h"
+#include "Animation/AnimNotifyFile.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "Render/GeometryGenerator.h"
-#include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectIterator.h"
 
 #include "Render/ImageLoader.h"
 #include "Core/ResourcePaths.h"
 #include <algorithm>
 #include <cctype>
+#include "Core/Misc/FileHelper.h"
 
 
 namespace
@@ -161,7 +165,49 @@ namespace
 
 		BuildMeshTangentSpace(RenderVertices, RenderIndices);
 
-		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(RenderVertices.GetData(), sizeof(FVertex) * static_cast<uint32>(RenderVertices.size()), sizeof(FVertex));
+		// GPU 스키닝용 정점: 탄젠트까지 계산한 FVertex에 본 행렬 버퍼 Index와 가중치를 붙인다.
+		// 파트마다 본 행렬 BoneStride칸을 쓰고, 마지막 칸(+ NumBones)은 가중치 없는 정점용 MeshTransform이다.
+		const uint32 NumBones = static_cast<uint32>(MeshData->Bones.Num());
+		const uint32 BoneStride = NumBones + 1;
+		TArray<FSkeletalVertex> GPUVertices;
+		GPUVertices.Reserve(RenderVertices.Num());
+		for (int i = 0; i < MeshData->Meshes.Num(); i++)
+		{
+			const uint32 PartOffset = static_cast<uint32>(i) * BoneStride;
+			for (const FSkeletalVertex& Source : MeshData->Meshes[i].Vertices)
+			{
+				FSkeletalVertex& Out = GPUVertices.AddDefaulted_GetRef();
+				Out.Vertex = RenderVertices[GPUVertices.Num() - 1];
+
+				// CPU 스키닝처럼 유효한 영향만 남기고 합이 1이 되게 다시 나눈다.
+				float TotalWeight = 0.0f;
+				int32 Count = 0;
+				for (int32 Slot = 0; Slot < 4; ++Slot)
+				{
+					if (!IsValidBoneInfluence(Source, Slot, NumBones))
+					{
+						continue;
+					}
+					Out.BoneIndices[Count] = PartOffset + Source.BoneIndices[Slot];
+					Out.BoneWeights[Count] = Source.BoneWeights[Slot];
+					TotalWeight += Source.BoneWeights[Slot];
+					++Count;
+				}
+
+				if (TotalWeight > 0.0f)
+				{
+					for (int32 Slot = 0; Slot < Count; ++Slot)
+						Out.BoneWeights[Slot] /= TotalWeight;
+				}
+				else
+				{
+					Out.BoneIndices[0] = PartOffset + NumBones;
+					Out.BoneWeights[0] = 1.0f;
+				}
+			}
+		}
+
+		TUniquePtr<FVertexBuffer> VB = RenderCommand::CreateStaticVertexBuffer(GPUVertices.GetData(), sizeof(FSkeletalVertex) * static_cast<uint32>(GPUVertices.Num()), sizeof(FSkeletalVertex));
 		TUniquePtr<FIndexBuffer> IB = RenderCommand::CreateStaticIndexBuffer(RenderIndices.GetData(), static_cast<uint32>(RenderIndices.size()));
 		
 		if (VB == nullptr || IB == nullptr) return nullptr;
@@ -173,6 +219,7 @@ namespace
 		Mesh->VertexBuffer = std::move(VB);
 		Mesh->IndexBuffer = std::move(IB);
 		Mesh->Sections = std::move(RenderSections);	// Section 정보 저장
+		Mesh->BoneStride = BoneStride;
 
 		UMaterial* DefaultMaterial = UAssetManager::GetAssetByPath<UMaterial>("DefaultMaterial");
 		if (!DefaultMaterial)
@@ -222,7 +269,7 @@ namespace
 
 	FString MakeAssetKey(const FString& Path)
 	{
-		return fs::relative(Path, "Assets").generic_string();
+		return ToUTF8String(fs::relative(FFileHelper::ToNativePath(Path), "Assets"));
 	}
 }
 
@@ -269,17 +316,32 @@ void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgre
 		FString Key = ToUTF8String(fs::relative(Files[i], AssetRoot));
 		FString Path = ToUTF8String(Files[i]);
 		AssetPathMap.Add(Key, Path);
-		LoadAsset(Key, Path);
+		if (GetAssetExtension(Path) != ".blendspace" && GetAssetExtension(Path) != ".animsm") LoadAsset(Key, Path);
 
 		if (OnProgress)
 		{
 			OnProgress(i + 1, Total, Key);
 		}
 	}
+	// Resolve composite assets after all animation sub-assets have been registered.
+	for (const fs::path& File : Files)
+	{
+		if (GetAssetExtension(ToUTF8String(File)) == ".blendspace")
+			LoadAsset(ToUTF8String(fs::relative(File, AssetRoot)), ToUTF8String(File));
+	}
+	for (const fs::path& File : Files)
+		if (GetAssetExtension(ToUTF8String(File)) == ".animsm") LoadAsset(ToUTF8String(fs::relative(File, AssetRoot)), ToUTF8String(File));
 }
 
 void UAssetManager::LoadAsset(const FString& Key, const FString& Path) {
 	const FString Extension{ GetAssetExtension(Path) };
+	if (Extension == ".animsm") { FString Error; if (!LoadAnimStateMachine(Path, Error)) HTR_LOG(Error, "[AnimStateMachine] {}: {}", Path, Error); return; }
+	if (Extension == ".blendspace")
+	{
+		FString Error;
+		if (!LoadBlendSpace(Path, Error)) HTR_LOG(Error, "[BlendSpace] {}: {}", Path, Error);
+		return;
+	}
 	if (Extension == ".png" || Extension == ".dds") {
 		if (UTexture2D* Texture{ LoadTexture(Path) }) {
 			AssetMap[Key] = Texture;
@@ -294,7 +356,7 @@ void UAssetManager::LoadAsset(const FString& Key, const FString& Path) {
 	if (Extension == ".obj") {
 		LoadObjStaticMesh(Path);
 	}
-	if (Extension == ".fbx")
+	if (Extension == ".fbx" || IsFbxBakePath(FFileHelper::ToNativePath(Path)))
 	{
 		LoadFbxAssets(Path);
 	}
@@ -596,6 +658,46 @@ const FFbxAssetSet* UAssetManager::LoadFbxAssets(const FString& Path)
 			RegisterAsset(Key, Assets.SkeletalMesh);
 		}
 	}
+
+	// 메시 포인터를 SetSkeletalMesh에 넘겨야 하므로 메시 등록 뒤에 클립을 등록한다.
+	for (int32 Index = 0; Index < Data.Anims.Num(); ++Index)
+	{
+		const FFbxAnimClip& Clip = Data.Anims[Index];
+		// "Armature|Idle"처럼 구분자가 섞인 이름도 키 한 칸에 들어가도록 경로 문자를 바꾼다.
+		FString ClipName = Clip.Name.empty() ? "Anim_" + std::to_string(Index) : Clip.Name;
+		std::replace(ClipName.begin(), ClipName.end(), '/', '_');
+		std::replace(ClipName.begin(), ClipName.end(), '\\', '_');
+		FString AnimKey = Key + "#Anim/" + ClipName;
+
+		// 이미 재생 노드가 쥐고 있을 수 있는 포인터라서 새로 만들지 않고 그대로 쓴다.
+		UAnimSequence* Sequence = GetAssetByPath<UAnimSequence>(AnimKey);
+		// 같은 FBX 안에서 이름이 겹치면 두 번째 클립을 버리지 않도록 인덱스를 붙인다.
+		if (Sequence && Assets.Animations.Find(Sequence) != INDEX_NONE)
+		{
+			ClipName += "_" + std::to_string(Index);
+			AnimKey = Key + "#Anim/" + ClipName;
+			Sequence = GetAssetByPath<UAnimSequence>(AnimKey);
+		}
+		if (!Sequence)
+		{
+			Sequence = NewObject<UAnimSequence>();
+			Sequence->SetName(FName(ClipName));
+			Sequence->BuildFromTracks(Clip.FrameRate, Clip.NumFrames, Clip.Tracks);
+			Sequence->SetSkeletalMesh(Assets.SkeletalMesh);
+			RegisterAsset(AnimKey, Sequence);
+		}
+		// 루트 처리 방식은 공유 에셋의 성질이라, 어떤 AnimInstance가 먼저 쓰든 등록 시점에 한 번 정해 둔다
+		if (const FCommonAnimClip* Common = CommonAnimClips::FindByAssetKey(AnimKey.c_str()))
+		{
+			Sequence->SetEnableRootMotion(Common->RootMode == ECommonClipRootMode::RootMotion);
+			Sequence->SetForceRootLock(Common->RootMode == ECommonClipRootMode::ForceLock);
+		}
+
+		// 재사용한 경우에도 넣어야 인덱스로 접근하는 코드와 순서가 맞는다.
+		Assets.Animations.Add(Sequence);
+	}
+
+	FAnimNotifyFile::Load(SourcePath, Assets.Animations);
 
 	const FString SourceName = ToUTF8String(SourceFile.stem());
 	for (int32 Index = 0; Index < Data.StaticMeshes.Num(); ++Index)

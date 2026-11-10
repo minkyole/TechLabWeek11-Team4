@@ -2,6 +2,16 @@
 
 #include "Render/SkeletalMeshData.h"
 #include "Render/StaticMeshData.h"
+#include "Animation/AnimTypes.h"
+
+// AnimStack 하나를 일정 FPS로 구운 결과. UObject가 아니어야 FBX 경로와 캐시 경로가 같은 입력을 쓴다.
+struct FFbxAnimClip
+{
+	FString Name;
+	FFrameRate FrameRate;
+	int32 NumFrames = 0; // 키 개수는 NumFrames + 1
+	TArray<FBoneAnimationTrack> Tracks;
+};
 
 struct FFbxStaticMeshPart
 {
@@ -15,4 +25,5 @@ struct FFbxCookedData
 {
 	FSkeletalMeshData SkeletalMesh;
 	TArray<FFbxStaticMeshPart> StaticMeshes;
+	TArray<FFbxAnimClip> Anims;
 };

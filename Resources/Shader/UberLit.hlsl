@@ -1,6 +1,9 @@
 #pragma pack_matrix(row_major)
 
 #include "ColorSpace.hlsli"
+#if GPU_SKINNING
+#include "SkinCommon.hlsli"
+#endif
 
 #define LIGHT_TYPE_POINT 1   // C++ ELightType과 같아야 함
 #define LIGHT_TYPE_SPOT  2
@@ -15,6 +18,12 @@
 #define LIGHT_DEBUG_MODE_CELL_HEATMAP 1
 #define LIGHT_DEBUG_MODE_BRUTE_FORCE  2   // 컬링 결과를 무시하고 모든 로컬 라이트를 순회
 #define LIGHT_DEBUG_MODE_SLICES       3
+
+
+//BoneWeightHeatmap SkeletalMeshViewerPanel의 상태 값(0/1/2)과 같아야 한다
+#define BONE_WEIGHT_HEATMAP_OFF        0
+#define BONE_WEIGHT_HEATMAP_ON         1
+#define BONE_WEIGHT_HEATMAP_NO_SELECTION 2
 
 // Normal Bias와 Slope Bias에 쓰일 상수 값이다.
 #define SHADOW_NORMAL_BIAS_SCALE 0.07f
@@ -86,7 +95,7 @@ cbuffer ViewConstants : register(b0)
     float DirectionalShadowNearDistance;
     float DirectionalCascadeTransitionFraction;
     uint VisualizeShadowCascades;
-    float ViewPadding;
+    uint BoneWeightHeatmapStatus;
 };
 
 cbuffer MaterialParams : register(b1)
@@ -139,6 +148,8 @@ StructuredBuffer<FLightRenderParameters> LocalLights : register(t10);
 // 셀마다 [개수][라이트 번호 x MAX_LIGHTS_PER_CELL] 형태로 CELL_STRIDE칸씩 이어져 있다.
 StructuredBuffer<uint> CellLightIndices : register(t12);
 
+StructuredBuffer<float> BoneWeightHeatmapWeights : register(t32);
+
 Texture2D DiffuseTexture : register(t0);
 Texture2D NormalTexture : register(t1);
 #if !defined(EDITOR_ARROW_SHADER)
@@ -187,6 +198,11 @@ struct VS_INPUT
     float4 Tangent : TANGENT;   // w = 바이탄젠트 부호
     float2 UV : TEXCOORD;
     float4 Color : COLOR;
+#if GPU_SKINNING
+    // FSkeletalVertex의 BoneIndices / BoneWeights. 바인드 포즈 정점 뒤에 붙는다.
+    uint4 BoneIndices : BLENDINDICES;
+    float4 BoneWeights : BLENDWEIGHT;
+#endif
 };
 
 // VS가 출력하고 PS가 입력으로 받는다.
@@ -198,6 +214,7 @@ struct VS_OUTPUT
     float4 Tangent : TANGENT;
     float2 UV : TEXCOORD0;
     float4 Color : COLOR;
+    float BoneWeight : TEXCOORD4;
     nointerpolation uint ReceivesDecal : TEXCOORD2;
 #if defined(LIGHTING_MODEL_LAMBERT) || defined(LIGHTING_MODEL_BLINN_PHONG)
     // 물체별 정수 설정은 삼각형 내부에서 보간하지 않는다.
@@ -684,6 +701,27 @@ uint GetCellListOffset(float4 SvPosition)
     return ((Slice * NumTilesY + Tile.y) * NumTilesX + Tile.x) * CELL_STRIDE;
 }
 
+// 본 웨이트(0~1)를 언리얼 Skin Weights 툴 기본 램프와 같은 7색으로.
+// 0 보라(영향 없음) → 짙은 파랑 → 밝은 파랑 → 초록 → 노랑 → 주황 → 1 빨강
+float3 GetBoneWeightHeatmapColor(float BoneWeight)
+{
+    static const float3 RampColors[7] =
+    {
+        float3(0.8f, 0.4f, 0.8f),   // 0/6 보라
+        float3(0.0f, 0.0f, 0.5f),   // 1/6 짙은 파랑
+        float3(0.2f, 0.2f, 1.0f),   // 2/6 밝은 파랑
+        float3(0.0f, 1.0f, 0.0f),   // 3/6 초록
+        float3(1.0f, 1.0f, 0.0f),   // 4/6 노랑
+        float3(1.0f, 0.65f, 0.0f),  // 5/6 주황
+        float3(1.0f, 0.0f, 0.0f)    // 6/6 빨강
+    };
+
+    const float Scaled = saturate(BoneWeight) * 6.0f;
+    const uint Segment = min((uint) Scaled, 5u);
+    const float Blend = Scaled - (float) Segment;
+    return lerp(RampColors[Segment], RampColors[Segment + 1], Blend);
+}
+
 // 라이트 개수를 검정 → 파랑 → 초록 → 빨강 → 흰색 히트맵으로
 float3 GetHeatmapColor(uint LightCount)
 {
@@ -820,9 +858,16 @@ bool bUseLightGrid, bool bReceiveShadow)
     return Total;
 }
 
-VS_OUTPUT mainVS(VS_INPUT Input)
+VS_OUTPUT mainVS(VS_INPUT Input, uint VertexID : SV_VertexID)
 {
     VS_OUTPUT Output;
+
+#if GPU_SKINNING
+    // 바인드 포즈 정점을 컴포넌트 공간으로 스키닝한 뒤 아래 기존 변환을 그대로 쓴다. 탄젠트 w(부호)는 유지한다.
+    float3 SkinnedTangent = Input.Tangent.xyz;
+    SkinVertex(Input.BoneIndices, Input.BoneWeights, Input.Position, Input.Normal, SkinnedTangent);
+    Input.Tangent.xyz = SkinnedTangent;
+#endif
 
     const float4 WorldPos = mul(float4(Input.Position, 1.0f), World);
     Output.SvPosition = mul(WorldPos, ViewProjection);
@@ -835,6 +880,11 @@ VS_OUTPUT mainVS(VS_INPUT Input)
 
     Output.UV = Input.UV;
     Output.Color = Input.Color;
+    Output.BoneWeight = 0.0f;
+    if (BoneWeightHeatmapStatus == BONE_WEIGHT_HEATMAP_ON)
+    {
+        Output.BoneWeight = BoneWeightHeatmapWeights[VertexID];
+    }
     Output.ReceivesDecal = ReceiveDecal;
 #if defined(LIGHTING_MODEL_LAMBERT) || defined(LIGHTING_MODEL_BLINN_PHONG)
     // 기존 b2의 VS 전용 바인딩을 유지하면서 PS에 전달한다.
@@ -852,6 +902,18 @@ VS_OUTPUT mainVS(VS_INPUT Input)
 
 float4 mainPS(VS_OUTPUT Input) : SV_TARGET
 {
+#if !defined(EDITOR_ARROW_SHADER)
+    if (BoneWeightHeatmapStatus == BONE_WEIGHT_HEATMAP_ON)
+    {
+        return float4(GetBoneWeightHeatmapColor(Input.BoneWeight), 1);
+    }
+    else if (BoneWeightHeatmapStatus == BONE_WEIGHT_HEATMAP_NO_SELECTION)
+    {
+        return float4(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+    
+#endif
+    
     float2 UV = Input.UV + UVOffset;
     float3 WorldUVTangent = float3(0.0f, 0.0f, 0.0f);
     float3 WorldUVBitangent = float3(0.0f, 0.0f, 0.0f);

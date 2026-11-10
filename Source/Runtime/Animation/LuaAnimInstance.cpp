@@ -3,6 +3,7 @@
 
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
+#include "Animation/CommonAnimClips.h"
 #include "Asset/AssetManager.h"
 
 #include "Engine/Engine.h"
@@ -98,6 +99,23 @@ void ULuaAnimInstance::NativeInitializeAnimation()
 			return;
 		}
 
+		// 실제 클립이 같은 메시로 로드됐을 때만 별칭을 건다. ValidateAsset이 다른 메시 클립을 거부하기 때문이다.
+		for (const FCommonAnimClip& Entry : CommonAnimClips::Clips)
+		{
+			const UAnimSequence* FbxClip = UAssetManager::GetAssetByPath<UAnimSequence>(Entry.AssetKey);
+			// 다시 초기화될 때 같은 별칭을 두 번 넣으면 Fail이 나서 아직 별칭이 없을 때만 넣는다.
+			if (FbxClip && FbxClip->GetSkeletalMesh() == Mesh && ResolveAssetKey(Entry.Alias) == Entry.Alias)
+				RegisterAssetAlias(Entry.Alias, Entry.AssetKey);
+		}
+
+		// 블렌드 스페이스는 이름이 아닌 포인터로 샘플을 받아서 별칭을 직접 풀어 준다.
+		const auto PickClip = [&](const char* Alias, UAnimSequence* Fallback)
+		{
+			const FString Resolved = ResolveAssetKey(Alias);
+			UAnimSequence* FbxClip = Resolved != Alias ? UAssetManager::GetAssetByPath<UAnimSequence>(Resolved) : nullptr;
+			return FbxClip ? FbxClip : Fallback;
+		};
+
 		const auto AddSample = [&](UAnimSequence* Clip, float Speed)
 		{
 			FBlendSample Sample;
@@ -108,9 +126,9 @@ void ULuaAnimInstance::NativeInitializeAnimation()
 		};
 
 		if (!TestBlendSpace->SetBlendParameter(0, SpeedAxis) ||
-		    !AddSample(IdleClip, 0.0f) ||
-		    !AddSample(WalkClip, 5.0f) ||
-		    !AddSample(RunClip, 10.0f))
+		    !AddSample(PickClip("Idle", IdleClip), 0.0f) ||
+		    !AddSample(PickClip("Walk", WalkClip), 5.0f) ||
+		    !AddSample(PickClip("Run", RunClip), 10.0f))
 		{
 			Fail("Failed to configure test BlendSpace.");
 			// 생성된 테스트 에셋 정리도 필요

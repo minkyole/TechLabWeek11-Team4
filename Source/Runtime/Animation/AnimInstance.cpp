@@ -4,6 +4,7 @@
 #include "Animation/Nodes/AnimNodes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimNotifies/AnimNotify.h"
 
 void UAnimInstance::InitializeAnimation(
     USkeletalMeshComponent* InComponent)
@@ -29,6 +30,8 @@ void UAnimInstance::UnInitializeAnimation()
 {
 	if (bIsInitialized)
 	{
+		EndAllNotifyStates();
+
 		// 파생 클래스가 정리할 때는 아직 소유 컴포넌트에 접근 가능하다.
 		NativeUnInitializeAnimation();
 	}
@@ -57,17 +60,131 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds)
 	const float SafeDeltaSeconds =
 	    DeltaSeconds > 0.0f ? DeltaSeconds : 0.0f;
 
+	NotifyQueue.Empty();
+	NotifyStateQueue.Empty();
+
 	// 먼저 그래프에 전달할 변수를 갱신한다.
 	NativeUpdateAnimation(SafeDeltaSeconds);
 
 	if (!RootNode)
+	{
+		TriggerAnimNotifies();
 		return;
+	}
 
 	FAnimationUpdateContext Context;
 	Context.AnimInstance = this;
 	Context.DeltaSeconds = SafeDeltaSeconds;
 
 	RootNode->Update(Context);
+
+	TriggerAnimNotifies();
+}
+
+void UAnimInstance::TriggerAnimNotifies()
+{
+	USkeletalMeshComponent* MeshComp = GetSkeletalMeshComponent();
+
+	auto IsSameState = [](const FQueuedAnimNotify& A, const FQueuedAnimNotify& B)
+	{
+		return A.Sequence == B.Sequence && A.Event.TriggerTime == B.Event.TriggerTime &&
+			A.Event.Duration == B.Event.Duration && A.Event.NotifyName == B.Event.NotifyName;
+	};
+	auto ContainsState = [&IsSameState](const TArray<FQueuedAnimNotify>& States, const FQueuedAnimNotify& State)
+	{
+		for (const FQueuedAnimNotify& Other : States)
+		{
+			if (IsSameState(Other, State))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
+	// 같은 State가 루프 경계 등으로 두 번 들어와도 한 번만 활성으로 본다.
+	TArray<FQueuedAnimNotify> CurrentStates;
+	for (const FQueuedAnimNotify& State : NotifyStateQueue)
+	{
+		if (!ContainsState(CurrentStates, State))
+		{
+			CurrentStates.Add(State);
+		}
+	}
+
+	const TArray<FQueuedAnimNotify> PreviousStates = ActiveNotifyStates;
+	ActiveNotifyStates = CurrentStates;
+
+	// 루프로 같은 구간에 다시 들어갈 때 End가 Begin보다 먼저 나가도록 End부터 보낸다.
+	for (const FQueuedAnimNotify& State : PreviousStates)
+	{
+		if (!ContainsState(CurrentStates, State) && MeshComp)
+		{
+			MeshComp->HandleAnimNotifyStateEnd(State.Event);
+			MeshComp->OnAnimNotifyStateEnd.Broadcast(State.Event, State.Sequence);
+		}
+	}
+	for (const FQueuedAnimNotify& State : CurrentStates)
+	{
+		if (!ContainsState(PreviousStates, State) && MeshComp)
+		{
+			MeshComp->HandleAnimNotifyStateBegin(State.Event);
+			MeshComp->OnAnimNotifyStateBegin.Broadcast(State.Event, State.Sequence);
+		}
+	}
+
+	// Notify가 게임 코드를 실행하다 애니메이션을 다시 갱신하면 NotifyQueue가 바뀌므로 복사본을 돈다.
+	const TArray<FQueuedAnimNotify> Pending = NotifyQueue;
+	for (const FQueuedAnimNotify& Queued : Pending)
+	{
+		if (Queued.Event.Notify)
+		{
+			Queued.Event.Notify->Notify(MeshComp, Queued.Sequence);
+		}
+		else if (MeshComp)
+		{
+			MeshComp->HandleAnimNotify(Queued.Event);
+		}
+
+		if (MeshComp)
+		{
+			MeshComp->OnAnimNotify.Broadcast(Queued.Event, Queued.Sequence);
+		}
+	}
+}
+
+void UAnimInstance::QueueAnimNotifyState(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence, float Weight)
+{
+	FQueuedAnimNotify& Queued = NotifyStateQueue.AddDefaulted_GetRef();
+	Queued.Event = Event;
+	Queued.Sequence = Sequence;
+	Queued.Weight = Weight;
+}
+
+void UAnimInstance::EndAllNotifyStates()
+{
+	USkeletalMeshComponent* MeshComp = GetSkeletalMeshComponent();
+	const TArray<FQueuedAnimNotify> PreviousStates = ActiveNotifyStates;
+	ActiveNotifyStates.Empty();
+	NotifyStateQueue.Empty();
+
+	if (!MeshComp)
+	{
+		return;
+	}
+	for (const FQueuedAnimNotify& State : PreviousStates)
+	{
+		MeshComp->HandleAnimNotifyStateEnd(State.Event);
+		MeshComp->OnAnimNotifyStateEnd.Broadcast(State.Event, State.Sequence);
+	}
+}
+
+void UAnimInstance::QueueAnimNotify(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence, float Weight)
+{
+	FQueuedAnimNotify& Queued = NotifyQueue.AddDefaulted_GetRef();
+	Queued.Event = Event;
+	Queued.Sequence = Sequence;
+	Queued.Weight = Weight;
 }
 
 void UAnimInstance::EvaluateAnimation(FPoseContext& Output)

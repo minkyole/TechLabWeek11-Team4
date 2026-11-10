@@ -35,6 +35,7 @@ namespace
 			Error = "The skeletal mesh is not a registered asset."; return false;
 		}
 		Validated.SetSkeletalMesh(Mesh);
+		Validated.NotifyTriggerMode = Definition.NotifyTriggerMode;
 		const FBlendParameter* Axis = Definition.GetBlendParameter(0);
 		if (!Axis || !Validated.SetBlendParameter(0, *Axis))
 		{
@@ -125,6 +126,11 @@ UBlendSpace1D* UAssetManager::LoadBlendSpace(const FString& Path, FString& Error
 		Axis.Min = AxisData.at("Min").get<float>();
 		Axis.Max = AxisData.at("Max").get<float>();
 		if (!Definition->SetBlendParameter(0, Axis)) { Error = "Invalid axis range."; return nullptr; }
+		if (auto ModeIt = Data.find("NotifyTriggerMode"); ModeIt != Data.end() && ModeIt->is_string() &&
+			!NotifyTriggerModeFromString(ModeIt->get<FString>(), Definition->NotifyTriggerMode))
+		{
+			Error = "Unknown NotifyTriggerMode: " + ModeIt->get<FString>(); return nullptr;
+		}
 		if (!Data.at("Samples").is_array()) { Error = "Samples must be an array."; return nullptr; }
 		for (const json& Entry : Data.at("Samples"))
 		{
@@ -168,6 +174,7 @@ bool UAssetManager::SaveBlendSpace(const FString& Path, const UBlendSpace1D& Def
 	json Data = {{"Version", 1}, {"Type", "BlendSpace1D"},
 		{"SkeletalMeshAssetKey", Validated->GetSkeletalMesh()->GetPath()},
 		{"Axis", {{"Name", Axis.Name.ToString()}, {"Min", Axis.Min}, {"Max", Axis.Max}}},
+		{"NotifyTriggerMode", NotifyTriggerModeToString(Validated->NotifyTriggerMode)},
 		{"Samples", json::array()}};
 	for (const FBlendSample& Sample : Validated->GetSamples())
 		Data["Samples"].push_back({{"AnimationAssetKey", Sample.Animation->GetPath()}, {"X", Sample.SampleValue.X}});

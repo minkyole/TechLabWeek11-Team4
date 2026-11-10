@@ -15,6 +15,8 @@
 #include "Animation/AnimTestClips.h"
 #include "Asset/AssetManager.h"
 #include "Serialization/Archive.h"
+#include "Animation/AnimNotifyEvent.h"
+#include "GameFramework/Actor/Character.h"
 
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
@@ -296,6 +298,30 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 
 	AnimInstance->UpdateAnimation(DeltaTime);
 	RefreshAnimationPose();
+}
+
+void USkeletalMeshComponent::HandleAnimNotify(const FAnimNotifyEvent& Notify)
+{
+	if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	{
+		Character->HandleAnimNotify(Notify);
+	}
+}
+
+void USkeletalMeshComponent::HandleAnimNotifyStateBegin(const FAnimNotifyEvent& Notify)
+{
+	if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	{
+		Character->HandleAnimNotifyStateBegin(Notify);
+	}
+}
+
+void USkeletalMeshComponent::HandleAnimNotifyStateEnd(const FAnimNotifyEvent& Notify)
+{
+	if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	{
+		Character->HandleAnimNotifyStateEnd(Notify);
+	}
 }
 
 bool USkeletalMeshComponent::RefreshAnimationPose()

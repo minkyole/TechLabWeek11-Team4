@@ -36,7 +36,7 @@ function InitializeAnimation(anim)
     local jumpPlayer = requireId(
         anim,
         anim:CreateSequencePlayer("Jump", {
-            loop = false
+            loop = true
         })
     )
 
@@ -64,7 +64,6 @@ function InitializeAnimation(anim)
     requireSuccess(anim, anim:SetBool("IsGrounded", true))
     requireSuccess(anim, anim:DefineTrigger("AttackRequested"))
     requireSuccess(anim, anim:DefineTrigger("HitRequested"))
-    requireSuccess(anim, anim:DefineTrigger("JumpRequested"))
 
     -- 조건
     local canAttack = requireId(
@@ -75,11 +74,17 @@ function InitializeAnimation(anim)
         end)
     )
 
-    local canJump = requireId(
+    local airborne = requireId(
+        anim,
+        anim:AddCondition(function(ctx)
+            return not ctx:GetBool("IsGrounded")
+        end)
+    )
+
+    local grounded = requireId(
         anim,
         anim:AddCondition(function(ctx)
             return ctx:GetBool("IsGrounded")
-                and ctx:IsTriggerActive("JumpRequested")
         end)
     )
 
@@ -140,22 +145,24 @@ function InitializeAnimation(anim)
     )
 
     -- 이동 → 점프
+    -- 이동 중 공중에 있으면 Jump 상태로 진입
+    -- 점프뿐 아니라 절벽에서 떨어지는 경우도 포함한다.
     requireId(
         anim,
         anim:AddTransition(locomotion, jump, {
-            condition = canJump,
-            priority = 50,
-            blendDuration = 0.2,
-            consumeTriggers = { "JumpRequested" }
+            condition = airborne,
+            priority = 60,
+            blendDuration = 0.1,
         })
     )
 
     -- 점프 → 이동
+    -- 클립 종료가 아니라 실제 착지를 기준으로 복귀
     requireId(
         anim,
         anim:AddTransition(jump, locomotion, {
-            condition = finished,
-            blendDuration = 0.2
+            condition = grounded,
+            blendDuration = 0.1
         })
     )
 
@@ -165,18 +172,21 @@ function UpdateAnimation(anim, deltaTime)
     local movement = anim:GetMovementComponent()
 
     local speed = 0.0
+    local verticalSpeed = 0.0
+    local grounded = false
 
     if movement ~= nil then
         speed = movement:GetGroundSpeed()
+        verticalSpeed = movement:GetVerticalVelocity()
+        grounded = movement:IsGrounded()
     end
 
-    assert(
-        anim:SetFloat("Speed", speed),
-        anim:GetLastError()
-    )
+    requireSuccess(anim, anim:SetFloat("Speed", speed))
+    requireSuccess(anim, anim:SetFloat("VerticalSpeed", verticalSpeed))
+    requireSuccess(anim, anim:SetBool("IsGrounded", grounded))
 
-    assert(
-        anim:SetBlendSpaceInput(locomotionPlayer, speed),
-        anim:GetLastError()
+    requireSuccess(
+        anim,
+        anim:SetBlendSpaceInput(locomotionPlayer, speed)
     )
 end

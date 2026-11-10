@@ -16,6 +16,8 @@ print("BeginPlay!\n")
 	movement:SetMaxSpeed(5.0)
 	movement:SetAcceleration(20.0)
 	movement:SetBrakingDeceleration(30.0)
+	movement:SetGravityAcceleration(20.0)
+	movement:SetGravityScale(1.0)
 end
 
 function EndPlay()
@@ -38,6 +40,7 @@ end
 
 local walkSpeed = 5.0
 local runSpeed = 10.0
+local jumpSpeed = 5.0
 
 function Tick(dt)
 	-- print("Tick!\n")
@@ -73,6 +76,11 @@ function Tick(dt)
     -- 대각선 정규화는 C++ SetMoveInput에서 처리한다.
     movement:SetMoveInput(worldDirection)
 
+	-- 이동 규칙은 AnimInstance 준비 여부와 독립적으로 실행한다.
+	if IsKeyPressed(Key.Space) and movement:IsGrounded() then
+		movement:SetVerticalVelocity(jumpSpeed)
+	end
+
 	-- 메시 교체 등으로 AnimInstance가 재생성될 수 있으므로
 	-- 장기간 저장하지 않고 사용할 때 조회한다.
 	local anim = self:GetAnimInstance()
@@ -85,14 +93,6 @@ function Tick(dt)
 	if IsKeyPressed(Key.J) then
 		assert(
 			anim:SetTrigger("AttackRequested"),
-			anim:GetLastError()
-		)
-	end
-
-	-- 누른 순간 한 번만 점프 요청
-	if IsKeyPressed(Key.Space) then
-		assert(
-			anim:SetTrigger("JumpRequested"),
 			anim:GetLastError()
 		)
 	end

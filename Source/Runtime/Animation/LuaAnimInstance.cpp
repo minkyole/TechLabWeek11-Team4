@@ -82,7 +82,7 @@ void ULuaAnimInstance::NativeInitializeAnimation()
 		UAnimSequence* IdleClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0));
 		UAnimSequence* WalkClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0.3f));
 		UAnimSequence* RunClip = CreateRootTestClip(RootBoneIndex, 0.5f, FVector(0, 0, 0.4f));
-		UAnimSequence* JumpClip = CreateRootTestClip(RootBoneIndex, 0.8f, FVector(0, 0, 1.0f));
+		UAnimSequence* JumpClip = CreateRootTestClip(RootBoneIndex, 0.1f, FVector(0, 0, 0.1f));
 		UAnimSequence* AttackClip = CreateRootTestClip(RootBoneIndex, 0.6f, FVector(3.0f, 0, 0));
 		UAnimSequence* HitClip = CreateRootTestClip(RootBoneIndex, 0.4f, FVector(-1.5f, 0, 0));
 		UBlendSpace1D* TestBlendSpace = NewObject<UBlendSpace1D>(this);

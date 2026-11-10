@@ -4,15 +4,19 @@
 #include "Collision/HitResult.h"
 #include "Components/ShapeComponent.h"
 #include "GameFramework/Actor.h"
+#include "Collision/CollisionShape.h"
+#include "Engine/World.h"
+#include "Engine/Level.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace
 {
 	FVector MoveVelocityTowards(
-		const FVector& Current,
-		const FVector& Target,
-		float MaxChange)
+	    const FVector& Current,
+	    const FVector& Target,
+	    float MaxChange)
 	{
 		const FVector Difference = Target - Current;
 		const float Distance =
@@ -33,6 +37,15 @@ UCharacterMovementComponent::UCharacterMovementComponent()
 	PrimaryComponentTick.TickGroup = ETickingGroup::DuringPhysics;
 
 	Velocity = FVector::ZeroVector;
+
+	Gravity = 20.0f;
+}
+
+void UCharacterMovementComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	UpdateGroundedState();
 }
 
 void UCharacterMovementComponent::TickComponent(float DeltaTime)
@@ -46,6 +59,7 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime)
 
 	if (!UpdatedComponent)
 	{
+		bIsGrounded = false;
 		Velocity = FVector::ZeroVector;
 		return;
 	}
@@ -70,95 +84,178 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime)
 			bWarnedSweepWithoutShape = true;
 		}
 
+		bIsGrounded = false;
 		StopMovementImmediately();
-		return;
-	}
-
-	//const FVector DesiredVelocity = MoveInput * MaxSpeed;
-	//const FVector MoveDelta = DesiredVelocity * DeltaTime;
-	const FVector TargetVelocity = MoveInput * MaxSpeed;
-
-	FVector CurrentVelocity = Velocity;
-	CurrentVelocity.Z = 0.0f;
-
-	const float CurrentSpeed =
-	    std::hypot(CurrentVelocity.X, CurrentVelocity.Y);
-
-	const float TargetSpeed =
-	    std::hypot(TargetVelocity.X, TargetVelocity.Y);
-
-	// 입력 해제 또는 목표 속도 감소에는 제동 감속도를 사용한다.
-	// 같은 속도로 방향을 전환할 때에는 Acceleration을 사용한다.
-	const bool bSlowingDown = TargetSpeed < CurrentSpeed;
-
-	const float ChangeRate =
-	    bSlowingDown ? BrakingDeceleration : Acceleration;
-
-	const FVector NextVelocity = MoveVelocityTowards(
-	    CurrentVelocity,
-	    TargetVelocity,
-	    ChangeRate * DeltaTime);
-
-	const FVector MoveDelta = NextVelocity * DeltaTime;
-
-	if (!std::isfinite(MoveDelta.X) ||
-	    !std::isfinite(MoveDelta.Y) ||
-	    !std::isfinite(MoveDelta.Z))
-	{
-		StopMovementImmediately();
-		return;
-	}
-
-	// 이동이 없는 프레임에는 이전 속도를 반드시 지운다.
-	if (MoveDelta.X == 0.0f && MoveDelta.Y == 0.0f)
-	{
-		Velocity = FVector::ZeroVector;
-		UpdateComponentVelocity();
 		return;
 	}
 
 	USceneComponent* MovingComponent = UpdatedComponent;
 
-	const FVector PreviousLocation =
-	    MovingComponent->GetWorldLocation();
-
-	const FRotator Rotation =
-	    MovingComponent->GetWorldRotation();
-
-	FHitResult Hit;
-
-	// false가 반환되더라도 실제 이동 결과를 위치 차이로 계산한다.
-	// 충돌 정보는 반환 bool 대신 Hit를 통해 판단한다.
-	MoveUpdatedComponent(
-	    MoveDelta,
-	    Rotation,
-	    true,
-	    &Hit);
-
-	// MoveComponent의 OnHit에서 액터 파괴나
-	// 이동 대상 변경이 요청될 수 있다.
-	if (Owner->IsActorBeingDestroyed() ||
-		UpdatedComponent != MovingComponent)
+	const auto CanContinue = [&]()
 	{
+		return !Owner->IsActorBeingDestroyed() &&
+		       UpdatedComponent == MovingComponent;
+	};
+
+	const auto AbortMovement = [&]()
+	{
+		bIsGrounded = false;
 		Velocity = FVector::ZeroVector;
 		UpdateComponentVelocity();
+	};
+
+	UpdateGroundedState();
+
+	// --------------------------------------------------
+	// 1. 수평 가속·감속
+	// --------------------------------------------------
+
+	const FVector CurrentHorizontal(
+	    Velocity.X,
+	    Velocity.Y,
+	    0.0f);
+
+	const FVector TargetHorizontal =
+	    MoveInput * MaxSpeed;
+
+	const float CurrentSpeed =
+	    std::hypot(CurrentHorizontal.X, CurrentHorizontal.Y);
+
+	const float TargetSpeed =
+	    std::hypot(TargetHorizontal.X, TargetHorizontal.Y);
+
+	const float ChangeRate =
+	    TargetSpeed < CurrentSpeed
+	        ? BrakingDeceleration
+	        : Acceleration;
+
+	const FVector NextHorizontal = MoveVelocityTowards(
+	    CurrentHorizontal,
+	    TargetHorizontal,
+	    ChangeRate * DeltaTime);
+
+	const FVector HorizontalDelta =
+	    NextHorizontal * DeltaTime;
+
+	if (!std::isfinite(HorizontalDelta.X) ||
+	    !std::isfinite(HorizontalDelta.Y))
+	{
+		AbortMovement();
 		return;
 	}
 
-	const FVector CurrentLocation =
+	const FVector PreviousLocation =
 	    UpdatedComponent->GetWorldLocation();
 
-	Velocity = (CurrentLocation - PreviousLocation) / DeltaTime;
+	if (HorizontalDelta.X != 0.0f ||
+	    HorizontalDelta.Y != 0.0f)
+	{
+		FHitResult HorizontalHit;
+
+		MoveUpdatedComponent(
+		    HorizontalDelta,
+		    UpdatedComponent->GetWorldRotation(),
+		    true,
+		    &HorizontalHit);
+
+		if (!CanContinue())
+		{
+			AbortMovement();
+			return;
+		}
+	}
+
+	const FVector HorizontalMoved =
+	    UpdatedComponent->GetWorldLocation() - PreviousLocation;
+
+	// 실제 이동량으로 XY만 갱신한다.
+	// Z는 Lua가 설정한 속도 및 중력 계산 결과를 유지한다.
+	Velocity.X = HorizontalMoved.X / DeltaTime;
+	Velocity.Y = HorizontalMoved.Y / DeltaTime;
+
+	// 이번 수평 이동으로 바닥 끝을 벗어났는지 확인한다.
+	UpdateGroundedState();
+
+	// --------------------------------------------------
+	// 2. 수직 속도와 중력
+	// --------------------------------------------------
+
+	float VerticalDelta = 0.0f;
+
+	if (bIsGrounded)
+	{
+		Velocity.Z = 0.0f;
+	}
+	else
+	{
+		const float OldVerticalVelocity = Velocity.Z;
+		const float EffectiveGravity = Gravity * GravityScale;
+
+		Velocity.Z = std::max(
+		    Velocity.Z - EffectiveGravity * DeltaTime,
+		    -MaxFallSpeed);
+
+		VerticalDelta =
+		    (OldVerticalVelocity + Velocity.Z) *
+		    0.5f * DeltaTime;
+	}
+
+	if (!std::isfinite(Velocity.Z) ||
+	    !std::isfinite(VerticalDelta))
+	{
+		AbortMovement();
+		return;
+	}
+
+	// --------------------------------------------------
+	// 3. 수직 충돌 이동
+	// --------------------------------------------------
+
+	if (VerticalDelta != 0.0f)
+	{
+		FHitResult VerticalHit;
+
+		MoveUpdatedComponent(
+		    FVector(0.0f, 0.0f, VerticalDelta),
+		    UpdatedComponent->GetWorldRotation(),
+		    true,
+		    &VerticalHit);
+
+		if (!CanContinue())
+		{
+			AbortMovement();
+			return;
+		}
+
+		if (VerticalHit.bBlockingHit)
+		{
+			// 이 최소 구현에서는 수직 이동이 막히면
+			// 상승/낙하 속도를 제거한다.
+			// 걸을 수 있는 바닥인지는 아래에서 별도 판정한다.
+			Velocity.Z = 0.0f;
+		}
+	}
+
+	// --------------------------------------------------
+	// 4. 최종 접지와 속도 반영
+	// --------------------------------------------------
+
+	UpdateGroundedState();
+
+	if (bIsGrounded)
+		Velocity.Z = 0.0f;
 
 	UpdateComponentVelocity();
 }
 
+
+
 void UCharacterMovementComponent::SetMoveInput(
-	const FVector& WorldDirection)
+    const FVector& WorldDirection)
 {
 	if (!std::isfinite(WorldDirection.X) ||
-		!std::isfinite(WorldDirection.Y) ||
-		!std::isfinite(WorldDirection.Z))
+	    !std::isfinite(WorldDirection.Y) ||
+	    !std::isfinite(WorldDirection.Z))
 	{
 		MoveInput = FVector::ZeroVector;
 		return;
@@ -213,6 +310,43 @@ void UCharacterMovementComponent::SetBrakingDeceleration(float Value)
 	}
 }
 
+void UCharacterMovementComponent::SetVerticalVelocity(float Value)
+{
+	if (!std::isfinite(Value))
+		return;
+
+	Velocity.Z = Value;
+
+	// 상승 속도를 받았는데 접지 상태를 유지하면
+	// Tick에서 Velocity.Z를 다시 0으로 만들 수 있다.
+	if (Value > 0.0f)
+		bIsGrounded = false;
+
+	UpdateComponentVelocity();
+}
+
+float UCharacterMovementComponent::GetVerticalVelocity() const
+{
+	return Velocity.Z;
+}
+
+void UCharacterMovementComponent::SetGravityAcceleration(
+    float InGravity)
+{
+	if (!std::isfinite(InGravity) || InGravity < 0.0f)
+		return;
+
+	Gravity = InGravity;
+}
+
+void UCharacterMovementComponent::SetGravityScale(float InScale)
+{
+	if (!std::isfinite(InScale) || InScale < 0.0f)
+		return;
+
+	GravityScale = InScale;
+}
+
 float UCharacterMovementComponent::GetGroundSpeed() const
 {
 	return std::sqrt(
@@ -226,4 +360,181 @@ void UCharacterMovementComponent::StopMovementImmediately()
 
 	// 부모가 Velocity를 0으로 만들고 ComponentVelocity도 갱신한다.
 	Super::StopMovementImmediately();
+}
+
+bool UCharacterMovementComponent::FindFloor(
+    FHitResult& OutHit) const
+{
+	OutHit = FHitResult{};
+
+	AActor* Owner = GetOwner();
+
+	if (!Owner || Owner->IsActorBeingDestroyed())
+		return false;
+
+	UShapeComponent* CharacterShape =
+	    Cast<UShapeComponent>(UpdatedComponent);
+
+	if (!CharacterShape || !CharacterShape->IsBlockComponent())
+		return false;
+
+	UWorld* World = CharacterShape->GetWorld();
+
+	if (!World || !World->GetPersistentLevel())
+		return false;
+
+	if (!std::isfinite(GroundProbeDistance) ||
+	    GroundProbeDistance <= 0.0f)
+	{
+		return false;
+	}
+
+	const FVector Start =
+	    CharacterShape->GetWorldLocation();
+
+	const FVector Delta(
+	    0.0f,
+	    0.0f,
+	    -GroundProbeDistance);
+
+	const FQuat Rotation =
+	    CharacterShape->GetWorldRotation().Quaternion();
+
+	const FCollisionShape ProbeShape =
+	    CharacterShape->GetCollisionShape();
+
+	bool bFoundFloor = false;
+	float BestTime = 1.0f;
+
+	// 반복마다 배열을 새로 할당하지 않도록 재사용한다.
+	TArray<Collision::FSweepTarget> Targets;
+	Targets.Reserve(1);
+
+	for (AActor* OtherActor :
+	     World->GetPersistentLevel()->GetActors())
+	{
+		if (!OtherActor ||
+		    OtherActor == Owner ||
+		    OtherActor->IsActorBeingDestroyed())
+		{
+			continue;
+		}
+
+		for (UActorComponent* Component :
+		     OtherActor->GetComponents())
+		{
+			UShapeComponent* OtherShape =
+			    Cast<UShapeComponent>(Component);
+
+			if (!OtherShape ||
+			    !OtherShape->IsRegistered() ||
+			    !OtherShape->IsBlockComponent())
+			{
+				continue;
+			}
+
+			Targets.Reset();
+
+			Collision::FSweepTarget Target;
+			Target.Shape = OtherShape->GetCollisionShape();
+			Target.Pos = OtherShape->GetWorldLocation();
+			Target.Rot =
+			    OtherShape->GetWorldRotation().Quaternion();
+
+			Targets.Add(Target);
+
+			const Collision::FSweepResult Result =
+			    Collision::Sweep(
+			        ProbeShape,
+			        Start,
+			        Delta,
+			        Rotation,
+			        Targets);
+
+			if (!Result.bBlockingHit)
+				continue;
+
+			// 깊게 박힌 상태를 정상적인 접지로 취급하지 않는다.
+			// 단, 현재 Sweep은 단순 접촉도 초기 겹침으로
+			// 반환할 수 있으므로 작은 오차는 허용한다.
+			if (Result.bStartPenetrating &&
+			    Result.Contact.PenetrationDepth >
+			        GroundPenetrationTolerance)
+			{
+				continue;
+			}
+
+			const FVector Normal = Result.Contact.Normal;
+
+			const float NormalLength = std::sqrt(
+			    Normal.X * Normal.X +
+			    Normal.Y * Normal.Y +
+			    Normal.Z * Normal.Z);
+
+			if (!std::isfinite(NormalLength) ||
+			    NormalLength <= 0.000001f)
+			{
+				continue;
+			}
+
+			const FVector UnitNormal =
+			    Normal / NormalLength;
+
+			// 위쪽을 충분히 향하는 면만 바닥으로 인정한다.
+			// 벽: Z≈0, 천장: Z<0, 평지: Z≈1
+			if (UnitNormal.Z < WalkableFloorZ)
+				continue;
+
+			const float HitTime =
+			    std::clamp(Result.Time, 0.0f, 1.0f);
+
+			if (bFoundFloor && HitTime >= BestTime)
+				continue;
+
+			bFoundFloor = true;
+			BestTime = HitTime;
+
+			OutHit.bBlockingHit = true;
+			OutHit.bStartPenetrating =
+			    Result.bStartPenetrating;
+
+			OutHit.Time = HitTime;
+			OutHit.Distance =
+			    GroundProbeDistance * HitTime;
+
+			OutHit.TraceStart = Start;
+			OutHit.TraceEnd = Start + Delta;
+
+			// Sweep 시 충돌체 기준 위치와 실제 접촉점은 다르다.
+			OutHit.Location = Start + Delta * HitTime;
+			OutHit.ImpactPoint = Result.Contact.Point;
+
+			OutHit.Normal = UnitNormal;
+			OutHit.ImpactNormal = UnitNormal;
+
+			OutHit.PenetrationDepth =
+			    Result.Contact.PenetrationDepth;
+
+			OutHit.HitComponent = OtherShape;
+			OutHit.HitActor = OtherActor;
+		}
+	}
+
+	return bFoundFloor;
+}
+
+void UCharacterMovementComponent::UpdateGroundedState()
+{
+	bIsGrounded = false;
+
+	// 점프 상승 중 재접지 되는 것을 방지한다.
+	if (Velocity.Z > 0.0f)
+		return;
+
+	FHitResult FloorHit;
+
+	if (!FindFloor(FloorHit))
+		return;
+
+	bIsGrounded = FloorHit.Distance <= GroundContactDistance;
 }

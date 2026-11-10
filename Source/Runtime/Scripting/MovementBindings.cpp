@@ -39,7 +39,7 @@ void BindMovementAPI(sol::state& LuaState)
 	    "SetMaxSpeed",
 	    &UCharacterMovementComponent::SetMaxSpeed,
 
-		"SetAcceleration",
+	    "SetAcceleration",
 	    &UCharacterMovementComponent::SetAcceleration,
 
 	    "SetBrakingDeceleration",
@@ -50,6 +50,21 @@ void BindMovementAPI(sol::state& LuaState)
 
 	    "GetGroundSpeed",
 	    &UCharacterMovementComponent::GetGroundSpeed,
+
+	    "IsGrounded",
+	    &UCharacterMovementComponent::IsGrounded,
+
+		"SetVerticalVelocity",
+	    &UCharacterMovementComponent::SetVerticalVelocity,
+
+	    "GetVerticalVelocity",
+	    &UCharacterMovementComponent::GetVerticalVelocity,
+
+	    "SetGravityAcceleration",
+	    &UCharacterMovementComponent::SetGravityAcceleration,
+
+	    "SetGravityScale",
+	    &UCharacterMovementComponent::SetGravityScale,
 
 	    "StopMovementImmediately",
 	    &UCharacterMovementComponent::StopMovementImmediately);

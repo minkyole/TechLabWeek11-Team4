@@ -31,8 +31,8 @@ int main()
 	auto Register = [&]() {
 		Manager.RegisterAsset("BlendSpaceTests/Character.fbx", Mesh.get());
 		Manager.RegisterAsset("BlendSpaceTests/Other.fbx", OtherMesh.get());
-		Manager.RegisterAsset("BlendSpaceTests/Character.fbx#Animation/0", Idle.get());
-		Manager.RegisterAsset("BlendSpaceTests/Character.fbx#Animation/1", Run.get());
+		Manager.RegisterAsset("BlendSpaceTests/Character.fbx#Anim/Idle", Idle.get());
+		Manager.RegisterAsset("BlendSpaceTests/Character.fbx#Anim/Run", Run.get());
 	};
 	Register();
 	const fs::path Folder = fs::path("Assets") / ("_BlendSpaceTests_" + std::to_string(GetCurrentProcessId()));

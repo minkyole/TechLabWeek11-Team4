@@ -16,8 +16,8 @@ namespace
 		if (!Animation) return "None";
 		const FString& Key = Animation->GetPath();
 		const size_t Slash = Key.find_last_of('/');
-		// Keep source file and clip suffix visible rather than showing only the index.
-		const size_t Marker = Key.find("#Animation/");
+		// Keep the source FBX visible alongside the named animation sub-asset.
+		const size_t Marker = Key.find("#Anim/");
 		if (Marker != FString::npos)
 		{
 			const size_t SourceSlash = Key.rfind('/', Marker);

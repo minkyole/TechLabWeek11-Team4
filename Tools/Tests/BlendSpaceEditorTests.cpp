@@ -23,7 +23,7 @@ int main()
  std::unique_ptr<UAnimSequence> Sequence(NewObject<UAnimSequence>());
  Sequence->SetSkeletalMesh(Mesh.get()); Sequence->BuildFromTracks(FFrameRate(30,1),30,{});
  Manager.RegisterAsset("UITests/Character.fbx",Mesh.get());
- Manager.RegisterAsset("UITests/Character.fbx#Animation/0",Sequence.get());
+ Manager.RegisterAsset("UITests/Character.fbx#Anim/Idle",Sequence.get());
  const fs::path Folder = fs::path("Assets") / ("_BlendSpaceUITests_"+std::to_string(GetCurrentProcessId()));
  Check(fs::create_directory(Folder),"create UI test directory");
  const FString Path=FFileHelper::ToUtf8Path(Folder/"UI.blendspace");

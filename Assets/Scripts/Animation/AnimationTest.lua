@@ -105,6 +105,13 @@ function Tick(dt)
 		)
 	end
 
+	if IsKeyPressed(Key.Y) then
+		assert(
+			anim:SetTrigger("DeathRequested"),
+			anim:GetLastError()
+		)
+	end
+
 	-- 애니메이션 파라미터 업데이트
 	anim:SetFloat("Speed", movement:GetGroundSpeed())
     anim:SetBool("IsGrounded", movement:IsGrounded())

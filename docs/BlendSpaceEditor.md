@@ -17,7 +17,7 @@
 
 `.blendspace`는 버전 1 JSON이다. 필드는 `Version`, `Type`, `SkeletalMeshAssetKey`, `Axis` (`Name`, `Min`, `Max`), `Samples` (`AnimationAssetKey`, `X`)이다. 빈 샘플 목록도 저장할 수 있다.
 
-애니메이션은 FBX 임포트와 베이크 로드에서 `FBX 에셋 키#Animation/클립 인덱스`로 등록된다. BlendSpace는 UAnimSequence의 GetPath()를 저장하고 AssetManager 조회로 복원한다. FBX 내부 참조를 직접 해석하지 않는다. 현재 같은 Skeletal Mesh를 사용하는 클립만 허용한다. 재임포트로 클립 순서가 바뀌면 인덱스 기반 참조를 다시 확인해야 한다.
+애니메이션은 FBX 임포트와 베이크 로드에서 `FBX 에셋 키#Anim/클립 이름`으로 등록된다. 예: `Models/UAL1_Standard.fbx#Anim/Armature|Idle_Loop`. 클립 이름의 `/`와 `\`는 `_`로 치환되고, 동일 FBX의 이름 중복은 인덱스 접미사로 구분된다. BlendSpace는 UAnimSequence의 GetPath()를 저장하고 AssetManager 조회로 복원한다. FBX 내부 참조를 직접 해석하지 않는다. 현재 같은 Skeletal Mesh를 사용하는 클립만 허용한다. 클립 이름이 변경되면 저장된 참조도 갱신해야 한다. 이전 숫자 기반 참조는 자동 변환하지 않으며 실제 클립 이름을 확인해 다시 지정해야 한다.
 
 시작 시 원본 에셋과 애니메이션을 먼저 등록한 뒤 BlendSpace를 로드한다. 없는 참조, 잘못된 타입·버전·범위·중복 샘플은 파일 전체의 로드 실패로 처리한다. 저장은 같은 폴더의 임시 파일 작성 후 교체하며 실패 시 이전 파일을 보존한다.
 

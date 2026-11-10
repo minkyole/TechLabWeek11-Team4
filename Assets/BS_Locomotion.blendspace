@@ -6,15 +6,15 @@
   },
   "Samples": [
     {
-      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Animation/9",
+      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Anim/Armature|Idle_Loop",
       "X": 0.0
     },
     {
-      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Animation/10",
+      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Anim/Armature|Walk_Loop",
       "X": 5.0
     },
     {
-      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Animation/13",
+      "AnimationAssetKey": "Models/UAL1_Standard.fbx#Anim/Armature|Jog_Fwd_Loop",
       "X": 10.0
     }
   ],

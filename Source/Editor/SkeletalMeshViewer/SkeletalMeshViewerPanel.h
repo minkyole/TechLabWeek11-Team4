@@ -16,6 +16,9 @@
 #include "Render/ViewMode.h"
 
 class FGridRenderer;
+class UAnimSequence;
+class UAnimSingleNodeInstance;
+class UAnimDataModel;
 
 class FSkeletalMeshViewerPanel : public IEditorPanel
 {
@@ -76,6 +79,8 @@ private:
 	void DrawSkeletonTreeWindow(const struct ImGuiWindowClass& WindowClass);
 	void DrawAssetDetailsWindow(const struct ImGuiWindowClass& WindowClass);
 	void DrawPreviewSettingsWindow(const struct ImGuiWindowClass& WindowClass);
+	void DrawAnimationWindow(const struct ImGuiWindowClass& WindowClass);
+	void DrawPreviewTimeline(const UAnimDataModel* Model);
 	void DrawMeshDetailsUI();
 	void DrawBoneHierarchyUI();
 	void DrawLightingSettingsUI();
@@ -127,6 +132,7 @@ private:
 	bool bSkeletonTreeOpen = true;
 	bool bAssetDetailsOpen = true;
 	bool bPreviewSettingsOpen = true;
+	bool bAnimationOpen = true;
 	bool bResetLayout = false;
 
 	// 레벨 에디터와 같은 공전 및 자유 이동 카메라 조작을 사용한다.
@@ -205,4 +211,42 @@ private:
 
 	//BoneWeightHeatmap 관련 변수
 	FBoneWeightHeatmap BoneWeightHeatmap;
+
+	struct FPreviewNotifyStub
+	{
+		FString Name;
+		float StartTime = 0.0f;
+		float Duration = 0.0f; // 0 = 점 Notify
+	};
+
+	struct FPreviewClip
+	{
+		FString Name;
+		TUniquePtr<UAnimSequence> Sequence;
+		TArray<FPreviewNotifyStub> Notifies;
+	};
+
+	UAnimSingleNodeInstance* GetPreviewAnimInstance() const;
+	void BuildPreviewTestClips();
+	void SelectPreviewClip(int32 ClipIndex);
+
+	bool HasPreviewClip() const;
+	bool BlockEditDuringAnimationPreview();
+	bool IsPreviewAtEnd() const;
+	void UpdatePreviewPlaybackEnd();
+	void TogglePreviewPlayback();
+	int32 GetPreviewCurrentFrame() const;
+	void ScrubPreviewToTime(float Seconds);
+	void ApplyPreviewPlayRate();
+	void PlayPreviewInDirection(int32 Direction);
+	void StepPreviewFrame(int32 Delta);
+	void SetPreviewPlaySpeed(float Speed);
+	void HandlePreviewShortcuts();
+
+	TArray<FPreviewClip> PreviewClips;
+	int32 SelectedClipIndex = -1; // -1 = None
+	int32 PreviewPlayDirection = 1;
+	float PreviewPlaySpeed = 1.0f;
+	float PreviewCustomSpeed = 1.0f;
+	bool bAnimationWindowFocused = false;
 };

@@ -247,7 +247,7 @@ private:
 	TArray<AActor*> PendingDestroyActors;
 	TArray<UActorComponent*> PendingDestroyComponents;
 	bool bInGameTick = false;
-
+	bool bEndingPlay = false;
 	//메인 카메라 
 	ACameraActor* MainCamera = nullptr;
 	UCameraComponent* mPlayCameraComponent{};

@@ -1038,7 +1038,7 @@ bool UWorld::DestroyActor(AActor* Actor)
 
 	Actor->bActorIsBeingDestroyed = true;
 
-	if (bInGameTick)
+	if (bInGameTick || bEndingPlay)
 	{
 		PendingDestroyActors.Add(Actor);
 		return true;
@@ -1086,7 +1086,10 @@ bool UWorld::DestroyActorNow(AActor* Actor) {
 	}
 
 	// 게임 중이던 액터면 EndPlay부터 알린다. 이 시점엔 아직 월드와 컴포넌트에 접근할 수 있다.
-	Actor->EndPlay();
+	if (!bEndingPlay || Actor->HasActorBegunPlay())
+	{
+		Actor->EndPlay();
+	}
 
 	TArray<AActor*> AttachedActors;
 	Actor->GetAttachedActors(AttachedActors);
@@ -1252,6 +1255,8 @@ void UWorld::BeginPlay()
 }
 
 void UWorld::EndPlay() {
+	if (bEndingPlay) return;
+	bEndingPlay = true;
 	for (ULevel* Level : Levels)
 	{
 		// EndPlay에서 액터가 지워질 수 있으므로 목록을 복사해서 돈다.
@@ -1284,6 +1289,11 @@ void UWorld::EndPlay() {
 		mPlayerCameraManager->RemoveAllCameraModifiers();
 		mPlayerCameraManager->SetViewTarget(nullptr);
 	}
+	while (!PendingDestroyActors.IsEmpty())
+	{
+		FlushPendingDestroyActors();
+	}
+	bEndingPlay = false;
 }
 
 UWorld* UWorld::CreateWorld(const EWorldType InWorldType, bool bInformEngineOfWorld, FName WorldName)

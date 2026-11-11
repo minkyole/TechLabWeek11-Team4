@@ -87,12 +87,15 @@ void FAnimNode_TwoWayBlend::OnEnter()
 void FAnimNode_TwoWayBlend::Update(const FAnimationUpdateContext& Context)
 {
 	// 각 입력이 자기 재생 시간을 흘린다. 루트 이동도 포즈와 같은 비율로 나눠 넘긴다
-	A.Update(Context.FractionalWeight(1.0f - Alpha));
-	B.Update(Context.FractionalWeight(Alpha));
+	Alpha = std::clamp(Alpha, 0.0f, 1.0f);
+	if (Alpha < 1.0f) A.Update(Context.FractionalWeight(1.0f - Alpha));
+	if (Alpha > 0.0f) B.Update(Context.FractionalWeight(Alpha));
 }
 
 void FAnimNode_TwoWayBlend::Evaluate(FPoseContext& Output)
 {
+	if (Alpha <= 0.0f) { A.Evaluate(Output); return; }
+    if (Alpha >= 1.0f) { B.Evaluate(Output); return; }
 	FPoseContext PoseA(Output);
 	FPoseContext PoseB(Output);
 	A.Evaluate(PoseA);
@@ -602,4 +605,15 @@ void FAnimNode_BlendSpacePlayer::Evaluate(FPoseContext& Output)
 	FAnimationRuntime::BlendTwoPosesTogether(
 	    PoseA.Pose, PoseB.Pose, PoseA.Curve, PoseB.Curve,
 	    NormalizedWeightA, Output.Pose, Output.Curve);
+}
+
+void FAnimNode_TwoWayBlend::OnExit()
+{
+    if (A.LinkedNode) A.LinkedNode->OnExit();
+    if (B.LinkedNode) B.LinkedNode->OnExit();
+}
+bool FAnimNode_TwoWayBlend::IsFinished() const
+{
+    return (Alpha >= 1.0f || (A.LinkedNode && A.LinkedNode->IsFinished())) &&
+           (Alpha <= 0.0f || (B.LinkedNode && B.LinkedNode->IsFinished()));
 }

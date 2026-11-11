@@ -153,6 +153,12 @@ bool FAnimStateMachineAssetData::Validate(FString &Error) const
 			return fail("States require unique IDs and names.");
 		if (!std::isfinite(s.Options.PlayRate) || !std::isfinite(s.X) || !std::isfinite(s.Y))
 			return fail("Invalid state numeric value.");
+		if (!s.PoseGraph.Nodes.empty())
+        {
+            if (!ValidateAnimPoseGraphAssets(s.PoseGraph, MeshKey, Parameters, Error)) return false;
+        }
+        else
+        {
 		const UAnimationAsset *a =
 			s.BlendSpace ? static_cast<UAnimationAsset *>(UAssetManager::GetAssetByPath<UBlendSpace1D>(s.AssetKey))
 						 : static_cast<UAnimationAsset *>(UAssetManager::GetAssetByPath<UAnimSequence>(s.AssetKey));
@@ -174,6 +180,7 @@ bool FAnimStateMachineAssetData::Validate(FString &Error) const
 			if (!parameterSet.TryGetFloat(FName(s.BlendParameter.c_str()), v))
 				return fail("BlendSpace requires a declared Float parameter: " + s.Name);
 		}
+        }
 		FAnimStateDefinition state;
 		state.Name = FName(s.Name.c_str());
 		state.RootNodeIndex = nodes.Num();
@@ -258,8 +265,14 @@ bool FAnimStateMachineAssetData::Build(UStateMachineAnimInstance &I, FString &Er
 	}
 	for (const auto &s : States)
 	{
-		int node = s.BlendSpace ? I.CreateBlendSpacePlayer(s.AssetKey, s.Options)
-								: I.CreateSequencePlayer(s.AssetKey, s.Options);
+		int node;
+        if (!s.PoseGraph.Nodes.empty())
+        {
+            auto Runtime = std::make_unique<FAnimPoseGraphRuntime>(I);
+            if (!Runtime->Build(s.PoseGraph, Error)) return false;
+            node = I.RegisterPoseRoot(std::move(Runtime));
+        }
+        else node = s.BlendSpace ? I.CreateBlendSpacePlayer(s.AssetKey, s.Options) : I.CreateSequencePlayer(s.AssetKey, s.Options);
 		if (node < 0 || I.AddState(s.Name, node) < 0)
 			return failed();
 	}
@@ -280,6 +293,10 @@ bool FAnimStateMachineAssetData::Build(UStateMachineAnimInstance &I, FString &Er
 
 UAnimStateMachineAsset *UAssetManager::LoadAnimStateMachine(const FString &Path, FString &Error)
 {
+    static thread_local std::set<FString> Loading;
+    FString Canonical = FFileHelper::ToUtf8Path(fs::weakly_canonical(FFileHelper::ToNativePath(Path)));
+    if (Loading.size() >= 64 || !Loading.insert(Canonical).second) { Error = "Circular StateMachine asset reference: " + Path; return nullptr; }
+    struct FGuard { std::set<FString>& Set; FString Key; ~FGuard() { Set.erase(Key); } } Guard{Loading, Canonical};
 	fs::path native;
 	FString key;
 	if (!AssetPath(Path, native, key, Error))
@@ -298,7 +315,7 @@ UAnimStateMachineAsset *UAssetManager::LoadAnimStateMachine(const FString &Path,
 	try
 	{
 		auto j = json::parse(text);
-		if (j.at("Version") != 1 || j.at("Type") != "AnimStateMachine")
+		if ((j.at("Version") != 1 && j.at("Version") != 2) || j.at("Type") != "AnimStateMachine")
 		{
 			Error = "Unsupported state machine version/type.";
 			return nullptr;
@@ -337,6 +354,7 @@ UAnimStateMachineAsset *UAssetManager::LoadAnimStateMachine(const FString &Path,
 			s.Options.PlayRate = v.at("Rate");
 			s.X = v.at("X");
 			s.Y = v.at("Y");
+			s.PoseGraph = v.contains("PoseGraph") ? ReadAnimPoseGraph(v.at("PoseGraph")) : FAnimPoseGraph::SinglePlayer(s.AssetKey, s.BlendSpace, s.BlendParameter, s.Options.bLoop, s.Options.bPlaying, s.Options.PlayRate);
 			d.States.push_back(s);
 		}
 		for (auto &v : j.at("Conditions"))
@@ -407,7 +425,9 @@ bool UAssetManager::SaveAnimStateMachine(const FString &Path, const FAnimStateMa
 	fs::path native;
 	FString key;
 	if (!AssetPath(Path, native, key, Error) || !d.Validate(Error))
-		return false;
+        return false;
+    for (auto& State : d.States)
+        if (!State.PoseGraph.Nodes.empty() && !ValidateAnimPoseGraphAssets(State.PoseGraph, d.MeshKey, d.Parameters, Error, Path)) return false;
 	if (AssetMap.Contains(key) && !GetAssetByPath<UAnimStateMachineAsset>(key))
 	{
 		Error = "Asset key belongs to a different asset type.";
@@ -419,7 +439,7 @@ bool UAssetManager::SaveAnimStateMachine(const FString &Path, const FAnimStateMa
 		Error = "File already exists.";
 		return false;
 	}
-	json j = {{"Version", 1},
+	json j = {{"Version", 2},
 			  {"Type", "AnimStateMachine"},
 			  {"Mesh", d.MeshKey},
 			  {"Entry", d.Entry},
@@ -433,7 +453,8 @@ bool UAssetManager::SaveAnimStateMachine(const FString &Path, const FAnimStateMa
 		j["Parameters"].push_back(
 			{{"Name", p.Name.ToString()}, {"Type", (int)p.Type}, {"Bool", p.BoolValue}, {"Float", p.FloatValue}});
 	for (auto &s : d.States)
-		j["States"].push_back({{"Id", s.Id},
+		j["States"].push_back({{"PoseGraph", AnimPoseGraphJson(s.PoseGraph.Nodes.empty() ? FAnimPoseGraph::SinglePlayer(s.AssetKey,s.BlendSpace,s.BlendParameter,s.Options.bLoop,s.Options.bPlaying,s.Options.PlayRate) : s.PoseGraph)},
+                               {"Id", s.Id},
 							   {"Name", s.Name},
 							   {"Asset", s.AssetKey},
 							   {"BlendSpace", s.BlendSpace},

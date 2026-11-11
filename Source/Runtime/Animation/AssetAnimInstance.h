@@ -9,6 +9,7 @@ class UAssetAnimInstance : public UStateMachineAnimInstance
   public:
 	~UAssetAnimInstance() override;
 	void UpdateAnimation(float DeltaSeconds) override;
+	bool UsesDependency(const FString& Path) const;
 	bool Configure(const FAnimStateMachineAssetData &Data, bool EnableScript = true);
 	void SetPaused(bool Value)
 	{

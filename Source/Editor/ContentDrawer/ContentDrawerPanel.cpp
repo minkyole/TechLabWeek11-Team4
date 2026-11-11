@@ -160,7 +160,8 @@ void FContentDrawerPanel::OnRender()
 					{
 						CurrentPath /= Path.filename(); // 하위 폴더로 이동
 					}
-					else if (OnOpenStateMachine && _stricmp(Path.extension().string().c_str(), ".animsm") == 0) { OnOpenStateMachine(PathString); }
+					else if (OnOpenAnimGraph && _stricmp(Path.extension().string().c_str(), ".animgraph") == 0) { OnOpenAnimGraph(PathString); }
+                    else if (OnOpenStateMachine && _stricmp(Path.extension().string().c_str(), ".animsm") == 0) { OnOpenStateMachine(PathString); }
 					else if (OnOpenBlendSpace && _stricmp(Path.extension().string().c_str(), ".blendspace") == 0)
 					{
 						OnOpenBlendSpace(PathString);
@@ -233,7 +234,7 @@ void FContentDrawerPanel::RenderFolderTree(const fs::path& Path, fs::path& Selec
 
 void FContentDrawerPanel::DrawBlendSpaceCreation()
 {
-	bool Create = false, CreateStateMachine = false;
+	bool Create = false, CreateStateMachine = false, CreateAnimGraph = false;
 	if (ImGui::BeginPopupContextWindow("CreateAssetContext", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
 	{
 		if (ImGui::BeginMenu("Create"))
@@ -242,12 +243,14 @@ void FContentDrawerPanel::DrawBlendSpaceCreation()
 			{
 				Create = ImGui::MenuItem("BlendSpace 1D");
  CreateStateMachine=ImGui::MenuItem("State Machine");
+ CreateAnimGraph=ImGui::MenuItem("AnimGraph");
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenu();
 		}
 		ImGui::EndPopup();
 	}
+	if(CreateAnimGraph && OnCreateAnimGraph) OnCreateAnimGraph(FFileHelper::ToUtf8Path(CurrentPath));
 	if(CreateStateMachine && OnCreateStateMachine) OnCreateStateMachine(FFileHelper::ToUtf8Path(CurrentPath));
 	if (Create)
 	{

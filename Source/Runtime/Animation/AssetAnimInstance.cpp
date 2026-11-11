@@ -4,6 +4,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Scripting/LuaVM.h"
+#include "Core/Misc/FileHelper.h"
 
 UAssetAnimInstance::~UAssetAnimInstance()
 {
@@ -31,6 +32,7 @@ bool UAssetAnimInstance::Configure(const FAnimStateMachineAssetData &Data, bool 
 		return Fail(error);
 	if (!GetSkeletalMesh() || GetSkeletalMesh()->GetPath() != Data.MeshKey)
 		return Fail("State machine mesh does not match component mesh.");
+	EndAllNotifyStates();
 	NativeUnInitializeAnimation();
 	Snapshot = Data;
 	Paused = false;
@@ -42,7 +44,7 @@ bool UAssetAnimInstance::Configure(const FAnimStateMachineAssetData &Data, bool 
 	for (int i = 0; i < (int)Snapshot.States.size(); ++i)
 	{
 		const auto &s = Snapshot.States[i];
-		if (s.BlendSpace && !s.BlendParameter.empty())
+		if (s.PoseGraph.Nodes.empty() && s.BlendSpace && !s.BlendParameter.empty())
 		{
 			float v = 0;
 			TryGetFloat(s.BlendParameter, v);
@@ -50,9 +52,9 @@ bool UAssetAnimInstance::Configure(const FAnimStateMachineAssetData &Data, bool 
 		}
 	}
 	FAnimationUpdateContext Context;
-	Context.AnimInstance = this;
+	Context.AnimInstance = nullptr;
 	Context.DeltaSeconds = 0.0f;
-	for (const FPlayerEntry& Entry : Players) Entry.Node->Update(Context);
+	for (const FPlayerEntry& Entry : Players) if (Entry.Kind != EPlayerKind::Graph) Entry.Node->Update(Context);
 	if (EnableScript && !Snapshot.UpdateScript.empty())
 	{
 		if (!Script.Load(Snapshot.UpdateScript, false, true, error))
@@ -96,7 +98,7 @@ void UAssetAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	for (int i = 0; i < (int)Snapshot.States.size(); ++i)
 	{
 		const auto &s = Snapshot.States[i];
-		if (s.BlendSpace && !s.BlendParameter.empty())
+		if (s.PoseGraph.Nodes.empty() && s.BlendSpace && !s.BlendParameter.empty())
 		{
 			float v;
 			if (TryGetFloat(s.BlendParameter, v))
@@ -108,4 +110,14 @@ int UAssetAnimInstance::GetCurrentAssetState() const
 {
 	int i = GetCurrentState();
 	return i >= 0 && i < (int)Snapshot.States.size() ? Snapshot.States[i].Id : -1;
+}
+
+bool UAssetAnimInstance::UsesDependency(const FString& Path) const
+{
+    auto Key = FFileHelper::ToUtf8Path(fs::weakly_canonical(FFileHelper::ToNativePath(Path)));
+    for (auto& Entry : Players)
+        if (Entry.Kind == EPlayerKind::Graph)
+            for (auto& Dependency : static_cast<FAnimPoseGraphRuntime*>(Entry.Node.get())->GetDependencies())
+                if (FFileHelper::ToUtf8Path(fs::weakly_canonical(FFileHelper::ToNativePath(Dependency))) == Key) return true;
+    return false;
 }

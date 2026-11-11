@@ -20,6 +20,8 @@ bool UStateMachineAnimInstance::RequireBuilding()
 
 void UStateMachineAnimInstance::ResetGraph()
 {
+    EndAllNotifyStates();
+    ConsumeRootMotion();
 	RootNode = nullptr;
 
 	bGraphReady = false;
@@ -485,11 +487,11 @@ bool UStateMachineAnimInstance::Commit()
 	// StateMachine.Update()를 호출하면 전환까지 평가되므로
 	// 여기서는 재생 노드들만 DeltaSeconds=0으로 갱신한다.
 	FAnimationUpdateContext Context;
-	Context.AnimInstance = this;
+	Context.AnimInstance = nullptr;
 	Context.DeltaSeconds = 0.0f;
 
 	for (const FPlayerEntry &Entry : Players)
-		Entry.Node->Update(Context);
+        if (Entry.Kind != EPlayerKind::Graph) Entry.Node->Update(Context);
 
 	RootNode = &StateMachine;
 
@@ -523,10 +525,10 @@ bool UStateMachineAnimInstance::SetPlayRate(FAnimNodeId NodeId, float Value)
 
 	FPlayerEntry *Entry = FindPlayer(NodeId);
 
-	if (!Entry)
+	if (!Entry || Entry->Kind == EPlayerKind::Graph)
 		return Fail("Invalid player node.");
 
-	Entry->Node->PlayRate = Value;
+	static_cast<FAnimNode_AssetPlayerBase*>(Entry->Node.get())->PlayRate = Value;
 	return true;
 }
 
@@ -534,10 +536,10 @@ bool UStateMachineAnimInstance::SetPlaying(FAnimNodeId NodeId, bool bPlaying)
 {
 	FPlayerEntry *Entry = FindPlayer(NodeId);
 
-	if (!Entry)
+	if (!Entry || Entry->Kind == EPlayerKind::Graph)
 		return Fail("Invalid player node.");
 
-	Entry->Node->bPlaying = bPlaying;
+	static_cast<FAnimNode_AssetPlayerBase*>(Entry->Node.get())->bPlaying = bPlaying;
 	return true;
 }
 
@@ -549,4 +551,14 @@ FAnimStateId UStateMachineAnimInstance::GetCurrentState() const
 bool UStateMachineAnimInstance::IsSourceFinished() const
 {
 	return bGraphReady && StateMachine.IsClipFinished();
+}
+
+FAnimNodeId UStateMachineAnimInstance::RegisterPoseRoot(TUniquePtr<FAnimNode_Base> Node)
+{
+    if (!RequireBuilding() || !Node) return InvalidAnimNodeId;
+    FPlayerEntry Entry;
+    Entry.Kind = EPlayerKind::Graph;
+    Entry.Node = std::move(Node);
+    Players.Add(std::move(Entry));
+    return static_cast<int>(Players.size()) - 1;
 }

@@ -15,8 +15,11 @@ class UClass;
 
 enum class EAnimationMode : uint8
 {
-	AnimationBlueprint,  // AnimClass로 지정한 그래프 인스턴스 (StateMachine 등)
-	AnimationSingleNode, // UAnimSingleNodeInstance로 클립 하나만 재생
+	AnimationBlueprint = 0,  // AnimClass로 지정한 그래프 인스턴스 (StateMachine 등)
+	AnimationSingleNode = 1, // UAnimSingleNodeInstance로 클립 하나만 재생
+    Lua = 2,
+    StateMachine = 3,
+    AnimGraph = 4,
 };
 
 class USkeletalMeshComponent : public USkinnedMeshComponent
@@ -24,6 +27,9 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
 	DECLARE_CLASS(USkeletalMeshComponent, USkinnedMeshComponent)
 
 	REFLECT_START(USkeletalMeshComponent)
+		PROPERTY(AnimationMode)
+        PROPERTY(AnimationScriptPath)
+        PROPERTY(AnimGraphAssetPath)
 		PROPERTY(StateMachineAssetPath)
 		PROPERTY(DebugSpeed)
 		PROPERTY(bDebugAttack)
@@ -75,10 +81,16 @@ public:
 	// ---- 재생 입구 ----
 	// 모드나 클래스가 바뀌면 인스턴스를 버리고 설계도로 다시 만든다.
 	void SetAnimationMode(EAnimationMode InMode);
-	EAnimationMode GetAnimationMode() const { return AnimationMode; }
+	EAnimationMode GetAnimationMode() const { return static_cast<EAnimationMode>(AnimationMode); }
 	void SetAnimInstanceClass(UClass* InClass);
 	void SetStateMachineAssetPath(const FString& Path);
 	const FString& GetStateMachineAssetPath() const { return StateMachineAssetPath; }
+
+    void SetAnimGraphAssetPath(const FString& Path);
+    const FString& GetAnimGraphAssetPath() const { return AnimGraphAssetPath; }
+    void SetAnimationScriptPath(const FString& Path);
+    const FString& GetAnimationScriptPath() const { return AnimationScriptPath; }
+    bool UsesAnimationAsset(const FString& Path) const;
 
 	// ---- SingleNode 모드 전용 ----
 	void SetAnimation(UAnimSequence* NewAnimToPlay);
@@ -99,7 +111,9 @@ protected:
 private:
 	TUniquePtr<UAnimInstance> AnimInstance;
 
-	EAnimationMode AnimationMode = EAnimationMode::AnimationSingleNode;
+	int AnimationMode = static_cast<int>(EAnimationMode::Lua);
+    FString AnimGraphAssetPath;
+    FString AnimationScriptPath = "Assets/Scripts/Animation/CharacterAnim.lua";
 
 	// AnimationBlueprint 모드에서 생성할 클래스.
 	UClass* AnimClass = nullptr;

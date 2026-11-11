@@ -34,6 +34,7 @@
 #include "Editor/SkeletalMeshViewer/SkeletalMeshViewerPanel.h"
 #include "Editor/BlendSpaceEditor/BlendSpaceEditorPanel.h"
 #include "Editor/StateMachineEditor/StateMachineEditorPanel.h"
+#include "Editor/AnimGraphEditor/AnimGraphEditorPanel.h"
 #include "Animation/AssetAnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "UObject/UObjectIterator.h"
@@ -195,6 +196,7 @@ bool UEditorEngine::Init()
 	ViewportsPanel = EditorUI->AddEditorPanel<FViewportsPanel>();
 	ContentDrawerPanel = EditorUI->AddEditorPanel<FContentDrawerPanel>();
 	BlendSpaceEditorPanel = EditorUI->AddEditorPanel<FBlendSpaceEditorPanel>();
+ AnimGraphEditorPanel=EditorUI->AddEditorPanel<FAnimGraphEditorPanel>();
  StateMachineEditorPanel=EditorUI->AddEditorPanel<FStateMachineEditorPanel>();
  StateMachineEditorPanel->SetPIEDebugProvider([this](const FString &AssetKey, const FString &Signature) {
 	 FStateMachinePIEFrame Frame;
@@ -236,6 +238,9 @@ bool UEditorEngine::Init()
 	ContentDrawerPanel->SetOpenBlendSpaceCallback([this](const FString& Path) { BlendSpaceEditorPanel->OpenAsset(Path); });
 	SkeletalMeshViewerPanel = EditorUI->AddEditorPanel<FSkeletalMeshViewerPanel>();
  StateMachineEditorPanel->SetViewer(SkeletalMeshViewerPanel);
+ AnimGraphEditorPanel->SetViewer(SkeletalMeshViewerPanel);
+ ContentDrawerPanel->SetOpenAnimGraphCallback([this](const FString& P){ AnimGraphEditorPanel->OpenAsset(P); });
+ ContentDrawerPanel->SetCreateAnimGraphCallback([this](const FString& P){ AnimGraphEditorPanel->NewAsset(P); });
 	SkeletalMeshViewerPanel->SetOpenBlendSpaceEditorCallback([this](const FString& Path) { BlendSpaceEditorPanel->OpenAsset(Path); });
 	SkeletalMeshViewerPanel->SetRenderer(Renderer);
 	SkeletalMeshViewerPanel->SetGridRenderer(GridRenderer.get());
@@ -599,7 +604,7 @@ void UEditorEngine::BeginFrame(const float DeltaTime)
 	FStatOverlay::Tick(DeltaTime);
 	EditorControlsPanel->FEditorControlsPanel::DeltaTime = DeltaTime;
 
-	if (!StateMachineEditorPanel->IsKeyboardFocused() && !BlendSpaceEditorPanel->IsKeyboardFocused() && !ImGui::GetIO().WantTextInput && FInputSystem::IsKeyPressed(EKeyCode::Delete))
+	if (!AnimGraphEditorPanel->IsKeyboardFocused() && !StateMachineEditorPanel->IsKeyboardFocused() && !BlendSpaceEditorPanel->IsKeyboardFocused() && !ImGui::GetIO().WantTextInput && FInputSystem::IsKeyPressed(EKeyCode::Delete))
 		DeleteActor(OutlinerPanel->GetSelectedActor());
 }
 
@@ -1586,6 +1591,7 @@ void UEditorEngine::PreExit()
 	EditorWorld->ClearWorld();
 	// PIE 창이 열린 채 종료하면 Device가 살아 있을 때 Swapchain과 타깃을 먼저 정리한다.
 	DestroyPIEWindow();
+	if (AnimGraphEditorPanel) AnimGraphEditorPanel->ReleaseResources();
 	if (StateMachineEditorPanel) StateMachineEditorPanel->ReleaseResources();
 	SkeletalMeshViewerPanel->ReleaseResources();
 	// Panels outlive the global UObject sweep. Release the owned draft first

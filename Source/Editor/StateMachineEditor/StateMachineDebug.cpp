@@ -52,9 +52,15 @@ bool StateMachineDefinitionSignature(const FAnimStateMachineAssetData &Source, F
 					   {"States", json::array()},	  {"Parameters", json::array()}, {"Conditions", json::array()},
 					   {"Transitions", json::array()}};
 	std::sort(data.States.begin(), data.States.end(), [](const auto &a, const auto &b) { return a.Id < b.Id; });
-	for (const auto &s : data.States)
-		definition["States"].push_back({s.Id, s.Name, s.AssetKey, s.BlendSpace, s.BlendParameter, s.Options.bLoop,
-										s.Options.bPlaying, s.Options.PlayRate});
+    for (const auto &s : data.States)
+    {
+        auto Graph = s.PoseGraph.Nodes.empty() ? FAnimPoseGraph::SinglePlayer(s.AssetKey,s.BlendSpace,s.BlendParameter,s.Options.bLoop,s.Options.bPlaying,s.Options.PlayRate) : s.PoseGraph;
+        std::sort(Graph.Nodes.begin(),Graph.Nodes.end(),[](auto& A,auto& B){return A.Id<B.Id;});
+        std::sort(Graph.Links.begin(),Graph.Links.end(),[](auto& A,auto& B){return A.Id<B.Id;});
+        auto Pose = AnimPoseGraphJson(Graph);
+        for (auto& Node : Pose["Nodes"]) { Node.erase("X"); Node.erase("Y"); }
+        definition["States"].push_back({s.Id,s.Name,Pose});
+    }
 	std::sort(data.Parameters.begin(), data.Parameters.end(),
 			  [](const auto &a, const auto &b) { return a.Name.ToString() < b.Name.ToString(); });
 	for (const auto &p : data.Parameters)

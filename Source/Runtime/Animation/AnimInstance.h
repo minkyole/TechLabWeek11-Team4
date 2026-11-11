@@ -4,6 +4,7 @@
 #include "UObject/Class.h"
 #include "Animation/Nodes/AnimNodes.h"
 #include "Animation/AnimNotifyEvent.h"
+#include "Animation/AnimParameters.h"
 
 struct FAnimNode_Base;
 class USkeletalMeshComponent;
@@ -14,6 +15,15 @@ class UAnimInstance : public UObject
 {
 	DECLARE_CLASS(UAnimInstance, UObject)
 public:
+    virtual FAnimParameterSet& GetParameters() { return Parameters; }
+    virtual const FAnimParameterSet& GetParameters() const { return Parameters; }
+    virtual bool SetBool(const FString& Name, bool Value);
+    virtual bool SetFloat(const FString& Name, float Value);
+    virtual bool SetTrigger(const FString& Name);
+    virtual bool ResetTrigger(const FString& Name);
+    virtual bool TryGetBool(const FString& Name, bool& Value) const;
+    virtual bool TryGetFloat(const FString& Name, float& Value) const;
+    virtual bool TryGetTrigger(const FString& Name, bool& Value) const;
 	void InitializeAnimation(USkeletalMeshComponent* InComponent);
 	void UnInitializeAnimation();
 
@@ -57,6 +67,7 @@ protected:
 
 private:
 	// 비소유 참조. 컴포넌트가 인스턴스의 수명을 관리한다.
+	FAnimParameterSet Parameters;
 	USkeletalMeshComponent* OwningComponent = nullptr;
 	bool bIsInitialized = false;
 

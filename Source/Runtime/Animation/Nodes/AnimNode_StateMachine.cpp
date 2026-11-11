@@ -410,7 +410,7 @@ void FAnimNode_StateMachine::Update(const FAnimationUpdateContext& Context)
 		            : 1.0f;
 	}
 
-	if (bTransitioning && !bUseSnapshot && PreviousNode)
+	if (bTransitioning && !bUseSnapshot && PreviousNode && Alpha < 1.0f)
 	{
 		FAnimationUpdateContext PreviousContext =
 		    Context.FractionalWeight(1.0f - Alpha);
@@ -421,7 +421,7 @@ void FAnimNode_StateMachine::Update(const FAnimationUpdateContext& Context)
 	}
 
 	// 스냅샷 전환은 이전 포즈가 멈춰 있어 이동이 없으니, 현재 상태도 섞이는 비율만큼만 이동한다
-	CurrentNode->Update(Context.FractionalWeight(Alpha));
+	if (Alpha > 0.0f) CurrentNode->Update(Context.FractionalWeight(Alpha));
 
 	StateElpased += DeltaSeconds;
 
@@ -572,6 +572,7 @@ void FAnimNode_StateMachine::ChangeState(
 		}
 	}
 
+	if (OldNode && (bUseSnapshot || !bTransitioning)) OldNode->OnExit();
 	CurrentState = Transition.To;
 	StateElpased = 0.0f;
 
@@ -586,6 +587,7 @@ void FAnimNode_StateMachine::ChangeState(
 
 void FAnimNode_StateMachine::ClearTransition()
 {
+    if (PreviousNode) PreviousNode->OnExit();
  ActiveTransitionIndex=-1;
 	PreviousNode = nullptr;
 	bTransitioning = false;
@@ -654,7 +656,7 @@ void FAnimNode_StateMachine::ProcessTransitions()
 		return;
 
 	const FAnimConditionContext Context{
-		Parameters,
+		GetParameters(),
 		CurrentNode->IsFinished(),
 		StateElpased,
 	};
@@ -701,5 +703,10 @@ void FAnimNode_StateMachine::ProcessTransitions()
 	    Definition->Transitions[Selected];
 
 	for (const FName& TriggerName : Transition.ConsumeTriggers)
-		Parameters.ConsumeTrigger(TriggerName);
+		GetParameters().ConsumeTrigger(TriggerName);
+}
+void FAnimNode_StateMachine::OnExit()
+{
+    if (auto* Node = GetStateNode(CurrentState)) Node->OnExit();
+    ClearTransition();
 }

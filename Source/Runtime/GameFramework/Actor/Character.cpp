@@ -46,10 +46,8 @@ ACharacter::ACharacter()
 	SkeletalMeshComponent->SetGenerateOverlapEvents(false);
 
 	SkeletalMeshComponent->SetAnimationMode(
-	    EAnimationMode::AnimationBlueprint);
+	    EAnimationMode::Lua);
 
-	SkeletalMeshComponent->SetAnimInstanceClass(
-	    ULuaAnimInstance::StaticClass());
 
 	SkeletalMeshComponent->PrimaryComponentTick.TickGroup =
 	    ETickingGroup::PostPhysics;

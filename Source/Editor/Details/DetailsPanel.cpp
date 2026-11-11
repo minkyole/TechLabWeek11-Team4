@@ -1021,6 +1021,21 @@ void FDetailsPanel::DrawProperty(UObject* Object, const FProperty& Property, ImF
 {
 	void* ValuePtr = reinterpret_cast<char*>(Object) + Property.Offset;
 	const FString PropertyName = Property.Name.ToString();
+    if (auto* Mesh = Cast<USkeletalMeshComponent>(Object))
+    {
+        auto Mode = Mesh->GetAnimationMode();
+        if ((PropertyName == "AnimationScriptPath" && Mode != EAnimationMode::Lua) ||
+            (PropertyName == "StateMachineAssetPath" && Mode != EAnimationMode::StateMachine) ||
+            (PropertyName == "AnimGraphAssetPath" && Mode != EAnimationMode::AnimGraph)) return;
+        if (PropertyName == "AnimationMode")
+        {
+            int Value = static_cast<int>(Mode) - 1;
+            if (ImGui::Combo("Animation Mode", &Value, "SingleNode\0Lua\0StateMachine\0AnimGraph\0"))
+            { ++Value; Object->ApplyPropertyValue(Property.Name, &Value); }
+            if (Mode == EAnimationMode::AnimationBlueprint) ImGui::TextDisabled("Custom instance class (code)");
+            return;
+        }
+    }
 	const FString Label = "##" + PropertyName;
 	const bool bDifferentFromDefault = IsPropertyDifferentFromDefault(Object, Property, DefaultObject);
 	ImGui::PushID(PropertyName.c_str());

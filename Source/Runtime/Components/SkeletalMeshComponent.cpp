@@ -12,6 +12,8 @@
 #include "Animation/MyAnimInstance.h"
 #include "Animation/LuaAnimInstance.h"
 #include "Animation/AssetAnimInstance.h"
+#include "Animation/AnimGraph.h"
+#include "Core/Misc/FileHelper.h"
 #include "Serialization/Archive.h"
 #include "Animation/AnimNotifyEvent.h"
 #include "GameFramework/Actor/Character.h"
@@ -19,8 +21,8 @@
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	AnimationMode = EAnimationMode::AnimationBlueprint;
-	AnimClass = ULuaAnimInstance::StaticClass();
+	AnimationMode = static_cast<int>(EAnimationMode::Lua);
+	AnimClass = nullptr;
 }
 
 USkeletalMeshComponent::~USkeletalMeshComponent()
@@ -75,16 +77,23 @@ void USkeletalMeshComponent::InitializeAnimInstance()
 
 	if (!AnimInstance)
 	{
-		if (AnimationMode == EAnimationMode::AnimationSingleNode)
+		if (GetAnimationMode() == EAnimationMode::AnimationSingleNode)
 		{
 			AnimInstance.reset(NewObject<UAnimSingleNodeInstance>(this));
 		}
 		else
 		{
-			if (!StateMachineAssetPath.empty()) AnimClass = UAssetAnimInstance::StaticClass();
+			UClass* SelectedClass = nullptr;
+            switch (GetAnimationMode())
+            {
+            case EAnimationMode::Lua: SelectedClass = ULuaAnimInstance::StaticClass(); break;
+            case EAnimationMode::StateMachine: SelectedClass = UAssetAnimInstance::StaticClass(); break;
+            case EAnimationMode::AnimGraph: SelectedClass = UAnimGraphInstance::StaticClass(); break;
+            default: SelectedClass = AnimClass; break;
+            }
 			UClass* ClassToSpawn =
-			    (AnimClass && AnimClass->IsChildOf(UAnimInstance::StaticClass()))
-			        ? AnimClass
+			    (SelectedClass && SelectedClass->IsChildOf(UAnimInstance::StaticClass()))
+			        ? SelectedClass
 			        : UAnimInstance::StaticClass();
 
 			AnimInstance.reset(NewObject<UAnimInstance>(this, ClassToSpawn));
@@ -149,10 +158,10 @@ UAnimSingleNodeInstance* USkeletalMeshComponent::GetSingleNodeInstance() const
 
 void USkeletalMeshComponent::SetAnimationMode(EAnimationMode InMode)
 {
-	if (AnimationMode == InMode)
+	if (GetAnimationMode() == InMode)
 		return;
 
-	AnimationMode = InMode;
+	AnimationMode = static_cast<int>(InMode);
 
 	// 인스턴스 타입이 모드에 묶여 있으므로 기존 실행체를 버린다.
 	// AnimationData는 컴포넌트에 남아 있어 SingleNode로 돌아오면 그대로 복원된다.
@@ -162,17 +171,11 @@ void USkeletalMeshComponent::SetAnimationMode(EAnimationMode InMode)
 
 void USkeletalMeshComponent::SetAnimInstanceClass(UClass* InClass)
 {
-	if (AnimClass == InClass)
-		return;
-
-	AnimClass = InClass;
-
-	// SingleNode 모드 중에는 클래스만 기억해 두고, Blueprint 모드로 바뀔 때 쓴다.
-	if (AnimationMode == EAnimationMode::AnimationBlueprint)
-	{
-		ClearAnimInstance();
-		InitializeAnimInstance();
-	}
+    if (AnimClass == InClass && GetAnimationMode() == EAnimationMode::AnimationBlueprint) return;
+    if (InClass && !InClass->IsChildOf(UAnimInstance::StaticClass())) return;
+    AnimClass = InClass;
+    AnimationMode = static_cast<int>(EAnimationMode::AnimationBlueprint);
+    ClearAnimInstance(); InitializeAnimInstance();
 }
 
 void USkeletalMeshComponent::SetAnimation(UAnimSequence* NewAnimToPlay)
@@ -388,60 +391,50 @@ void USkeletalMeshComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue)
 // 경로 선택값과 애니메이션 실행체 후처리의 연결
 void USkeletalMeshComponent::SetStateMachineAssetPath(const FString& Path)
 {
-	// 이전 경로가 유효한 시점의 실행체 종료
-	ClearAnimInstance();
-
-	StateMachineAssetPath = Path;
-	const FProperty* Property = StaticClass()->FindPropertyByName(FName("StateMachineAssetPath"));
-
-	NormalizeProperties(Property);
-	PostApplyProperties(Property);
+    ApplyPropertyValue(FName("StateMachineAssetPath"), &Path);
 }
-
-// 경로 지정 방식에 따른 애니메이션 모드와 클래스의 선택
+void USkeletalMeshComponent::SetAnimGraphAssetPath(const FString& Path)
+{
+    ApplyPropertyValue(FName("AnimGraphAssetPath"), &Path);
+}
+void USkeletalMeshComponent::SetAnimationScriptPath(const FString& Path)
+{
+    ApplyPropertyValue(FName("AnimationScriptPath"), &Path);
+}
 void USkeletalMeshComponent::NormalizeProperties(const FProperty* ChangedProperty)
 {
-	Super::NormalizeProperties(ChangedProperty);
-
-	const bool bPathChanged = ChangedProperty && ChangedProperty->Name == FName("StateMachineAssetPath");
-
-	if (bPathChanged || (!ChangedProperty && !StateMachineAssetPath.empty()))
-	{
-		AnimationMode = EAnimationMode::AnimationBlueprint;
-		AnimClass = StateMachineAssetPath.empty()
-		                ? ULuaAnimInstance::StaticClass()
-		                : UAssetAnimInstance::StaticClass();
-	}
+    Super::NormalizeProperties(ChangedProperty);
+    if (AnimationMode < 0 || AnimationMode > static_cast<int>(EAnimationMode::AnimGraph))
+        AnimationMode = static_cast<int>(StateMachineAssetPath.empty() ? EAnimationMode::Lua : EAnimationMode::StateMachine);
 }
-
-// 기존 실행체 종료 이후 스키닝 상태와 새 실행체의 순차 준비
 void USkeletalMeshComponent::PostApplyProperties(const FProperty* ChangedProperty)
 {
-	const bool bReinitialize =
-	    !ChangedProperty ||
-	    ChangedProperty->Name == FName("SkeletalMesh") ||
-	    ChangedProperty->Name == FName("StateMachineAssetPath");
-
-	if (bReinitialize)
-	{
-		ClearAnimInstance();
-	}
-
-	Super::PostApplyProperties(ChangedProperty);
-
-	if (bReinitialize)
-	{
-		InitializeAnimInstance();
-	}
+    const FName Name = ChangedProperty ? ChangedProperty->Name : FName();
+    const bool Reinitialize = !ChangedProperty || Name == FName("SkeletalMesh") || Name == FName("AnimationMode") ||
+        (Name == FName("StateMachineAssetPath") && GetAnimationMode() == EAnimationMode::StateMachine) ||
+        (Name == FName("AnimGraphAssetPath") && GetAnimationMode() == EAnimationMode::AnimGraph) ||
+        (Name == FName("AnimationScriptPath") && GetAnimationMode() == EAnimationMode::Lua);
+    if (Reinitialize) ClearAnimInstance();
+    Super::PostApplyProperties(ChangedProperty);
+    if (Reinitialize) InitializeAnimInstance();
 }
-
-// 역직렬화 이전의 실행체 수명 정리
 void USkeletalMeshComponent::Serialize(FStructuredArchive::FRecord Record)
 {
-	if (Record.GetUnderlyingArchive().IsLoading())
-	{
-		ClearAnimInstance();
-	}
-
-	Super::Serialize(Record);
+    const bool Loading = Record.GetUnderlyingArchive().IsLoading();
+    if (Loading) { ClearAnimInstance(); AnimationMode = -1; }
+    Super::Serialize(Record);
+    if (Loading) NormalizeProperties();
+}
+bool USkeletalMeshComponent::UsesAnimationAsset(const FString& Path) const
+{
+    auto Canonical = [](const FString& P) { return FFileHelper::ToUtf8Path(fs::weakly_canonical(FFileHelper::ToNativePath(P))); };
+    const auto Key = Canonical(Path);
+    if (GetAnimationMode() == EAnimationMode::AnimGraph && Canonical(AnimGraphAssetPath) == Key) return true;
+    if (GetAnimationMode() == EAnimationMode::StateMachine && Canonical(StateMachineAssetPath) == Key) return true;
+    if (auto* Graph = Cast<UAnimGraphInstance>(GetAnimInstance()))
+        if (auto* Runtime = Graph->GetRuntime())
+            for (const auto& Dependency : Runtime->GetDependencies()) if (Canonical(Dependency) == Key) return true;
+    if (auto* State = Cast<UAssetAnimInstance>(GetAnimInstance()))
+        return State->UsesDependency(Path);
+    return false;
 }

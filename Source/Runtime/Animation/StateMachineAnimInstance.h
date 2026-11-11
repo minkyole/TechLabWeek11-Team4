@@ -38,6 +38,9 @@ class UStateMachineAnimInstance : public UAnimInstance
 	DECLARE_CLASS(UStateMachineAnimInstance, UAnimInstance)
 
   public:
+    FAnimParameterSet& GetParameters() override { return StateMachine.Parameters; }
+    const FAnimParameterSet& GetParameters() const override { return StateMachine.Parameters; }
+    FAnimNodeId RegisterPoseRoot(TUniquePtr<FAnimNode_Base> Node);
 	~UStateMachineAnimInstance() override = default;
 
 	// 호스트 측 구성
@@ -118,6 +121,7 @@ class UStateMachineAnimInstance : public UAnimInstance
   protected:
 	enum class EPlayerKind : uint8
 	{
+		Graph,
 		Sequence,
 		BlendSpace,
 	};
@@ -125,7 +129,7 @@ class UStateMachineAnimInstance : public UAnimInstance
 	struct FPlayerEntry
 	{
 		EPlayerKind Kind = EPlayerKind::Sequence;
-		TUniquePtr<FAnimNode_AssetPlayerBase> Node;
+		TUniquePtr<FAnimNode_Base> Node;
 	};
 
 	struct FAssetAlias

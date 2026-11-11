@@ -2,6 +2,8 @@
 #include "Scripting/AnimationBindings.h"
 
 #include "Animation/LuaAnimInstance.h"
+#include "Animation/AnimGraph.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include <stdexcept>
 #include <utility>
@@ -197,7 +199,19 @@ namespace
 
 void BindAnimationAPI(sol::state& LuaState)
 {
-	auto Common = LuaState.new_usertype<UStateMachineAnimInstance>("StateMachineAnimInstance", sol::no_constructor);
+	auto Base = LuaState.new_usertype<UAnimInstance>("AnimInstance", sol::no_constructor);
+    Base["SetBool"] = &UAnimInstance::SetBool;
+    Base["SetFloat"] = &UAnimInstance::SetFloat;
+    Base["SetTrigger"] = &UAnimInstance::SetTrigger;
+    Base["ResetTrigger"] = &UAnimInstance::ResetTrigger;
+    Base["GetSkeletalMeshComponent"] = &UAnimInstance::GetSkeletalMeshComponent;
+    Base["GetBool"] = [](const UAnimInstance& I, const FString& N) { bool V; if(!I.TryGetBool(N,V)) throw std::runtime_error("Invalid Bool parameter"); return V; };
+    Base["GetFloat"] = [](const UAnimInstance& I, const FString& N) { float V; if(!I.TryGetFloat(N,V)) throw std::runtime_error("Invalid Float parameter"); return V; };
+    Base["IsTriggerActive"] = [](const UAnimInstance& I, const FString& N) { bool V; if(!I.TryGetTrigger(N,V)) throw std::runtime_error("Invalid Trigger parameter"); return V; };
+    auto Graph = LuaState.new_usertype<UAnimGraphInstance>("AnimGraphInstance", sol::no_constructor, sol::base_classes, sol::bases<UAnimInstance>());
+    Graph["IsGraphReady"] = &UAnimGraphInstance::IsGraphReady;
+    Graph["GetLastError"] = &UAnimGraphInstance::GetLastError;
+    auto Common = LuaState.new_usertype<UStateMachineAnimInstance>("StateMachineAnimInstance", sol::no_constructor, sol::base_classes, sol::bases<UAnimInstance>());
 	Common["SetBool"] = &UStateMachineAnimInstance::SetBool;
 	Common["SetFloat"] = &UStateMachineAnimInstance::SetFloat;
 	Common["SetTrigger"] = &UStateMachineAnimInstance::SetTrigger;

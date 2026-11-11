@@ -335,6 +335,7 @@ void UAssetManager::ScanAssets(const fs::path& AssetRoot, const FAssetLoadProgre
 
 void UAssetManager::LoadAsset(const FString& Key, const FString& Path) {
 	const FString Extension{ GetAssetExtension(Path) };
+	if (Extension == ".animgraph") { FString Error; if (!LoadAnimGraph(Path, Error)) HTR_LOG(Error, "[AnimGraph] {}: {}", Path, Error); return; }
 	if (Extension == ".animsm") { FString Error; if (!LoadAnimStateMachine(Path, Error)) HTR_LOG(Error, "[AnimStateMachine] {}: {}", Path, Error); return; }
 	if (Extension == ".blendspace")
 	{

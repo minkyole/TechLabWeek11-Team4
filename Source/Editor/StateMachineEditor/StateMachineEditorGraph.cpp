@@ -325,6 +325,7 @@ void DrawDirection(ImDrawList *draw, const FStateConnection &path, ImU32 color, 
 } // namespace
 void FStateMachineEditorPanel::ClearContexts()
 {
+    PoseEditors.clear(); ActivePose = -1;
 	for (auto &[id, s] : Sessions)
 	{
 		if (ed::GetCurrentEditor() == s.Context)
@@ -386,6 +387,14 @@ void FStateMachineEditorPanel::DeleteSelection()
 }
 void FStateMachineEditorPanel::DrawGraph()
 {
+    if (auto* State = FindState(ActivePose))
+    {
+        if (ImGui::Button("State Machine")) { ActivePose = -1; return; }
+        ImGui::SameLine(); ImGui::Text(" > %s > Pose", State->Name.c_str());
+        if (State->PoseGraph.Nodes.empty()) { State->PoseGraph = FAnimPoseGraph::SinglePlayer(State->AssetKey,State->BlendSpace,State->BlendParameter,State->Options.bLoop,State->Options.bPlaying,State->Options.PlayRate); Dirty = true; }
+        Dirty |= PoseEditor().Draw(State->PoseGraph,Working.Parameters,Working.MeshKey);
+        return;
+    }
 	if (ActiveRule)
 		PendingSource = -3;
 	if (ActiveRule && !FindTransition(ActiveRule))
@@ -499,7 +508,7 @@ void FStateMachineEditorPanel::DrawStateGraph(FGraphSession &session)
 	drawNode(EntrySource, "Entry", "");
 	drawNode(AnySource, "AnyState", "");
 	for (auto &s : Working.States)
-		drawNode(s.Id, s.Name.c_str(), s.BlendSpace ? "BlendSpace" : "Sequence");
+		drawNode(s.Id, s.Name.c_str(), !s.PoseGraph.Nodes.empty() ? "Pose Graph" : s.BlendSpace ? "BlendSpace" : "Sequence");
 	ed::PopStyleVar();
 	for (const auto &path : paths)
 	{
@@ -724,6 +733,9 @@ void FStateMachineEditorPanel::HandleStateGraphInteraction()
 				PendingSource = NoSource;
 		}
 	}
+    auto DoubleNode = ed::GetDoubleClickedNode();
+    if (Kind(DoubleNode.Get()) == StateNode && FindState(Object(DoubleNode.Get())))
+    { ActivePose = Object(DoubleNode.Get()); ActiveRule = 0; PendingSource = NoSource; }
 	auto doubleLink = ed::GetDoubleClickedLink();
 	if (Kind(doubleLink.Get()) == TransitionLink && FindTransition(Object(doubleLink.Get())))
 	{
@@ -1142,6 +1154,8 @@ void FStateMachineEditorPanel::DrawRuleProperties(FAnimRuleNode& n, bool InCanva
 FString FStateMachineEditorPanel::ParameterReferences(FName Name) const
 {
 	FString references;
+    for (auto& State : Working.States) for (auto& Node : State.PoseGraph.Nodes)
+        if (Node.Parameter == Name.ToString()) references += "\nPose graph: " + State.Name + " / node " + std::to_string(Node.Id);
 	for (auto& s : Working.States)
 		if (s.BlendParameter == Name.ToString())
 			references += "\nBlendSpace: " + s.Name;
@@ -1176,6 +1190,8 @@ FString FStateMachineEditorPanel::ParameterReferences(FName Name) const
 }
 void FStateMachineEditorPanel::RenameParameter(FName Old, FName New)
 {
+    for (auto& State : Working.States) for (auto& Node : State.PoseGraph.Nodes)
+        if (Node.Parameter == Old.ToString()) Node.Parameter = New.ToString();
 	for (auto& s : Working.States)
 		if (s.BlendParameter == Old.ToString())
 			s.BlendParameter = New.ToString();

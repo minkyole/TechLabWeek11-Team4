@@ -27,6 +27,8 @@ struct FAnimNode_Base
 // 두 포즈를 Alpha 로 섞는다.
 struct FAnimNode_TwoWayBlend : public FAnimNode_Base
 {
+	void OnExit() override;
+    bool IsFinished() const override;
 	FPoseLink A; // 입력 포즈 (다른 노드에 연결)
 	FPoseLink B;
 	float Alpha = 0.0f; // 0 = A, 1 = B
@@ -70,6 +72,7 @@ struct FAnimNode_AssetPlayerBase : public FAnimNode_Base
 	// 포즈 생성은 각 재생 노드에서 구현한다.
 	void Evaluate(FPoseContext& Output) override = 0;
 
+	bool IsFinished() const override { return !bLoop && (IsReversePlay() ? NormalizedTime <= 0.0f : NormalizedTime >= 1.0f); }
 	float GetNormalizedTime() const { return NormalizedTime; }
 
 	void SetNormalizedTime(float InTime);

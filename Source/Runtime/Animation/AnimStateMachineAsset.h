@@ -1,6 +1,7 @@
 #pragma once
 #include "Animation/StateMachineAnimInstance.h"
 #include "Asset/RenderAsset.h"
+#include "Animation/AnimGraph.h"
 #include <vector>
 
 // Editor-only authoring data, deliberately independent of ImGui and runtime indices.
@@ -32,6 +33,7 @@ struct FAnimRuleGraph
 };
 struct FAnimAssetState
 {
+	FAnimPoseGraph PoseGraph;
 	int Id = 0;
 	FString Name = "State", AssetKey, BlendParameter;
 	bool BlendSpace = false;

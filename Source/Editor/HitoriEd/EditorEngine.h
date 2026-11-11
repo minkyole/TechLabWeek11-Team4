@@ -47,6 +47,7 @@
 class FSkeletalMeshViewerPanel;
 class FBlendSpaceEditorPanel;
 class FStateMachineEditorPanel;
+class FAnimGraphEditorPanel;
 
 class UEditorEngine : public UEngine
 {
@@ -184,6 +185,7 @@ private:
 	FOutlinerPanel* OutlinerPanel = nullptr;
 	FContentDrawerPanel* ContentDrawerPanel = nullptr;
 	FBlendSpaceEditorPanel* BlendSpaceEditorPanel = nullptr;
+ FAnimGraphEditorPanel* AnimGraphEditorPanel = nullptr;
  FStateMachineEditorPanel* StateMachineEditorPanel = nullptr;
 	FSkeletalMeshViewerPanel* SkeletalMeshViewerPanel = nullptr;
 

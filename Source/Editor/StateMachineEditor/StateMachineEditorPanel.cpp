@@ -1,5 +1,6 @@
 #include "EnginePCH.h"
 #include "StateMachineEditorPanel.h"
+#include "Editor/AnimGraphEditor/AnimGraphEditorPanel.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AssetAnimInstance.h"
 #include "Animation/BlendSpace.h"
@@ -158,6 +159,7 @@ bool FStateMachineEditorPanel::Save()
 	if (!UAssetManager::Get().SaveAnimStateMachine(target, Working, Error, Path.empty()))
 		return false;
 	Path = target;
+    ReloadAnimationAssetInstances(Path);
 	Dirty = false;
 	return true;
 }
@@ -182,8 +184,19 @@ void FStateMachineEditorPanel::AddState(ImVec2 Position)
 		Working.Entry = s.Id;
 	Dirty = true;
 }
+FAnimPoseGraphEditor& FStateMachineEditorPanel::PoseEditor()
+{
+    auto& Editor = PoseEditors[ActivePose];
+    if (!Editor) Editor = std::make_unique<FAnimPoseGraphEditor>();
+    return *Editor;
+}
 void FStateMachineEditorPanel::DrawDetails()
 {
+    if (auto* State = FindState(ActivePose))
+    {
+        Dirty |= PoseEditor().DrawProperties(State->PoseGraph, Working.Parameters, Working.MeshKey);
+        return;
+    }
 	if (auto *s = FindState(Selected))
 	{
 		ImGui::TextUnformatted("State");
@@ -193,6 +206,12 @@ void FStateMachineEditorPanel::DrawDetails()
 			Working.Entry = s->Id;
 			Dirty = true;
 		}
+        if (ImGui::Button("Edit Pose Graph")) { ActivePose = s->Id; ActiveRule = 0; }
+        if (!s->PoseGraph.Nodes.empty())
+        {
+            ImGui::TextWrapped("This state uses a pose graph. Double click the state to edit its nodes.");
+            return;
+        }
 		if (ImGui::Checkbox("Use BlendSpace", &s->BlendSpace))
 		{
 			s->AssetKey.clear();

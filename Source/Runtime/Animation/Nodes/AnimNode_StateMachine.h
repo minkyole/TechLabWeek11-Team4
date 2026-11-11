@@ -87,6 +87,8 @@ struct FAnimNode_StateMachine : public FAnimNode_Base
 	    const TArray<FAnimNode_Base*>& InNodes);
 
 	void OnEnter() override;
+    void OnExit() override;
+    bool IsFinished() const override { return IsClipFinished(); }
 
 	void Update(const FAnimationUpdateContext& Context) override;
 	void Evaluate(FPoseContext& Output) override;
@@ -114,6 +116,8 @@ private:
 
 public:
 	FAnimParameterSet Parameters;
+    FAnimParameterSet* SharedParameters = nullptr;
+    FAnimParameterSet& GetParameters() { return SharedParameters ? *SharedParameters : Parameters; }
 
 private:
 	// 비소유 참조. 실행 중에는 정의를 수정하지 않는다.

@@ -1,6 +1,7 @@
 #pragma once
 #include "Animation/AnimStateMachineAsset.h"
 #include "StateMachineDebug.h"
+#include "Editor/AnimGraphEditor/AnimPoseGraphEditor.h"
 #include "Editor/EditorUI/EditorPanel.h"
 #include <map>
 #include <set>
@@ -82,6 +83,9 @@ class FStateMachineEditorPanel : public IEditorPanel
 	FString ParameterReferences(FName Name) const;
 	void RenameParameter(FName Old, FName New);
 	void AddState(ImVec2 Position = ImVec2(40, 40));
+	int ActivePose = -1;
+    std::map<int, std::unique_ptr<FAnimPoseGraphEditor>> PoseEditors;
+    FAnimPoseGraphEditor& PoseEditor();
 	FAnimStateMachineAssetData Working;
 	FString Path, PendingPath, PendingFolder, Error;
 	char SavePath[512] = "Assets/NewStateMachine.animsm";

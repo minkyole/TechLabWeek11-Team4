@@ -23,6 +23,7 @@
 #include "Text/Font.h"
 #include "Input/InputSystem.h"
 #include "Animation/LuaAnimInstance.h"
+#include "Animation/AnimGraph.h"
 #include "Components/SkeletalMeshComponent.h"
 
 #include <sol/sol.hpp>
@@ -783,37 +784,18 @@ namespace
 				}
 				return nullptr;
 			},
-		    "GetAnimInstance",
-			[](const AActor& Actor, sol::optional<FString> ComponentName) -> UStateMachineAnimInstance*
-			{
-				// 이름을 지정했다면 해당 컴포넌트를 조회한다.
-				if (ComponentName)
-				{
-				    UActorComponent* Component =
-						Actor.FindComponentByName(
-				            FName(ComponentName->c_str()));
-
-					USkeletalMeshComponent* Mesh =
-						Cast<USkeletalMeshComponent>(Component);
-
-					return Mesh
-						? Cast<UStateMachineAnimInstance>(Mesh->GetAnimInstance())
-						: nullptr;
-				}
-
-				// 이름을 생략하면 첫 번째 SkeletalMeshComponent를 사용한다.
-				for (UActorComponent* Component : Actor.GetComponents())
-				{
-					if (USkeletalMeshComponent* Mesh =
-						Cast<USkeletalMeshComponent>(Component))
-					{
-					    return Cast<UStateMachineAnimInstance>(
-					        Mesh->GetAnimInstance());
-					}
-				}
-
-				return nullptr;
-			}
+            "GetAnimInstance",
+            [](const AActor& Actor, sol::optional<FString> ComponentName, sol::this_state State) -> sol::object
+            {
+                USkeletalMeshComponent* Mesh = nullptr;
+                if (ComponentName) Mesh = Cast<USkeletalMeshComponent>(Actor.FindComponentByName(FName(ComponentName->c_str())));
+                else for (auto* Component : Actor.GetComponents()) if ((Mesh = Cast<USkeletalMeshComponent>(Component))) break;
+                auto* Instance = Mesh ? Mesh->GetAnimInstance() : nullptr;
+                if (auto* Graph = Cast<UAnimGraphInstance>(Instance)) return sol::make_object(State, Graph);
+                if (auto* Lua = Cast<ULuaAnimInstance>(Instance)) return sol::make_object(State, Lua);
+                if (auto* SM = Cast<UStateMachineAnimInstance>(Instance)) return sol::make_object(State, SM);
+                return Instance ? sol::make_object(State, Instance) : sol::make_object(State, sol::nil);
+            }
 		);
 	}
 

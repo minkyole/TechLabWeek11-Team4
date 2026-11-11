@@ -1,5 +1,6 @@
 #include "EnginePCH.h"
 #include "LuaAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
@@ -20,6 +21,7 @@ ULuaAnimInstance::~ULuaAnimInstance()
 void ULuaAnimInstance::NativeInitializeAnimation()
 {
 	ResetGraph();
+    AnimationScriptPath = GetSkeletalMeshComponent()->GetAnimationScriptPath();
 	LastError.clear();
 
 	// Lua 바인딩 추가 후 연결할 위치:

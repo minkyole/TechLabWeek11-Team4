@@ -14,6 +14,8 @@ class FShader;
 class UAnimSequence;
 class UBlendSpace1D;
 class UAnimStateMachineAsset;
+class UAnimGraphAsset;
+struct FAnimGraphAssetData;
 struct FAnimStateMachineAssetData;
 
 struct FFbxStaticAsset
@@ -78,6 +80,8 @@ public:
 	TArray<USkeletalMesh*> GetSkeletalMeshAssets() const;
 	TArray<UBlendSpace1D*> GetBlendSpaceAssets(const USkeletalMesh* Mesh = nullptr) const;
 
+	UAnimGraphAsset* LoadAnimGraph(const FString& Path, FString& Error);
+    bool SaveAnimGraph(const FString& Path, const FAnimGraphAssetData& Data, FString& Error, bool CreateOnly = false);
 	UAnimStateMachineAsset* LoadAnimStateMachine(const FString& Path, FString& Error);
 	bool SaveAnimStateMachine(const FString& Path, const FAnimStateMachineAssetData& Data, FString& Error, bool CreateOnly = false);
 	//UStaticMesh* GetMesh(FString InName);

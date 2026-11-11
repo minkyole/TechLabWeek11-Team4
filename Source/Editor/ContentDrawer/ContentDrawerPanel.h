@@ -24,7 +24,10 @@ public:
 	void SetOpenBlendSpaceCallback(std::function<void(const FString&)> Callback) { OnOpenBlendSpace = std::move(Callback); }
 void SetOpenStateMachineCallback(std::function<void(const FString&)> C) { OnOpenStateMachine=std::move(C); }
 void SetCreateStateMachineCallback(std::function<void(const FString&)> C) { OnCreateStateMachine=std::move(C); }
+void SetOpenAnimGraphCallback(std::function<void(const FString&)> C) { OnOpenAnimGraph=std::move(C); }
+void SetCreateAnimGraphCallback(std::function<void(const FString&)> C) { OnCreateAnimGraph=std::move(C); }
 private:
+ std::function<void(const FString&)> OnOpenAnimGraph, OnCreateAnimGraph;
  std::function<void(const FString&)> OnOpenStateMachine, OnCreateStateMachine;
 	void DrawBlendSpaceCreation();
 	std::function<void(const FString&)> OnOpenBlendSpace;

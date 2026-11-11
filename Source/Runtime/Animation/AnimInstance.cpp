@@ -39,6 +39,9 @@ void UAnimInstance::UnInitializeAnimation()
 		NativeUnInitializeAnimation();
 	}
 
+	ExtractedRootMotion.Clear();
+    NotifyQueue.Empty();
+    NotifyStateQueue.Empty();
 	RootNode = nullptr;
 	OwningComponent = nullptr;
 	bIsInitialized = false;
@@ -161,6 +164,7 @@ void UAnimInstance::TriggerAnimNotifies()
 
 void UAnimInstance::QueueAnimNotifyState(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence, float Weight)
 {
+    if (!std::isfinite(Weight) || Weight <= 0.0f) return;
 	FQueuedAnimNotify& Queued = NotifyStateQueue.AddDefaulted_GetRef();
 	Queued.Event = Event;
 	Queued.Sequence = Sequence;
@@ -187,6 +191,7 @@ void UAnimInstance::EndAllNotifyStates()
 
 void UAnimInstance::QueueAnimNotify(const FAnimNotifyEvent& Event, UAnimSequenceBase* Sequence, float Weight)
 {
+    if (!std::isfinite(Weight) || Weight <= 0.0f) return;
 	FQueuedAnimNotify& Queued = NotifyQueue.AddDefaulted_GetRef();
 	Queued.Event = Event;
 	Queued.Sequence = Sequence;
@@ -435,3 +440,11 @@ bool UAnimSingleNodeInstance::IsReversePlay() const
 {
 	return ActivePlayer().IsReversePlay();
 }
+// Common parameter interface used by game code and Lua.
+bool UAnimInstance::SetBool(const FString& N, bool V) { return !N.empty() && GetParameters().SetBool(FName(N.c_str()), V); }
+bool UAnimInstance::SetFloat(const FString& N, float V) { return !N.empty() && GetParameters().SetFloat(FName(N.c_str()), V); }
+bool UAnimInstance::SetTrigger(const FString& N) { bool V; return TryGetTrigger(N,V) && GetParameters().Trigger(FName(N.c_str())); }
+bool UAnimInstance::ResetTrigger(const FString& N) { bool V; if(!TryGetTrigger(N,V)) return false; GetParameters().ConsumeTrigger(FName(N.c_str())); return true; }
+bool UAnimInstance::TryGetBool(const FString& N, bool& V) const { return GetParameters().TryGetBool(FName(N.c_str()),V); }
+bool UAnimInstance::TryGetFloat(const FString& N, float& V) const { return GetParameters().TryGetFloat(FName(N.c_str()),V); }
+bool UAnimInstance::TryGetTrigger(const FString& N, bool& V) const { return GetParameters().TryGetTrigger(FName(N.c_str()),V); }

@@ -31,9 +31,6 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
         PROPERTY(AnimationScriptPath)
         PROPERTY(AnimGraphAssetPath)
 		PROPERTY(StateMachineAssetPath)
-		PROPERTY(DebugSpeed)
-		PROPERTY(bDebugAttack)
-		PROPERTY(bDebugHit)
 	REFLECT_END()
 
 public:
@@ -124,8 +121,4 @@ private:
 
 	// 매 프레임 포즈 배열을 새로 만들지 않고 재사용.
 	FPoseContext EvaluatedPose;
-
-	float DebugSpeed = 0.0f;
-	bool bDebugAttack = false;
-	bool bDebugHit = false;
 };

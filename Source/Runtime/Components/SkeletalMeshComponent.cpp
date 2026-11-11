@@ -40,14 +40,6 @@ void USkeletalMeshComponent::BeginPlay()
 	if (!LuaInstance || !LuaInstance->IsGraphReady())
 		return;
 
-	LuaInstance->SetFloat("Speed", DebugSpeed);
-
-	if (bDebugAttack)
-	{
-		LuaInstance->SetTrigger("AttackRequested");
-		bDebugAttack = false;
-	}
-
 	LuaInstance->UpdateAnimation(0.0f);
 
 	if (RefreshAnimationPose())
@@ -248,21 +240,6 @@ void USkeletalMeshComponent::TickPose(float DeltaTime)
 		{
 			//assert(false);
 			return;
-		}
-
-		//LuaInstance->SetFloat("Speed", DebugSpeed);
-		DebugSpeed = LuaInstance->TryGetFloat("Speed", DebugSpeed) ? DebugSpeed : 0.0f;
-
-		if (bDebugAttack)
-		{
-			LuaInstance->SetTrigger("AttackRequested");
-			bDebugAttack = false;
-		}
-
-		if (bDebugHit)
-		{
-			LuaInstance->SetTrigger("HitRequested");
-			bDebugHit = false;	
 		}
 	}
 

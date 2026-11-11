@@ -12,8 +12,6 @@
 #include "Animation/MyAnimInstance.h"
 #include "Animation/LuaAnimInstance.h"
 #include "Animation/AssetAnimInstance.h"
-#include "Animation/AnimTestClips.h"
-#include "Asset/AssetManager.h"
 #include "Serialization/Archive.h"
 #include "Animation/AnimNotifyEvent.h"
 #include "GameFramework/Actor/Character.h"
@@ -27,41 +25,13 @@ USkeletalMeshComponent::USkeletalMeshComponent()
 
 USkeletalMeshComponent::~USkeletalMeshComponent()
 {
-	// 인스턴스의 SequencePlayer가 클립을 가리키고 있으므로 인스턴스를 먼저 지운다.
 	ClearAnimInstance();
-	AnimTestClips::DestroyClip(DebugTestClip);
 }
 
 void USkeletalMeshComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ---- Debug [3-4]: SingleNode 재생 경로 확인 ----
-	if (bDebugPlayTestClip && GetSkeletalMesh() && !DebugTestClip)
-	{
-		// 본 11을 1초 동안 로컬 Z축으로 90도. 루프면 1초마다 되돌아가고, 비루프면 90도에서 멈춘다.
-		DebugTestClip = AnimTestClips::CreateSwingClip(GetSkeletalMesh(), 11, FVector(0.0f, 0.0f, 1.0f), 90.0f, 1.0f);
-
-		if (DebugTestClip)
-		{
-			PlayAnimation(DebugTestClip, bDebugTestClipLoop);
-			return;
-		}
-	}
-	// ---- Debug [3-4] 끝 ----
-
-	// ---- Debug [4-4]: FBX 클립 재생 확인 ----
-	if (bDebugPlayFbxClip && GetSkeletalMesh())
-	{
-		// 메시의 경로가 곧 FBX 에셋 세트의 키라서 같은 파일의 클립을 바로 찾을 수 있다.
-		const FFbxAssetSet* Assets = UAssetManager::Get().FindFbxAssets(GetSkeletalMesh()->GetPath());
-		if (Assets && Assets->Animations.IsValidIndex(DebugFbxClipIndex))
-		{
-			PlayAnimation(Assets->Animations[DebugFbxClipIndex], bDebugTestClipLoop);
-			return;
-		}
-	}
-	// ---- Debug [4-4] 끝 ----
 	UStateMachineAnimInstance* LuaInstance =
 	    Cast<UStateMachineAnimInstance>(GetAnimInstance());
 

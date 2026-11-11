@@ -51,7 +51,6 @@
                             "OverrideMaterials": [],
                             "Parent": "CapsuleComponent",
                             "Properties": {
-                                "DebugFbxClipIndex": 0,
                                 "DebugSpeed": 0.0,
                                 "SkeletalMesh": "Models/UAL1_Standard_RM.fbx",
                                 "StateMachineAssetPath": "",
@@ -76,9 +75,6 @@
                                 "bCastShadow": true,
                                 "bDebugAttack": false,
                                 "bDebugHit": false,
-                                "bDebugPlayFbxClip": false,
-                                "bDebugPlayTestClip": false,
-                                "bDebugTestClipLoop": true,
                                 "bGenerateOverlapEvents": false,
                                 "bReceiveDecal": true,
                                 "bReceiveShadow": true,

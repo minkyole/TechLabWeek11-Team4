@@ -26,10 +26,6 @@ class USkeletalMeshComponent : public USkinnedMeshComponent
 	REFLECT_START(USkeletalMeshComponent)
 		PROPERTY(StateMachineAssetPath)
 		PROPERTY(DebugSpeed)
-		PROPERTY(bDebugPlayTestClip)
-		PROPERTY(bDebugTestClipLoop)
-		PROPERTY(bDebugPlayFbxClip)
-		PROPERTY(DebugFbxClipIndex)
 		PROPERTY(bDebugAttack)
 		PROPERTY(bDebugHit)
 	REFLECT_END()
@@ -118,15 +114,4 @@ private:
 	float DebugSpeed = 0.0f;
 	bool bDebugAttack = false;
 	bool bDebugHit = false;
-
-	// Debug [3-4]: 켜면 BeginPlay에서 합성 클립을 PlayAnimation으로 재생한다. 꺼 두면 B의 테스트가 그대로 돈다.
-	bool bDebugPlayTestClip = false;
-	bool bDebugTestClipLoop = true;
-
-	// Debug [4-4]: 켜면 메시와 같은 FBX에서 읽은 클립을 재생한다. 클립은 AssetManager가 소유한다.
-	bool bDebugPlayFbxClip = false;
-	int32 DebugFbxClipIndex = 0;
-
-	// 컴포넌트가 소유한다. 인스턴스가 재생성돼도 살아 있어야 하므로 인스턴스에 두지 않는다.
-	UAnimSequence* DebugTestClip = nullptr;
 };

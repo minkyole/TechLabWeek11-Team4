@@ -190,6 +190,33 @@
       "Parameter": "IsGrounded",
       "Tolerance": 0.0010000000474974513,
       "Type": 1
+    },
+    {
+      "Bool": true,
+      "Children": [],
+      "Float": 0.0,
+      "Op": 2,
+      "Parameter": "RollRequested",
+      "Tolerance": 0.0010000000474974513,
+      "Type": 3
+    },
+    {
+      "Bool": true,
+      "Children": [],
+      "Float": 0.0,
+      "Op": 2,
+      "Parameter": "None",
+      "Tolerance": 0.0010000000474974513,
+      "Type": 4
+    },
+    {
+      "Bool": false,
+      "Children": [],
+      "Float": 0.0,
+      "Op": 2,
+      "Parameter": "IsGrounded",
+      "Tolerance": 0.0010000000474974513,
+      "Type": 1
     }
   ],
   "Editor": {
@@ -229,6 +256,12 @@
       "Bool": false,
       "Float": 0.0,
       "Name": "DeathRequested",
+      "Type": 2
+    },
+    {
+      "Bool": false,
+      "Float": 0.0,
+      "Name": "RollRequested",
       "Type": 2
     }
   ],
@@ -278,8 +311,8 @@
       "Parameter": "",
       "Playing": true,
       "Rate": 1.0,
-      "X": -93.0,
-      "Y": 464.0
+      "X": -182.0,
+      "Y": 688.0
     },
     {
       "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Death01",
@@ -314,8 +347,8 @@
       "Parameter": "",
       "Playing": true,
       "Rate": 1.0,
-      "X": 147.0,
-      "Y": 608.0
+      "X": 99.0,
+      "Y": 564.0
     },
     {
       "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Land",
@@ -326,8 +359,20 @@
       "Parameter": "",
       "Playing": true,
       "Rate": 1.0,
-      "X": 424.0,
-      "Y": 464.0
+      "X": 455.0,
+      "Y": 693.0
+    },
+    {
+      "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Roll",
+      "BlendSpace": false,
+      "Id": 9,
+      "Loop": false,
+      "Name": "Roll",
+      "Parameter": "",
+      "Playing": true,
+      "Rate": 1.399999976158142,
+      "X": 96.0,
+      "Y": 436.0
     }
   ],
   "Transitions": [
@@ -1171,6 +1216,170 @@
       "Priority": 0,
       "Restart": false,
       "To": 4
+    },
+    {
+      "Condition": 20,
+      "Consume": [
+        "RollRequested"
+      ],
+      "Curve": 0,
+      "Duration": 0.20000000298023224,
+      "Editor": {
+        "Rule": {
+          "Links": [
+            {
+              "From": 3,
+              "Id": 1,
+              "Input": 0,
+              "To": 1
+            }
+          ],
+          "Nodes": [
+            {
+              "Bool": true,
+              "Float": 0.0,
+              "Id": 1,
+              "Inputs": 1,
+              "Op": 2,
+              "Parameter": "None",
+              "Result": true,
+              "Tolerance": 0.0010000000474974513,
+              "Type": 0,
+              "X": 320.0,
+              "Y": 0.0
+            },
+            {
+              "Bool": true,
+              "Float": 0.0,
+              "Id": 3,
+              "Inputs": 0,
+              "Op": 2,
+              "Parameter": "RollRequested",
+              "Result": false,
+              "Tolerance": 0.0010000000474974513,
+              "Type": 3,
+              "X": 55.0,
+              "Y": -194.0
+            }
+          ]
+        },
+        "X": 240.12991333007813,
+        "Y": 378.53558349609375
+      },
+      "From": 1,
+      "Id": 16,
+      "Interrupt": 2,
+      "Priority": 0,
+      "Restart": false,
+      "To": 9
+    },
+    {
+      "Condition": 21,
+      "Consume": [],
+      "Curve": 0,
+      "Duration": 0.20000000298023224,
+      "Editor": {
+        "Rule": {
+          "Links": [
+            {
+              "From": 3,
+              "Id": 2,
+              "Input": 0,
+              "To": 1
+            }
+          ],
+          "Nodes": [
+            {
+              "Bool": true,
+              "Float": 0.0,
+              "Id": 1,
+              "Inputs": 1,
+              "Op": 2,
+              "Parameter": "None",
+              "Result": true,
+              "Tolerance": 0.0010000000474974513,
+              "Type": 0,
+              "X": 320.0,
+              "Y": 0.0
+            },
+            {
+              "Bool": true,
+              "Float": 0.0,
+              "Id": 3,
+              "Inputs": 0,
+              "Op": 2,
+              "Parameter": "None",
+              "Result": false,
+              "Tolerance": 0.0010000000474974513,
+              "Type": 4,
+              "X": 39.0,
+              "Y": -41.0
+            }
+          ]
+        },
+        "X": 303.4463806152344,
+        "Y": 276.59918212890625
+      },
+      "From": 9,
+      "Id": 17,
+      "Interrupt": 2,
+      "Priority": 0,
+      "Restart": false,
+      "To": 1
+    },
+    {
+      "Condition": 22,
+      "Consume": [],
+      "Curve": 0,
+      "Duration": 0.5,
+      "Editor": {
+        "Rule": {
+          "Links": [
+            {
+              "From": 3,
+              "Id": 2,
+              "Input": 0,
+              "To": 1
+            }
+          ],
+          "Nodes": [
+            {
+              "Bool": true,
+              "Float": 0.0,
+              "Id": 1,
+              "Inputs": 1,
+              "Op": 2,
+              "Parameter": "None",
+              "Result": true,
+              "Tolerance": 0.0010000000474974513,
+              "Type": 0,
+              "X": 320.0,
+              "Y": 0.0
+            },
+            {
+              "Bool": false,
+              "Float": 0.0,
+              "Id": 3,
+              "Inputs": 0,
+              "Op": 2,
+              "Parameter": "IsGrounded",
+              "Result": false,
+              "Tolerance": 0.0010000000474974513,
+              "Type": 1,
+              "X": 71.0,
+              "Y": 133.0
+            }
+          ]
+        },
+        "X": 252.07281494140625,
+        "Y": 443.7568664550781
+      },
+      "From": 9,
+      "Id": 18,
+      "Interrupt": 2,
+      "Priority": 0,
+      "Restart": false,
+      "To": 7
     }
   ],
   "Type": "AnimStateMachine",

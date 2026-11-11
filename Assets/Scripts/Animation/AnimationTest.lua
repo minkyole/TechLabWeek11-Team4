@@ -80,21 +80,26 @@ function Tick(dt)
 
     if IsKeyDown(Key.W) then 
         x = x + 1.0 
-        rotation.Yaw = 180
     end
     if IsKeyDown(Key.S) then 
         x = x - 1.0 
-        rotation.Yaw = 0
     end
     if IsKeyDown(Key.D) then 
         y = y + 1.0 
-        rotation.Yaw = -90
     end
     if IsKeyDown(Key.A) then 
         y = y - 1.0 
-        rotation.Yaw = 90
     end
-    mesh:SetRelativeRotation(rotation)
+    -- Velocity is in world space; mesh rotation is relative to the actor.
+    local velocity = movement:GetVelocity()
+    local horizontalSpeedSquared = velocity.X * velocity.X + velocity.Y * velocity.Y
+    if horizontalSpeedSquared > 0.0001 then
+        local movementYaw = math.deg(math.atan2(velocity.Y, velocity.X))
+        local actorYaw = self:GetActorRotation().Yaw
+        -- This mesh faces -X at zero relative yaw.
+        rotation.Yaw = (movementYaw - actorYaw + 180.0 + 180.0) % 360.0 - 180.0
+        mesh:SetRelativeRotation(rotation)
+    end
 
     local yaw = math.rad(self:GetActorRotation().Yaw)
     local cosYaw = math.cos(yaw)
@@ -149,6 +154,13 @@ function Tick(dt)
 			anim:GetLastError()
 		)
 	end
+
+    if IsKeyPressed(Key.R) then
+        assert(
+            anim:SetTrigger("RollRequested"),
+            anim:GetLastError()
+        )
+    end
 
 	-- 애니메이션 파라미터 업데이트
 	anim:SetFloat("Speed", movement:GetGroundSpeed())

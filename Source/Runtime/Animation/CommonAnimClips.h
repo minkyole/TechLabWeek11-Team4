@@ -32,6 +32,7 @@ namespace CommonAnimClips
 		{ "JumpLand", "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Land", ECommonClipRootMode::ForceLock },
 		{ "Jump", "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Loop", ECommonClipRootMode::ForceLock },
 		{ "Death", "Models/UAL1_Standard_RM.fbx#Anim/Armature|Death01", ECommonClipRootMode::ForceLock },
+		{ "Roll", "Models/UAL1_Standard_RM.fbx#Anim/Armature|Roll", ECommonClipRootMode::RootMotion },
 	};
 
 	// AssetManager가 클립을 등록할 때 부른다. Lua·animsm·뷰어 어느 경로로 재생해도 같은 설정이 되게 한다

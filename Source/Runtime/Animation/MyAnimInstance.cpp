@@ -308,10 +308,7 @@ void UMyAnimInstance::ReleaseTestAssets()
 	TestBlendSpace = nullptr;
 	const auto DeleteClip = [](UAnimSequence*& Clip)
 	{
-		if (!Clip)
-			return;
-		// 현재 UAnimSequence는 DataModel을 해제하지 않아 생성 측에서 정리한다.
-		delete Clip->GetDataModel();
+		// DataModel 정리를 소유 시퀀스에 맡기는 단일 해제
 		delete Clip;
 		Clip = nullptr;
 	};

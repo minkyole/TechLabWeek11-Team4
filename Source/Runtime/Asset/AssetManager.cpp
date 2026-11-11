@@ -519,6 +519,16 @@ void UAssetManager::RegisterAsset(const FString& Key, URenderAsset* Asset)
 	AssetMap[Key] = Asset;
 }
 
+void UAssetManager::UnregisterAsset(const FString& Key, const URenderAsset* ExpectedAsset)
+{
+	// 다른 객체로 교체된 등록의 유지
+	URenderAsset** RegisteredAsset = AssetMap.Find(Key);
+	if (RegisteredAsset && *RegisteredAsset == ExpectedAsset)
+	{
+		AssetMap.Remove(Key);
+	}
+}
+
 UTexture2D* UAssetManager::LoadTexture(const FString& InPath, bool GenerateMips) {
 	if (URenderAsset** Found{ AssetMap.Find(InPath) }) {
 		return Cast<UTexture2D>(*Found);

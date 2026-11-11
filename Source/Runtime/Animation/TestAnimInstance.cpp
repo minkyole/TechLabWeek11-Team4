@@ -210,16 +210,7 @@ void UTestAnimInstance::ReleaseTestAssets()
 
 	const auto DeleteClip = [](UAnimSequence*& Clip)
 	{
-		if (!Clip)
-		{
-			return;
-		}
-
-		// 현재 프로젝트에서는 UAnimSequence 소멸자가
-		// 생성한 DataModel을 해제하지 않으므로 테스트에서 함께 정리한다.
-		UAnimDataModel* Model = Clip->GetDataModel();
-		delete Model;
-
+		// DataModel 정리를 소유 시퀀스에 맡기는 단일 해제
 		delete Clip;
 		Clip = nullptr;
 	};

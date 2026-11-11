@@ -19,6 +19,13 @@ UAnimSequenceBase::UAnimSequenceBase()
 UAnimSequenceBase::~UAnimSequenceBase()
 {
 	ClearNotifies();
+
+	// 전역 종료에서 먼저 삭제된 데이터 모델의 중복 해제 방지
+	if (GUObjectArray.Find(DataModel) != INDEX_NONE)
+	{
+		delete DataModel;
+	}
+	DataModel = nullptr;
 }
 
 void UAnimSequenceBase::RemoveNotifyAt(int32 Index)

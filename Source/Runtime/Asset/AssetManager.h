@@ -72,6 +72,9 @@ public:
 
 	void RegisterAsset(const FString& Key, URenderAsset* Asset);
 
+	// 현재 등록 객체가 일치하는 비소유 참조의 해제
+	void UnregisterAsset(const FString& Key, const URenderAsset* ExpectedAsset);
+
 	// Physical file paths under Assets; stored references use AssetMap keys.
 	UBlendSpace1D* CreateBlendSpace1D(const FString& Path, const USkeletalMesh* Mesh, FString& Error);
 	UBlendSpace1D* LoadBlendSpace(const FString& Path, FString& Error);

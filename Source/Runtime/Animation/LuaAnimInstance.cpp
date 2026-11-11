@@ -20,271 +20,128 @@ ULuaAnimInstance::~ULuaAnimInstance()
 
 void ULuaAnimInstance::NativeInitializeAnimation()
 {
-	ResetGraph();
-    AnimationScriptPath = GetSkeletalMeshComponent()->GetAnimationScriptPath();
+	// 이전 그래프와 임시 에셋 정리 이후의 재초기화
+	ReleaseAnimationScript();
+	AnimationScriptPath = GetSkeletalMeshComponent()->GetAnimationScriptPath();
 	LastError.clear();
 
-	// Lua 바인딩 추가 후 연결할 위치:
-	//
-	// BeginBuild();
-	// Lua InitializeAnimation(this);
-	// Commit();
-	//
-	// 현재 단계에서는 호스트 C++ 코드가 BeginBuild/Commit을 호출한다.
-
-
-	// Debug
+	const USkeletalMesh* Mesh = GetSkeletalMesh();
+	if (!Mesh)
 	{
-		const USkeletalMesh* Mesh = GetSkeletalMesh();
-		if (!Mesh)
-			return;
+		return;
+	}
 
-		const int32 RootBoneIndex = 1;
+	const int32 RootBoneIndex = 1;
+	UAnimSequence* IdleClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0));
+	UAnimSequence* WalkClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0.3f));
+	UAnimSequence* RunClip = CreateRootTestClip(RootBoneIndex, 0.5f, FVector(0, 0, 0.4f));
+	UAnimSequence* JumpClip = CreateRootTestClip(RootBoneIndex, 0.1f, FVector(0, 0, 0.1f));
+	UAnimSequence* AttackClip = CreateRootTestClip(RootBoneIndex, 0.6f, FVector(3.0f, 0, 0));
+	UAnimSequence* HitClip = CreateRootTestClip(RootBoneIndex, 0.4f, FVector(-1.5f, 0, 0));
+	UBlendSpace1D* TestBlendSpace = NewObject<UBlendSpace1D>(this);
+	TemporaryAssets.Add(TestBlendSpace);
 
-		UAnimSequence* IdleClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0));
-		UAnimSequence* WalkClip = CreateRootTestClip(RootBoneIndex, 1.0f, FVector(0, 0, 0.3f));
-		UAnimSequence* RunClip = CreateRootTestClip(RootBoneIndex, 0.5f, FVector(0, 0, 0.4f));
-		UAnimSequence* JumpClip = CreateRootTestClip(RootBoneIndex, 0.1f, FVector(0, 0, 0.1f));
-		UAnimSequence* AttackClip = CreateRootTestClip(RootBoneIndex, 0.6f, FVector(3.0f, 0, 0));
-		UAnimSequence* HitClip = CreateRootTestClip(RootBoneIndex, 0.4f, FVector(-1.5f, 0, 0));
-		UBlendSpace1D* TestBlendSpace = NewObject<UBlendSpace1D>(this);
-		TestBlendSpace->SetSkeletalMesh(Mesh);
-		FBlendParameter SpeedAxis;
-		SpeedAxis.Name = FName("Speed");
-		SpeedAxis.Min = 0.0f;
-		SpeedAxis.Max = 10.0f;
-		if (!IdleClip || !WalkClip || !RunClip || !AttackClip || !HitClip)
+	// 부분 생성 실패를 포함한 임시 에셋 회수
+	if (!IdleClip || !WalkClip || !RunClip || !JumpClip || !AttackClip || !HitClip || !TestBlendSpace)
+	{
+		Fail("Failed to create test animation assets.");
+		ReleaseAnimationScript();
+		return;
+	}
+
+	// 동일 메시의 실제 FBX 클립 별칭 우선 등록
+	for (const FCommonAnimClip& Entry : CommonAnimClips::Clips)
+	{
+		const UAnimSequence* FbxClip = UAssetManager::GetAssetByPath<UAnimSequence>(Entry.AssetKey);
+		if (FbxClip && FbxClip->GetSkeletalMesh() == Mesh)
 		{
-			Fail("Failed to create test animation clips.");
-			// 이미 생성된 테스트 에셋 정리도 필요
-			return;
-		}
-
-		// 실제 클립이 같은 메시로 로드됐을 때만 별칭을 건다. ValidateAsset이 다른 메시 클립을 거부하기 때문이다.
-		for (const FCommonAnimClip& Entry : CommonAnimClips::Clips)
-		{
-			const UAnimSequence* FbxClip = UAssetManager::GetAssetByPath<UAnimSequence>(Entry.AssetKey);
-			// 다시 초기화될 때 같은 별칭을 두 번 넣으면 Fail이 나서 아직 별칭이 없을 때만 넣는다.
-			if (FbxClip && FbxClip->GetSkeletalMesh() == Mesh && ResolveAssetKey(Entry.Alias) == Entry.Alias)
-				RegisterAssetAlias(Entry.Alias, Entry.AssetKey);
-		}
-
-		// 블렌드 스페이스는 이름이 아닌 포인터로 샘플을 받아서 별칭을 직접 풀어 준다.
-		const auto PickClip = [&](const char* Alias, UAnimSequence* Fallback)
-		{
-			const FString Resolved = ResolveAssetKey(Alias);
-			UAnimSequence* FbxClip = Resolved != Alias ? UAssetManager::GetAssetByPath<UAnimSequence>(Resolved) : nullptr;
-			return FbxClip ? FbxClip : Fallback;
-		};
-
-		const auto AddSample = [&](UAnimSequence* Clip, float Speed)
-		{
-			FBlendSample Sample;
-			Sample.Animation = Clip;
-			Sample.SampleValue = FVector(Speed, 0.0f, 0.0f);
-
-			return TestBlendSpace->AddSample(Sample);
-		};
-
-		if (!TestBlendSpace->SetBlendParameter(0, SpeedAxis) ||
-		    !AddSample(PickClip("Idle", IdleClip), 0.0f) ||
-		    !AddSample(PickClip("Walk", WalkClip), 5.0f) ||
-		    !AddSample(PickClip("Run", RunClip), 10.0f))
-		{
-			Fail("Failed to configure test BlendSpace.");
-			// 생성된 테스트 에셋 정리도 필요
-			return;
-		}
-
-		UAssetManager& Assets = UAssetManager::Get();
-
-		Assets.RegisterAsset("Idle", IdleClip);
-		Assets.RegisterAsset("Walk", WalkClip);
-		Assets.RegisterAsset("Run", RunClip);
-		Assets.RegisterAsset("Jump", JumpClip);
-		Assets.RegisterAsset("Attack", AttackClip);
-		Assets.RegisterAsset("Hit", HitClip);
-		Assets.RegisterAsset("Locomotion", TestBlendSpace);
-
-		if (!BeginBuild())
-			return;
-
-		if (!LoadAnimationScript(AnimationScriptPath))
-		{
-			ReleaseAnimationScript();
-			return;
-		}
-
-		// 함수와 결과의 Lua 참조가 정리된 뒤 실패 정리를 수행한다.
-		const bool bInitialized = [this]()
-		{
-			sol::protected_function_result Result =
-			    Script.Initialize(this);
-
-			if (!Result.valid())
+			if (!RegisterAssetAlias(Entry.Alias, Entry.AssetKey))
 			{
-				const sol::error Error = Result;
-
-				HTR_LOG(
-				    Error,
-				    "[LuaAnim] InitializeAnimation failed: {}",
-				    Error.what());
-
-				return Fail(Error.what());
+				ReleaseAnimationScript();
+				return;
 			}
-
-			return true;
-		}();
-
-		if (!bInitialized)
-		{
-			ReleaseAnimationScript();
-			return;
 		}
+	}
 
-		if (!Commit())
+	// 실제 클립 별칭이 없는 이름의 인스턴스별 대체 에셋 등록
+	if (!RegisterTemporaryAsset("Idle", IdleClip) ||
+	    !RegisterTemporaryAsset("Walk", WalkClip) ||
+	    !RegisterTemporaryAsset("Run", RunClip) ||
+	    !RegisterTemporaryAsset("Jump", JumpClip) ||
+	    !RegisterTemporaryAsset("Attack", AttackClip) ||
+	    !RegisterTemporaryAsset("Hit", HitClip))
+	{
+		ReleaseAnimationScript();
+		return;
+	}
+
+	// 기존 별칭 해석을 통한 실제 클립 또는 대체 클립 선택
+	const auto PickClip = [this](const char* Alias)
+	{
+		return UAssetManager::GetAssetByPath<UAnimSequence>(ResolveAssetKey(Alias));
+	};
+
+	TestBlendSpace->SetSkeletalMesh(Mesh);
+	FBlendParameter SpeedAxis;
+	SpeedAxis.Name = FName("Speed");
+	SpeedAxis.Min = 0.0f;
+	SpeedAxis.Max = 10.0f;
+
+	const auto AddSample = [TestBlendSpace](UAnimSequence* Clip, float Speed)
+	{
+		FBlendSample Sample;
+		Sample.Animation = Clip;
+		Sample.SampleValue = FVector(Speed, 0.0f, 0.0f);
+		return TestBlendSpace->AddSample(Sample);
+	};
+
+	// 유효한 샘플 구성을 마친 BlendSpace의 공개
+	if (!TestBlendSpace->SetBlendParameter(0, SpeedAxis) ||
+	    !AddSample(PickClip("Idle"), 0.0f) ||
+	    !AddSample(PickClip("Walk"), 5.0f) ||
+	    !AddSample(PickClip("Run"), 10.0f))
+	{
+		Fail("Failed to configure test BlendSpace.");
+		ReleaseAnimationScript();
+		return;
+	}
+
+	if (!RegisterTemporaryAsset("Locomotion", TestBlendSpace) || !BeginBuild())
+	{
+		ReleaseAnimationScript();
+		return;
+	}
+
+	if (!LoadAnimationScript(AnimationScriptPath))
+	{
+		ReleaseAnimationScript();
+		return;
+	}
+
+	// Lua 결과 객체의 소멸 이후로 미루는 실패 정리
+	const bool bInitialized = [this]()
+	{
+		sol::protected_function_result Result = Script.Initialize(this);
+		if (!Result.valid())
 		{
-			HTR_LOG(
-			    Error,
-			    "[LuaAnim] Commit failed: {}",
-			    GetLastError());
-
-			ReleaseAnimationScript();
-			return;
+			const sol::error Error = Result;
+			HTR_LOG(Error, "[LuaAnim] InitializeAnimation failed: {}", Error.what());
+			return Fail(Error.what());
 		}
+		return true;
+	}();
 
-		//FAnimPlayerOptions Looping;
-		//Looping.bLoop = true;
+	if (!bInitialized)
+	{
+		ReleaseAnimationScript();
+		return;
+	}
 
-		//FAnimPlayerOptions OneShot;
-		//OneShot.bLoop = false;
-
-		//const FAnimNodeId LocomotionPlayer =
-		//    CreateBlendSpacePlayer("Locomotion", Looping);
-
-		//const FAnimNodeId AttackPlayer =
-		//    CreateSequencePlayer("Attack", OneShot);
-
-		//const FAnimNodeId HitPlayer =
-		//    CreateSequencePlayer("Hit", OneShot);
-
-		//if (LocomotionPlayer == InvalidAnimNodeId ||
-		//    AttackPlayer == InvalidAnimNodeId ||
-		//    HitPlayer == InvalidAnimNodeId)
-		//{
-		//	return;
-		//}
-
-		//const FAnimStateId Locomotion =
-		//    AddState("Locomotion", LocomotionPlayer);
-
-		//const FAnimStateId Attack =
-		//    AddState("Attack", AttackPlayer);
-
-		//const FAnimStateId Hit =
-		//    AddState("Hit", HitPlayer);
-
-		//if (Locomotion == InvalidAnimStateId ||
-		//    Attack == InvalidAnimStateId ||
-		//    Hit == InvalidAnimStateId)
-		//{
-		//	return;
-		//}
-
-		//if (!SetEntryState(Locomotion) ||
-		//    !SetFloat("Speed", 0.0f) ||
-		//    !SetBool("IsGrounded", true) ||
-		//    !DefineTrigger("AttackRequested") ||
-		//	!DefineTrigger("HitRequested"))
-		//{
-		//	return;
-		//}
-
-		//const FAnimConditionId CanAttack =
-		//    AddCustomCondition(
-		//        [](const FAnimConditionContext& Context)
-		//        {
-		//	        bool bGrounded = false;
-		//	        bool bRequested = false;
-
-		//	        return Context.Parameters.TryGetBool(
-		//	                   FName("IsGrounded"), bGrounded) &&
-		//	               Context.Parameters.TryGetTrigger(
-		//	                   FName("AttackRequested"), bRequested) &&
-		//	               bGrounded &&
-		//	               bRequested;
-		//        });
-
-		//FAnimConditionDefinition HitRequested;
-		//HitRequested.Type = EAnimConditionType::TriggerActive;
-		//HitRequested.ParameterName = FName("HitRequested");
-
-		//const FAnimConditionId HitConditionId =
-		//    AddCondition(HitRequested);
-
-		//if (HitConditionId == InvalidAnimConditionId ||
-		//    CanAttack == InvalidAnimConditionId)
-		//{
-		//	return;
-		//}
-
-		//FAnimConditionDefinition Finished;
-		//Finished.Type = EAnimConditionType::SourceFinished;
-
-		//const FAnimConditionId FinishedId =
-		//    AddCondition(Finished);
-
-		//FLuaAnimTransitionOptions AttackOptions;
-		//AttackOptions.Condition = CanAttack;
-		//AttackOptions.Priority = 50;
-		//AttackOptions.Blend.Duration = 0.2f;
-		//AttackOptions.ConsumeTriggers.Add(FName("AttackRequested"));
-
-		//FLuaAnimTransitionOptions ReturnOptions;
-		//ReturnOptions.Condition = FinishedId;
-		//ReturnOptions.Blend.Duration = 0.2f;
-
-		//// 어느 상태에서든 피격으로 전환.
-		//// 피격 중 다시 맞으면 Hit 애니메이션 재시작.
-		//FLuaAnimTransitionOptions HitOptions;
-		//HitOptions.Condition = HitConditionId;
-		//HitOptions.Priority = 100;
-		//HitOptions.Blend.Duration = 0.1f;
-		//HitOptions.bRestartIfSameState = true;
-		//HitOptions.InterruptPolicy = EAnimTransitionInterruptPolicy::Always;
-		//HitOptions.ConsumeTriggers.Add(FName("HitRequested"));
-
-		//// 피격 재생 완료 후 이동 상태로 복귀.
-		//FLuaAnimTransitionOptions HitReturnOptions;
-		//HitReturnOptions.Condition = FinishedId;
-		//HitReturnOptions.Priority = 0;
-		//HitReturnOptions.Blend.Duration = 0.2f;
-
-		//if (AddTransition(Locomotion, Attack, AttackOptions) ==
-		//        InvalidAnimTransitionId ||
-		//    AddTransition(Attack, Locomotion, ReturnOptions) ==
-		//        InvalidAnimTransitionId ||
-		//    AddAnyStateTransition(Hit, HitOptions) ==
-		//        InvalidAnimTransitionId ||
-		//    AddTransition(Hit, Locomotion, HitReturnOptions) ==
-		//        InvalidAnimTransitionId)
-		//{
-		//	return;
-		//}
-
-		//if (!Commit())
-		//	return;
-
-		//SetUpdateCallback(
-		//    [LocomotionPlayer](ULuaAnimInstance& Instance, float)
-		//    {
-		//	    float Speed = 0.0f;
-
-		//	    if (Instance.TryGetFloat("Speed", Speed))
-		//		    Instance.SetBlendSpaceInput(LocomotionPlayer, Speed);
-		//    });
-
-		//return;
+	if (!Commit())
+	{
+		HTR_LOG(Error, "[LuaAnim] Commit failed: {}", GetLastError());
+		ReleaseAnimationScript();
+		return;
 	}
 }
 
@@ -333,6 +190,8 @@ UAnimSequence* ULuaAnimInstance::CreateRootTestClip(
 		return nullptr;
 
 	UAnimSequence* Clip = NewObject<UAnimSequence>(this);
+	// 이후 초기화 실패에도 회수할 수 있는 생성 직후의 소유 기록
+	TemporaryAssets.Add(Clip);
 	Clip->SetSkeletalMesh(Mesh);
 	UAnimDataModel* Model = Clip->GetDataModel();
 	constexpr int32 FPS = 30;
@@ -366,14 +225,42 @@ bool ULuaAnimInstance::LoadAnimationScript(const FString& Path)
  return Script.Load(Path,true,false,Error) || Fail(Error);
 }
 
+bool ULuaAnimInstance::RegisterTemporaryAsset(const FString& Alias, UAnimationAsset* Asset)
+{
+	// 이미 연결된 실제 FBX 클립 별칭의 유지
+	if (ResolveAssetKey(Alias) != Alias)
+	{
+		return true;
+	}
+
+	// 캐릭터와 에디터·PIE 인스턴스 사이의 전역 키 충돌 방지
+	const FString Key = "Runtime/LuaAnimation/" + std::to_string(GetUUID()) + "/" + Alias;
+	UAssetManager::Get().RegisterAsset(Key, Asset);
+	return RegisterAssetAlias(Alias, Key);
+}
+
 void ULuaAnimInstance::ReleaseAnimationScript()
 {
-
-
-	// Definition의 Custom 콜백에 캡처된 Lua 함수도 해제한다.
+	// 활성 Notify와 그래프 콜백이 참조하는 에셋의 선행 유지
 	ResetGraph();
+	Script.Reset();
+	AssetAliases.Reset();
 
-	Script.Initialize = {};
-	Script.Update = {};
-	Script.Environment = {};
+	// BlendSpace를 먼저 해제하는 생성 역순의 소유 에셋 정리
+	for (int32 Index = TemporaryAssets.Num() - 1; Index >= 0; --Index)
+	{
+		UAnimationAsset* Asset = TemporaryAssets[Index];
+		// 전역 종료에서 먼저 삭제된 자식의 중복 해제 방지
+		if (GUObjectArray.Find(Asset) == INDEX_NONE)
+		{
+			continue;
+		}
+
+		if (!Asset->GetPath().empty())
+		{
+			UAssetManager::Get().UnregisterAsset(Asset->GetPath(), Asset);
+		}
+		delete Asset;
+	}
+	TemporaryAssets.Reset();
 }

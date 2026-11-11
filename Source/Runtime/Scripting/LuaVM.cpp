@@ -700,6 +700,12 @@ namespace
 			sol::no_constructor,
 			"GetNavigationExtent", &GetActorNavigationExtent,
 			"GetPointLight", &GetActorPointLight,
+		    "FindSceneComponentByName",
+		    [](const AActor& Actor, const FString& Name) -> USceneComponent*
+		    {
+			    return Cast<USceneComponent>(
+			        Actor.FindComponentByName(FName(Name.c_str())));
+		    },
 			"GetName", [](const AActor& Actor)
 			{
 				return Actor.GetName();

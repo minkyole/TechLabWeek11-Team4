@@ -440,8 +440,14 @@ void FAnimNode_BlendSpacePlayer::UpdateAssetPlayer(
 		return;
 	}
 
+	if (!Context.bFreezeBlendSpaceInput || !bHasAppliedInput)
+	{
+		AppliedX = X;
+		bHasAppliedInput = true;
+	}
+
 	if (!BlendSpace->GetSampleWeights(
-	        FVector(X, 0.0f, 0.0f),
+	        FVector(AppliedX, 0.0f, 0.0f),
 	        SampleWeights))
 	{
 		SampleWeights.Reset();

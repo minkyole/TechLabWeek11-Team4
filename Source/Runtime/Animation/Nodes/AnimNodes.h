@@ -156,4 +156,7 @@ private:
 	void GetNotifySamples(TArray<FBlendSampleWeight>& OutSamples) const;
 
 	TArray<FBlendSampleWeight> SampleWeights;
+
+	float AppliedX = 0.0f;
+	bool bHasAppliedInput = false;
 };

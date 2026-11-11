@@ -77,6 +77,12 @@ StateMachine 문서의 Observe 탭에서 기존 PIE 대상을 선택할 수 있�
 
 런타임 AnimGraph는 선택적 UpdateScript의 `UpdateAnimation(anim, dt)`를 실행한 후 파라미터 바인딩과 포즈를 갱신한다. `SetBool`, `SetFloat`, `SetTrigger`, `ResetTrigger`, `GetBool`, `GetFloat`, `IsTriggerActive`, `GetMovementComponent`를 사용한다. 캐릭터 Lua의 `actor:GetAnimInstance()`도 현재 인스턴스를 반환한다. AnimGraph 안에서는 최상위 스크립트만 실행하고, 독립 StateMachine 모드에서는 `.animsm` 스크립트를 실행한다.
 
+### Lua 모드의 상태 머신 정의
+
+`CharacterAnim.lua`는 `Animation Mode = Lua`에서 `ULuaAnimInstance`가 호출하는 초기화 스크립트다. 현재 `NewStateMachine.animsm`의 9개 상태와 16개 전이를 Lua로 구성하며, `.animsm` 파일 자체를 로드하지 않는다. 이후 에셋을 수정하면 이 스크립트의 정의도 별도로 동기화해야 한다. Scene의 모드는 자동 변경하지 않는다.
+
+Lua 생성 API에 `anim:CreateTwoWayBlend(aNodeId, bNodeId, initialAlpha)`와 `anim:SetBlendAlpha(blendNodeId, alpha)`를 추가했다. 기존 Player 노드를 A/B에 연결한 뒤 Blend 노드 ID를 `AddState`에 전달한다. 입력 노드는 공유할 수 없으며 Alpha는 0~1로 제한한다. CharacterAnim은 일반/검 이동 BlendSpace를 만들고, UpdateAnimation에서 Speed와 AttackReady를 입력에 반영한다. 키 입력·Trigger 요청·AttackReady 조절은 기존 AnimationTest.lua가 담당한다.
+
 범용 Blueprint 실행, 새 연산 노드·데이터 핀, Cached Pose, 포즈 출력 공유, 2D BlendSpace, 리타게팅은 이번 범위에 포함하지 않는다.
 
 수동 검증은 [AnimGraphValidationChecklist.md](AnimGraphValidationChecklist.md)를 따른다. UI 실행과 게임 실행 테스트는 사용자가 수행한다.

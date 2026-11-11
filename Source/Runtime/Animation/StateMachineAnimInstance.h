@@ -52,6 +52,9 @@ class UStateMachineAnimInstance : public UAnimInstance
 
 	FAnimNodeId CreateBlendSpacePlayer(const FString &BlendSpaceName, const FAnimPlayerOptions &Options);
 
+    FAnimNodeId CreateTwoWayBlend(FAnimNodeId A, FAnimNodeId B, float Alpha = 0.0f);
+    bool SetBlendAlpha(FAnimNodeId NodeId, float Alpha);
+
 	// 상태 머신 구성
 	FAnimStateId AddState(const FString &Name, FAnimNodeId NodeId);
 
@@ -160,6 +163,7 @@ class UStateMachineAnimInstance : public UAnimInstance
 	// 아래 두 객체보다 StateMachine을 먼저 해제해야 한다.
 	FAnimStateMachineDefinition Definition;
 	TArray<FPlayerEntry> Players;
+    TArray<FAnimNodeId> LinkedPoseNodes;
 
 	FAnimNode_StateMachine StateMachine;
 

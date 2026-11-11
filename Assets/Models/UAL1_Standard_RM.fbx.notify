@@ -35,6 +35,16 @@
                 "Time": 0.30000001192092896
             },
             {
+                "Class": "UAnimNotify_CameraShake",
+                "Duration": 0.0,
+                "Name": "NewNotify",
+                "Properties": {
+                    "ShakeDuration": 0.30000001192092896,
+                    "ShakeScale": 1.0
+                },
+                "Time": 0.6666666865348816
+            },
+            {
                 "Duration": 0.0,
                 "Name": "RightFoot",
                 "Time": 0.9333333373069763

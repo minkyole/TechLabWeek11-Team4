@@ -283,6 +283,11 @@ void BindAnimationAPI(sol::state& LuaState)
 	AnimType["AddState"] =
 	    &ULuaAnimInstance::AddState;
 
+    AnimType["CreateTwoWayBlend"] =
+        [](ULuaAnimInstance& Anim, FAnimNodeId A, FAnimNodeId B, sol::optional<float> Alpha)
+        { return Anim.CreateTwoWayBlend(A, B, Alpha.value_or(0.0f)); };
+    AnimType["SetBlendAlpha"] = &ULuaAnimInstance::SetBlendAlpha;
+
 	AnimType["SetEntryState"] =
 	    &ULuaAnimInstance::SetEntryState;
 

@@ -77,6 +77,17 @@
 | Notify/RootMotion | 미실행 | | |
 | 오류/호환성 | 미실행 | | |
 
+## CharacterAnim.lua의 Lua 모드 정의
+
+아래 항목은 **미실행**이다. `CharacterAnim.lua`는 `.animsm`의 UpdateScript용이 아니라 `Animation Mode = Lua`에서 그래프를 직접 구성하는 초기화 스크립트다.
+
+- [ ] 메시를 `UAL1_Standard_RM`으로 지정하고 Animation Mode를 Lua, AnimationScriptPath를 `Assets/Scripts/Animation/CharacterAnim.lua`로 설정한다. 초기화 오류 없이 Locomotion으로 시작한다.
+- [ ] `Speed`가 일반/검 이동 BlendSpace 양쪽에 적용되고, `AttackReady` 0/0.5/1에서 두 이동 포즈가 혼합된다. 입력과 AttackReady 갱신은 기존 AnimationTest.lua를 사용한다.
+- [ ] 좌클릭 Attack, H Hit, Y Death, R Roll 요청이 동작한다. Death 종료 후 Revival(Sitting_Exit)을 거쳐 Locomotion으로 돌아온다.
+- [ ] JumpStart/JumpLoop/JumpLand와 Roll 도중 공중 진입 전이가 저장된 `.animsm`과 일치한다. JumpLand는 클립 완료 또는 경과 시간 > 0.2초이면서 Speed > 0.1일 때 복귀한다.
+- [ ] 공격 진입의 SmoothStep, 각 전환의 시간·우선순위·인터럽트·Trigger 소비 및 Roll 재생 속도 1.4를 확인한다.
+- [ ] Lua 모드 컴포넌트 두 개의 재생 시간과 AttackReady가 독립적이고, 모드 전환·인스턴스 재초기화 후에도 정상 구성된다.
+
 ## 통합 애니메이션 편집기 UI/UX 개편
 
 아래 항목도 모두 **미실행**이다. Runtime·Editor 빌드만 확인하고 편집기/게임은 실행하지 않는다.

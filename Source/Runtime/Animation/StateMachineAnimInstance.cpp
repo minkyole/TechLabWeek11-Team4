@@ -32,6 +32,7 @@ void UStateMachineAnimInstance::ResetGraph()
 
 	// 그 다음 실제 노드와 정의를 제거한다.
 	Players.Reset();
+    LinkedPoseNodes.Reset();
 	Definition = FAnimStateMachineDefinition{};
 }
 
@@ -193,9 +194,9 @@ FAnimStateId UStateMachineAnimInstance::AddState(const FString &Name, FAnimNodeI
 	if (!RequireBuilding())
 		return InvalidAnimStateId;
 
-	if (Name.empty() || !FindPlayer(NodeId))
+	if (Name.empty() || !FindPlayer(NodeId) || (LinkedPoseNodes.Find(NodeId) != -1))
 	{
-		Fail("State requires a name and a valid node.");
+		Fail("State requires a name and an unshared pose root.");
 		return InvalidAnimStateId;
 	}
 
@@ -561,4 +562,37 @@ FAnimNodeId UStateMachineAnimInstance::RegisterPoseRoot(TUniquePtr<FAnimNode_Bas
     Entry.Node = std::move(Node);
     Players.Add(std::move(Entry));
     return static_cast<int>(Players.size()) - 1;
+}
+
+FAnimNodeId UStateMachineAnimInstance::CreateTwoWayBlend(FAnimNodeId A, FAnimNodeId B, float Alpha)
+{
+    if (!RequireBuilding()) return InvalidAnimNodeId;
+    if (A == B || !FindPlayer(A) || !FindPlayer(B) || !std::isfinite(Alpha) ||
+        (LinkedPoseNodes.Find(A) != -1) || (LinkedPoseNodes.Find(B) != -1))
+    {
+        Fail("TwoWayBlend requires two distinct, unshared inputs and a finite alpha.");
+        return InvalidAnimNodeId;
+    }
+    for (const auto& State : Definition.States)
+        if (State.RootNodeIndex == A || State.RootNodeIndex == B)
+        {
+            Fail("A state root cannot also be used as a blend input.");
+            return InvalidAnimNodeId;
+        }
+    auto Blend = MakeUnique<FAnimNode_TwoWayBlend>();
+    Blend->A.LinkedNode = FindPlayer(A)->Node.get();
+    Blend->B.LinkedNode = FindPlayer(B)->Node.get();
+    Blend->Alpha = std::clamp(Alpha, 0.0f, 1.0f);
+    const auto Id = RegisterPoseRoot(std::move(Blend));
+    if (Id != InvalidAnimNodeId) { LinkedPoseNodes.Add(A); LinkedPoseNodes.Add(B); }
+    return Id;
+}
+
+bool UStateMachineAnimInstance::SetBlendAlpha(FAnimNodeId NodeId, float Alpha)
+{
+    auto* Entry = FindPlayer(NodeId);
+    auto* Blend = Entry ? dynamic_cast<FAnimNode_TwoWayBlend*>(Entry->Node.get()) : nullptr;
+    if (!Blend || !std::isfinite(Alpha)) return Fail("Expected a TwoWayBlend node and a finite alpha.");
+    Blend->Alpha = std::clamp(Alpha, 0.0f, 1.0f);
+    return true;
 }

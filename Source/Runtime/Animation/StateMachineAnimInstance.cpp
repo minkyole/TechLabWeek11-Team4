@@ -100,11 +100,10 @@ FAnimNodeId UStateMachineAnimInstance::CreateSequencePlayer(const FString &ClipN
 	if (!RequireBuilding())
 		return InvalidAnimNodeId;
 
-	// 현재 SequencePlayer::IsFinished()는 정방향 완료 판정이다.
-	// 첫 구현에서는 역재생을 허용하지 않는다.
-	if (!std::isfinite(Options.PlayRate) || Options.PlayRate < 0.0f)
+	// Asset players reset to the end and check the start boundary when playing in reverse.
+	if (!std::isfinite(Options.PlayRate))
 	{
-		Fail("Play rate must be finite and non-negative.");
+		Fail("Play rate must be finite.");
 		return InvalidAnimNodeId;
 	}
 
@@ -136,9 +135,9 @@ FAnimNodeId UStateMachineAnimInstance::CreateBlendSpacePlayer(const FString &Ble
 	if (!RequireBuilding())
 		return InvalidAnimNodeId;
 
-	if (!std::isfinite(Options.PlayRate) || Options.PlayRate < 0.0f)
+	if (!std::isfinite(Options.PlayRate))
 	{
-		Fail("Play rate must be finite and non-negative.");
+		Fail("Play rate must be finite.");
 		return InvalidAnimNodeId;
 	}
 
@@ -519,8 +518,8 @@ bool UStateMachineAnimInstance::SetBlendSpaceInput(FAnimNodeId NodeId, float Val
 
 bool UStateMachineAnimInstance::SetPlayRate(FAnimNodeId NodeId, float Value)
 {
-	if (!std::isfinite(Value) || Value < 0.0f)
-		return Fail("Play rate must be finite and non-negative.");
+	if (!std::isfinite(Value))
+		return Fail("Play rate must be finite.");
 
 	FPlayerEntry *Entry = FindPlayer(NodeId);
 

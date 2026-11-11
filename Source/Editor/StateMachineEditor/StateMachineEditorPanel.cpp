@@ -223,7 +223,9 @@ void FStateMachineEditorPanel::DrawDetails()
 		}
 		Dirty |= ImGui::Checkbox("Loop", &s->Options.bLoop);
 		Dirty |= ImGui::Checkbox("Playing", &s->Options.bPlaying);
-		Dirty |= ImGui::InputFloat("Play rate", &s->Options.PlayRate);
+		Dirty |= ImGui::InputFloat("Play rate", &s->Options.PlayRate, 0.1f, 1.0f);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Negative values play in reverse; zero pauses playback.");
 		if (s->BlendSpace && ImGui::BeginCombo("Axis parameter",
 											   s->BlendParameter.empty() ? "Constant zero" : s->BlendParameter.c_str()))
 		{

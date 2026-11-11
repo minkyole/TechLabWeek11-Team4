@@ -151,7 +151,7 @@ bool FAnimStateMachineAssetData::Validate(FString &Error) const
 	{
 		if (s.Id < 0 || !ids.insert(s.Id).second || s.Name.empty() || !names.insert(s.Name).second)
 			return fail("States require unique IDs and names.");
-		if (!std::isfinite(s.Options.PlayRate) || s.Options.PlayRate < 0 || !std::isfinite(s.X) || !std::isfinite(s.Y))
+		if (!std::isfinite(s.Options.PlayRate) || !std::isfinite(s.X) || !std::isfinite(s.Y))
 			return fail("Invalid state numeric value.");
 		const UAnimationAsset *a =
 			s.BlendSpace ? static_cast<UAnimationAsset *>(UAssetManager::GetAssetByPath<UBlendSpace1D>(s.AssetKey))

@@ -2,6 +2,7 @@
 #include "ImageLoader.h"
 #include "RenderCommand.h"
 #include "DDSTextureLoader11.h"
+#include "Core/Misc/FileHelper.h"
 
 #include <algorithm>
 
@@ -12,11 +13,19 @@ FImageData ImageLoader::Load(const FString& Path)
 {
 	FImageData Result;
 
+	TArray<uint8> FileData;
+	if (!FFileHelper::LoadFileToArray(FileData, Path) || FileData.IsEmpty())
+	{
+		HTR_LOG(Error, "[Image] File read failed or empty: {}", Path);
+		return Result;
+	}
+	
 	int Width = 0, Height = 0, Channels = 0;
-	unsigned char* Pixels = stbi_load(Path.c_str(), &Width, &Height, &Channels, 4);
+	// 메모리 원본의 RGBA 8비트 픽셀 변환
+	unsigned char* Pixels = stbi_load_from_memory(FileData.GetData(), FileData.Num(), &Width, &Height, &Channels, 4);
 	if (!Pixels)
 	{
-		OutputDebugStringA(("[Texture] stbi_load failed: " + Path + " (" + stbi_failure_reason() + ")\n").c_str());
+		OutputDebugStringA(("[Texture] stbi_load_from_memory failed: " + Path + " (" + stbi_failure_reason() + ")\n").c_str());
 		return FImageData();
 	}
 
@@ -33,13 +42,23 @@ FImageData ImageLoader::Load(const FString& Path)
 	return Result;
 }
 
+// 공통 파일 읽기를 사용하는 HDR 이미지 해석
 FImageData ImageLoader::LoadHDR(const FString& Path)
 {
 	FImageData Result;
 
+	// 공통 UTF-8 경로를 통한 원본 바이트 읽기
+	TArray<uint8> FileData;
+	if (!FFileHelper::LoadFileToArray(FileData, Path) || FileData.IsEmpty())
+	{
+		HTR_LOG(Error, "[Image] File read failed or empty: {}", Path);
+		return Result;
+	}
+
 	stbi_set_flip_vertically_on_load(false);
 	int Width = 0, Height = 0, Channels = 0;
-	float* Pixels = stbi_loadf(Path.c_str(), &Width, &Height, &Channels, 4);
+	// 메모리 원본의 RGBA 실수 픽셀 변환
+	float* Pixels = stbi_loadf_from_memory(FileData.GetData(), FileData.Num(), &Width, &Height, &Channels, 4);
 	if (!Pixels)
 	{
 		HTR_LOG(Error, "[Image] HDR load failed: {} ({})", Path, stbi_failure_reason());
@@ -185,10 +204,17 @@ FImageData ImageLoader::LoadDDS(const FString& Path)
 	return Result;
 }
 
+// 네이티브 경로의 확장자에 따른 이미지 로더 선택
 FImageData ImageLoader::LoadAuto(const FString& Path)
 {
-	const fs::path Ext = fs::path(Path).extension();
-	if (Ext == ".hdr" || Ext == ".HDR") return LoadHDR(Path);
-	if (Ext == ".dds" || Ext == ".DDS") return LoadDDS(Path);
+	const fs::path Ext = FFileHelper::ToNativePath(Path).extension();
+	if (Ext == ".hdr" || Ext == ".HDR")
+	{
+		return LoadHDR(Path);
+	}
+	if (Ext == ".dds" || Ext == ".DDS")
+	{
+		return LoadDDS(Path);
+	}
 	return Load(Path);
 }

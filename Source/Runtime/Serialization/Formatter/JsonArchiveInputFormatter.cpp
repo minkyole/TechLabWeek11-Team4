@@ -79,7 +79,7 @@ void FJsonArchiveInputFormatter::LeaveField()
 bool FJsonArchiveInputFormatter::TryEnterField(FArchiveFieldName Name, bool bEnterWhenSaving)
 {
     const FJsonObject* Field = FindField(Name.Name);
-    if (!Field || Field->is_null())
+    if (!Field)
         return false;
     ValueStack.Add(Field);
     return true;
@@ -220,7 +220,14 @@ void FJsonArchiveInputFormatter::Serialize(FName& Value)
 
 void FJsonArchiveInputFormatter::Serialize(UObject*& Value)
 {
-    // null은 "되찾을 수 없던 값"이므로 기본값을 유지한다 (기존 Object.cpp와 같은 정책)
+	// JSON null에 대응하는 명시적 참조 해제
+    const FJsonValue* JsonValue = Top();
+	if (JsonValue && JsonValue->is_null())
+	{
+		Value = nullptr;
+		return;
+	}
+
     FString AssetPath;
     if (!Read(AssetPath, "asset path"))
         return;

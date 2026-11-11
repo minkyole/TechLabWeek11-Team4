@@ -61,10 +61,29 @@ void USkinnedMeshComponent::TickPose(float DeltaTime)
 
 void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 {
-	if (SkeletalMesh == InSkeletalMesh)
-		return;
+	if (SkeletalMesh == InSkeletalMesh){ return; }
 
 	SkeletalMesh = InSkeletalMesh;
+	PostApplyProperties(StaticClass()->FindPropertyByName(FName("SkeletalMesh")));
+}
+
+// 복원된 메시 참조를 기준으로 실행용 캐시를 구성하는 공통 후처리
+void USkinnedMeshComponent::PostApplyProperties(const FProperty* ChangedProperty)
+{
+	Super::PostApplyProperties(ChangedProperty);
+
+	if (ChangedProperty && ChangedProperty->Name != FName("SkeletalMesh"))
+	{
+		return;
+	}
+
+	// 명시적인 메시 교체에 따른 기존 재질 덮어쓰기 제거
+	if (ChangedProperty)
+	{
+		ClearOverrideMaterials();
+	}
+
+	// 이전 메시의 본 변환과 컴포넌트별 생성 버퍼 초기화
 	CurrentLocalTransforms.Reset();
 	CurrentGlobalMatrices.Reset();
 	SkinnedVertexBuffer.reset();
@@ -72,9 +91,21 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 	NormalMatrixBuffer.reset();
 	SkinnedVertices.Reset();
 	SkinnedIndices.Reset();
+
+	// 이전 포즈와 스키닝 경로의 캐시 유효 상태 초기화
+	bCPUVerticesStale = false;
 	bHasSkinnedBounds = false;
-	ResetPoseToBindPose();
-	ClearOverrideMaterials();
+	bPoseDirty = false;
+	bGPUSkinnedPose = false;
+	AppliedSkinningModeVersion = FSkinningSettings::GetModeVersion();
+
+	// 실행 객체에 필요한 기준 포즈와 스키닝 자원의 준비
+	if (!IsTemplate())
+	{
+		ResetPoseToBindPose();
+	}
+
+	// 메시 제거와 재구성 결과에 따른 렌더·공간 정보 갱신 예약
 	MarkRenderStateDirty();
 	OnTransformDirty();
 }
@@ -179,25 +210,6 @@ bool USkinnedMeshComponent::SetBoneLocalTransform(int32 BoneIndex, const FTransf
 	bPoseDirty = false;
 	UpdateSkinning();
 	return true;
-}
-
-void USkinnedMeshComponent::Serialize(FStructuredArchive::FRecord Record)
-{
-	Super::Serialize(Record);
-	if (!Record.GetUnderlyingArchive().IsLoading())
-		return;
-
-	// SetSkeletalMesh는 머티리얼 오버라이드를 지우므로 쓰지 않고, 메시 교체 후 상태만 다시 만든다.
-	CurrentGlobalMatrices.Reset();
-	SkinnedVertexBuffer.reset();
-	SkinMatrixBuffer.reset();
-	NormalMatrixBuffer.reset();
-	SkinnedVertices.Reset();
-	SkinnedIndices.Reset();
-	bHasSkinnedBounds = false;
-	ResetPoseToBindPose();
-	MarkRenderStateDirty();
-	OnTransformDirty();
 }
 
 int32 USkinnedMeshComponent::GetNumMaterials() const
@@ -507,17 +519,4 @@ void USkinnedMeshComponent::UpdateSkinning()
 	SkinnedIndices = std::move(ResultIndices);
 	bHasSkinnedBounds = true;
 	OnTransformDirty();
-}
-
-void USkinnedMeshComponent::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-
-	TArray<UMaterial*> CopiedOverrideMaterials = OverrideMaterials;
-	USkeletalMesh* CopiedSkeletalMesh = SkeletalMesh;
-	SkeletalMesh = nullptr;
-	SetSkeletalMesh(CopiedSkeletalMesh);
-
-	OverrideMaterials = CopiedOverrideMaterials;
-	MarkRenderStateDirty();
 }

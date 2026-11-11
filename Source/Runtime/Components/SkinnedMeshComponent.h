@@ -19,12 +19,11 @@ public:
 
 	USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh; }
 	virtual void SetSkeletalMesh(USkeletalMesh* InSkeletalMesh);
+	void PostApplyProperties(const FProperty* ChangedProperty = nullptr) override;
 	// 부모 본 기준의 현재 자세. 원본 RefPoseTransform은 수정하지 않는다.
 	bool GetBoneLocalTransform(int32 BoneIndex, FTransform& OutTransform) const;
 	bool SetBoneLocalTransform(int32 BoneIndex, const FTransform& InTransform);
 	int32 GetNumMaterials() const override;
-	// 불러오기와 PIE 복제는 SkeletalMesh 포인터만 채운다. 이어서 기준 포즈와 스키닝 버퍼를 준비한다.
-	void Serialize(FStructuredArchive::FRecord Record) override;
 	void UpdateSkinning();
 	void ResetPoseToBindPose();
 	bool LineTraceComponentLocal(const FRay& LocalRay, float& OutT) override;
@@ -55,8 +54,6 @@ public:
 		if (bHasSkinnedBounds) return SkinnedBounds;
 		return SkeletalMesh ? SkeletalMesh->GetRenderBounds() : Super::CalcLocalBounds();
 	}
-
-	void PostDuplicate(bool bDuplicateForPIE) override;
 
 protected:
 	virtual void TickPose(float DeltaTime);

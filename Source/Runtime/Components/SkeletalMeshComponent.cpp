@@ -98,9 +98,10 @@ void USkeletalMeshComponent::InitializeComponent()
 
 void USkeletalMeshComponent::InitializeAnimInstance()
 {
-	// 컴포넌트 초기화 시점에 메시가 없을 수도 있다.
-	if (!GetSkeletalMesh())
+	if (IsTemplate() || !GetSkeletalMesh())
+	{
 		return;
+	}
 
 	if (!AnimInstance)
 	{
@@ -155,24 +156,20 @@ void USkeletalMeshComponent::ClearAnimInstance()
 	EvaluatedPose = FPoseContext();
 }
 
-void USkeletalMeshComponent::SetSkeletalMesh(
-    USkeletalMesh* InMesh)
+void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InMesh)
 {
 	if (GetSkeletalMesh() == InMesh)
 	{
-		// 같은 메시라도 인스턴스가 없다면 준비한다.
+		// 동일 메시에서 누락된 실행체의 초기화
 		InitializeAnimInstance();
 		return;
 	}
 
-	// 이전 메시가 유효한 동안 종료 훅을 실행한다.
+	// 이전 메시를 참조할 수 있는 시점의 실행체 종료
 	ClearAnimInstance();
 
-	// 기존 부모 구현: 메시 교체, 기준 포즈,스키닝 갱신.
+	// 메시 대입 이후 가상 공통 후처리로 연결
 	Super::SetSkeletalMesh(InMesh);
-
-	// nullptr이면 InitializeAnimInstance 내부에서 종료된다.
-	InitializeAnimInstance();
 }
 
 UAnimSingleNodeInstance* USkeletalMeshComponent::GetSingleNodeInstance() const
@@ -418,42 +415,52 @@ void USkeletalMeshComponent::SubmitToRenderQueue(FRenderQueue& RenderQueue)
 	}
 }
 
-void USkeletalMeshComponent::SetStateMachineAssetPath(const FString &Path)
+// 경로 선택값과 애니메이션 실행체 후처리의 연결
+void USkeletalMeshComponent::SetStateMachineAssetPath(const FString& Path)
 {
-
+	// 이전 경로가 유효한 시점의 실행체 종료
 	ClearAnimInstance();
+
 	StateMachineAssetPath = Path;
-	AnimationMode = EAnimationMode::AnimationBlueprint;
-	AnimClass = Path.empty() ? ULuaAnimInstance::StaticClass() : UAssetAnimInstance::StaticClass();
-	InitializeAnimInstance();
+	const FProperty* Property = StaticClass()->FindPropertyByName(FName("StateMachineAssetPath"));
+
+	NormalizeProperties(Property);
+	PostApplyProperties(Property);
 }
 
-void USkeletalMeshComponent::PostEditChangeProperty(const FProperty &Property)
+// 경로 지정 방식에 따른 애니메이션 모드와 클래스의 선택
+void USkeletalMeshComponent::NormalizeProperties(const FProperty* ChangedProperty)
 {
-	Super::PostEditChangeProperty(Property);
-	if (Property.Name == FName("StateMachineAssetPath"))
+	Super::NormalizeProperties(ChangedProperty);
+
+	const bool bPathChanged = ChangedProperty && ChangedProperty->Name == FName("StateMachineAssetPath");
+
+	if (bPathChanged || (!ChangedProperty && !StateMachineAssetPath.empty()))
 	{
-		auto path = StateMachineAssetPath;
-		SetStateMachineAssetPath(path);
+		AnimationMode = EAnimationMode::AnimationBlueprint;
+		AnimClass = StateMachineAssetPath.empty()
+		                ? ULuaAnimInstance::StaticClass()
+		                : UAssetAnimInstance::StaticClass();
 	}
 }
-void USkeletalMeshComponent::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-	ClearAnimInstance();
-	InitializeAnimInstance();
-}
 
-void USkeletalMeshComponent::Serialize(FStructuredArchive::FRecord Record)
+// 기존 실행체 종료 이후 스키닝 상태와 새 실행체의 순차 준비
+void USkeletalMeshComponent::PostApplyProperties(const FProperty* ChangedProperty)
 {
-	Super::Serialize(Record);
-	if (Record.GetUnderlyingArchive().IsLoading())
+	const bool bReinitialize =
+	    !ChangedProperty ||
+	    ChangedProperty->Name == FName("SkeletalMesh") ||
+	    ChangedProperty->Name == FName("StateMachineAssetPath");
+
+	if (bReinitialize)
 	{
 		ClearAnimInstance();
-		if (!StateMachineAssetPath.empty())
-		{
-			AnimationMode = EAnimationMode::AnimationBlueprint;
-			AnimClass = UAssetAnimInstance::StaticClass();
-		}
+	}
+
+	Super::PostApplyProperties(ChangedProperty);
+
+	if (bReinitialize)
+	{
+		InitializeAnimInstance();
 	}
 }

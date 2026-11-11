@@ -39,9 +39,8 @@ public:
 	~USkeletalMeshComponent() override;
 
 	void BeginPlay() override;
-	void Serialize(FStructuredArchive::FRecord Record) override;
-	void PostEditChangeProperty(const FProperty& Property) override;
-	void PostDuplicate(bool bDuplicateForPIE) override;
+	void NormalizeProperties(const FProperty* ChangedProperty = nullptr) override;
+	void PostApplyProperties(const FProperty* ChangedProperty = nullptr) override;
 	void TickComponent(float DeltaTime) override;
 
 	void InitializeComponent() override;

@@ -6,6 +6,7 @@
             "ObjectLabel": "",
             "Actors": [
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -68,6 +69,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "ADirectionalLightActor",
                     "Components": [
@@ -100,7 +102,7 @@
                             "ObjectLabel": "UDirectionalLightComponent",
                             "Class": "UDirectionalLightComponent",
                             "Name": "UDirectionalLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "Intensity": 1.0,
                                 "LightColor": 4294967295,
@@ -216,6 +218,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -278,6 +281,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "ASpotLightActor",
                     "Components": [
@@ -310,7 +314,7 @@
                             "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 48.79999923706055,
                                 "InnerConeAngle": 15.0,
@@ -430,6 +434,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "ASpotLightActor",
                     "Components": [
@@ -462,7 +467,7 @@
                             "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 60.900001525878906,
                                 "InnerConeAngle": 15.0,
@@ -582,6 +587,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "ASpotLightActor",
                     "Components": [
@@ -614,7 +620,7 @@
                             "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 41.20000076293945,
                                 "InnerConeAngle": 15.0,
@@ -734,6 +740,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "ASpotLightActor",
                     "Components": [
@@ -766,7 +773,7 @@
                             "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 27.600000381469727,
                                 "InnerConeAngle": 15.0,
@@ -886,6 +893,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "ASpotLightActor",
                     "Components": [
@@ -918,7 +926,7 @@
                             "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 72.5999984741211,
                                 "InnerConeAngle": 15.0,
@@ -1038,6 +1046,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "ASpotLightActor",
                     "Components": [
@@ -1070,7 +1079,7 @@
                             "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 32.70000076293945,
                                 "InnerConeAngle": 15.0,
@@ -1190,6 +1199,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "ASpotLightActor",
                     "Components": [
@@ -1222,7 +1232,7 @@
                             "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 21.600000381469727,
                                 "InnerConeAngle": 37.599998474121094,
@@ -1342,6 +1352,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [

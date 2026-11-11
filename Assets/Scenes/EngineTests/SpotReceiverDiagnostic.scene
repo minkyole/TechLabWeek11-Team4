@@ -8,6 +8,7 @@
       "Properties": {},
       "Actors": [
         {
+          "RootComponent": "DefaultSceneRoot",
           "ObjectLabel": "",
           "Class": "AStaticMeshActor",
           "Components": [
@@ -92,6 +93,7 @@
           "Properties": {}
         },
         {
+          "RootComponent": "DefaultSceneRoot",
           "ObjectLabel": "",
           "Class": "AStaticMeshActor",
           "Components": [
@@ -176,6 +178,7 @@
           "Properties": {}
         },
         {
+          "RootComponent": "DefaultSceneRoot",
           "ObjectLabel": "",
           "Class": "AStaticMeshActor",
           "Components": [
@@ -260,6 +263,7 @@
           "Properties": {}
         },
         {
+          "RootComponent": "DefaultSceneRoot",
           "ObjectLabel": "",
           "Class": "ASpotLightActor",
           "Components": [
@@ -292,7 +296,7 @@
               "ObjectLabel": "USpotLightComponent",
               "Class": "USpotLightComponent",
               "Name": "USpotLightComponent",
-              "Parent": "",
+              "Parent": "DefaultSceneRoot",
               "Properties": {
                 "AttenuationRadius": 20.0,
                 "InnerConeAngle": 25.0,
@@ -413,6 +417,7 @@
           "Properties": {}
         },
         {
+          "RootComponent": "DefaultSceneRoot",
           "ObjectLabel": "",
           "Class": "ASkyLightActor",
           "Components": [
@@ -445,7 +450,7 @@
               "ObjectLabel": "USkyLightComponent",
               "Class": "USkyLightComponent",
               "Name": "USkyLightComponent",
-              "Parent": "",
+              "Parent": "DefaultSceneRoot",
               "Properties": {
                 "Transform": {
                   "Location": {

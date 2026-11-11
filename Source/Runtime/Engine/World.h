@@ -98,7 +98,7 @@ public:
 	float GetUnscaledDeltaTime() const { return GameTime.GetDeltaRealTimeSeconds(); }
 
 	void ClearWorld();
-
+	void CleanupWorld();
 	// 캡처 구간을 시작하고 첫 가시 View에서 동적 렌더 스냅샷을 준비하게 한다.
 	void BeginRenderViews();
 	// 메인 스레드에서 Proxy를 준비하고 World의 작업 버퍼로 동적 패킷을 추가한다.

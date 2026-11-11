@@ -6,6 +6,7 @@
             "ObjectLabel": "",
             "Actors": [
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "ADirectionalLightActor",
                     "Components": [
@@ -38,7 +39,7 @@
                             "ObjectLabel": "UDirectionalLightComponent",
                             "Class": "UDirectionalLightComponent",
                             "Name": "UDirectionalLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "Intensity": 1.0,
                                 "LightColor": 4294967295,
@@ -155,6 +156,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -217,6 +219,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [

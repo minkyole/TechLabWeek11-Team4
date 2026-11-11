@@ -1,12 +1,17 @@
 {
-    "Version": 4,
+    "Version": 5,
     "World": {
+        "ObjectLabel": "",
         "PersistentLevel": {
+            "ObjectLabel": "",
             "Actors": [
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -31,6 +36,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -63,9 +69,12 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "ADirectionalLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -90,9 +99,10 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UDirectionalLightComponent",
                             "Class": "UDirectionalLightComponent",
                             "Name": "UDirectionalLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "Intensity": 1.0,
                                 "LightColor": 4294967295,
@@ -120,10 +130,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -169,6 +181,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -205,9 +218,12 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -232,6 +248,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -264,9 +281,12 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "ASpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -291,9 +311,10 @@
                             }
                         },
                         {
+                            "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 48.79999923706055,
                                 "InnerConeAngle": 15.0,
@@ -325,10 +346,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -374,6 +397,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -410,9 +434,12 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "ASpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -437,9 +464,10 @@
                             }
                         },
                         {
+                            "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 60.900001525878906,
                                 "InnerConeAngle": 15.0,
@@ -471,10 +499,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -520,6 +550,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -556,9 +587,12 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "ASpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -583,9 +617,10 @@
                             }
                         },
                         {
+                            "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 41.20000076293945,
                                 "InnerConeAngle": 15.0,
@@ -617,10 +652,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -666,6 +703,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -702,9 +740,12 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "ASpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -729,9 +770,10 @@
                             }
                         },
                         {
+                            "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 27.600000381469727,
                                 "InnerConeAngle": 15.0,
@@ -763,10 +805,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -812,6 +856,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -848,9 +893,12 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "ASpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -875,9 +923,10 @@
                             }
                         },
                         {
+                            "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 72.5999984741211,
                                 "InnerConeAngle": 15.0,
@@ -909,10 +958,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -958,6 +1009,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -994,9 +1046,12 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "ASpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -1021,9 +1076,10 @@
                             }
                         },
                         {
+                            "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 32.70000076293945,
                                 "InnerConeAngle": 15.0,
@@ -1055,10 +1111,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -1104,6 +1162,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -1140,9 +1199,12 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "ASpotLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -1167,9 +1229,10 @@
                             }
                         },
                         {
+                            "ObjectLabel": "USpotLightComponent",
                             "Class": "USpotLightComponent",
                             "Name": "USpotLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 21.600000381469727,
                                 "InnerConeAngle": 37.599998474121094,
@@ -1201,10 +1264,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -1250,6 +1315,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -1286,9 +1352,12 @@
                     "Properties": {}
                 },
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -1313,6 +1382,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],

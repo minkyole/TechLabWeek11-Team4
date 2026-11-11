@@ -6,6 +6,7 @@
             "ObjectLabel": "",
             "Actors": [
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -68,6 +69,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -130,6 +132,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -192,6 +195,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -254,6 +258,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -316,6 +321,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "APointLightActor",
                     "Components": [
@@ -348,7 +354,7 @@
                             "ObjectLabel": "UPointLightComponent",
                             "Class": "UPointLightComponent",
                             "Name": "UPointLightComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "AttenuationRadius": 9.600000381469727,
                                 "Intensity": 1.0,
@@ -433,6 +439,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -495,6 +502,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -557,6 +565,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -619,6 +628,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [

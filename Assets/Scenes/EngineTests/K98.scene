@@ -6,6 +6,7 @@
             "ObjectLabel": "",
             "Actors": [
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -66,6 +67,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AActor",
                     "Components": [
@@ -126,6 +128,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [

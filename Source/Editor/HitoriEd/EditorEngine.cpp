@@ -1717,7 +1717,7 @@ void UEditorEngine::EndPlayMap()
 	PlayWorld->EndPlay();
 	UIRenderer->ResetUIText();
 	UIRenderer->ResetUIImage();
-	PlayWorld->ClearWorld();
+	PlayWorld->CleanupWorld();
 	DestroyWorldContext(PlayWorld);
 	delete PlayWorld;
 	PlayWorld = nullptr;

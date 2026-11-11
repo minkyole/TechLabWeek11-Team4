@@ -1,14 +1,19 @@
 {
-  "Version": 4,
+  "Version": 5,
   "World": {
+    "ObjectLabel": "",
     "Properties": {},
     "PersistentLevel": {
+      "ObjectLabel": "",
       "Properties": {},
       "Actors": [
         {
+          "ObjectLabel": "",
+          "RootComponent": "DefaultSceneRoot",
           "Class": "AStaticMeshActor",
           "Components": [
             {
+              "ObjectLabel": "DefaultSceneRoot",
               "Class": "USceneComponent",
               "Name": "DefaultSceneRoot",
               "Parent": "",
@@ -33,12 +38,14 @@
               }
             },
             {
+              "ObjectLabel": "UStaticMeshComponent",
               "Class": "UStaticMeshComponent",
               "Name": "UStaticMeshComponent",
               "OverrideMaterials": [
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "Properties": {},
                     "BaseColor": {
                       "X": 0.8,
@@ -86,9 +93,12 @@
           "Properties": {}
         },
         {
+          "ObjectLabel": "",
+          "RootComponent": "DefaultSceneRoot",
           "Class": "AStaticMeshActor",
           "Components": [
             {
+              "ObjectLabel": "DefaultSceneRoot",
               "Class": "USceneComponent",
               "Name": "DefaultSceneRoot",
               "Parent": "",
@@ -113,12 +123,14 @@
               }
             },
             {
+              "ObjectLabel": "UStaticMeshComponent",
               "Class": "UStaticMeshComponent",
               "Name": "UStaticMeshComponent",
               "OverrideMaterials": [
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "Properties": {},
                     "BaseColor": {
                       "X": 0.15,
@@ -166,9 +178,12 @@
           "Properties": {}
         },
         {
+          "ObjectLabel": "",
+          "RootComponent": "DefaultSceneRoot",
           "Class": "AStaticMeshActor",
           "Components": [
             {
+              "ObjectLabel": "DefaultSceneRoot",
               "Class": "USceneComponent",
               "Name": "DefaultSceneRoot",
               "Parent": "",
@@ -193,12 +208,14 @@
               }
             },
             {
+              "ObjectLabel": "UStaticMeshComponent",
               "Class": "UStaticMeshComponent",
               "Name": "UStaticMeshComponent",
               "OverrideMaterials": [
                 {
                   "Base": "DefaultMaterial",
                   "Instance": {
+                    "ObjectLabel": "",
                     "Properties": {},
                     "BaseColor": {
                       "X": 0.9,
@@ -246,9 +263,12 @@
           "Properties": {}
         },
         {
+          "ObjectLabel": "",
+          "RootComponent": "DefaultSceneRoot",
           "Class": "ASpotLightActor",
           "Components": [
             {
+              "ObjectLabel": "DefaultSceneRoot",
               "Class": "USceneComponent",
               "Name": "DefaultSceneRoot",
               "Parent": "",
@@ -273,9 +293,10 @@
               }
             },
             {
+              "ObjectLabel": "USpotLightComponent",
               "Class": "USpotLightComponent",
               "Name": "USpotLightComponent",
-              "Parent": "",
+              "Parent": "DefaultSceneRoot",
               "Properties": {
                 "AttenuationRadius": 20.0,
                 "InnerConeAngle": 25.0,
@@ -308,10 +329,12 @@
               }
             },
             {
+              "ObjectLabel": "UBillboardComponent",
               "Class": "UBillboardComponent",
               "Material": {
                 "Base": "SubUVMaterial",
                 "Instance": {
+                  "ObjectLabel": "",
                   "BaseColor": {
                     "W": 1.0,
                     "X": 1.0,
@@ -357,6 +380,7 @@
               }
             },
             {
+              "ObjectLabel": "UArrowComponent",
               "Class": "UStaticMeshComponent",
               "Name": "UArrowComponent",
               "OverrideMaterials": [
@@ -393,9 +417,12 @@
           "Properties": {}
         },
         {
+          "ObjectLabel": "",
+          "RootComponent": "DefaultSceneRoot",
           "Class": "ASkyLightActor",
           "Components": [
             {
+              "ObjectLabel": "DefaultSceneRoot",
               "Class": "USceneComponent",
               "Name": "DefaultSceneRoot",
               "Parent": "",
@@ -420,9 +447,10 @@
               }
             },
             {
+              "ObjectLabel": "USkyLightComponent",
               "Class": "USkyLightComponent",
               "Name": "USkyLightComponent",
-              "Parent": "",
+              "Parent": "DefaultSceneRoot",
               "Properties": {
                 "Transform": {
                   "Location": {
@@ -451,10 +479,12 @@
               }
             },
             {
+              "ObjectLabel": "UBillboardComponent",
               "Class": "UBillboardComponent",
               "Material": {
                 "Base": "SubUVMaterial",
                 "Instance": {
+                  "ObjectLabel": "",
                   "BaseColor": {
                     "W": 1.0,
                     "X": 1.0,

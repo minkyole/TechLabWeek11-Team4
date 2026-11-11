@@ -6,6 +6,7 @@
             "ObjectLabel": "",
             "Actors": [
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
@@ -66,6 +67,7 @@
                     "Properties": {}
                 },
                 {
+                    "RootComponent": "DefaultSceneRoot",
                     "ObjectLabel": "",
                     "Class": "AExponentialHeightFogActor",
                     "Components": [
@@ -98,7 +100,7 @@
                             "ObjectLabel": "UExponentialHeightFogComponent",
                             "Class": "UExponentialHeightFogComponent",
                             "Name": "UExponentialHeightFogComponent",
-                            "Parent": "",
+                            "Parent": "DefaultSceneRoot",
                             "Properties": {
                                 "FogColor": {
                                     "A": 1.0,

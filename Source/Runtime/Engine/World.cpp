@@ -254,6 +254,34 @@ void UWorld::ClearWorld() {
 	HTR_LOG(Info, "{} : ", PersistentLevel->GetActorNum());
 }
 
+// 월드 폐기 단계의 소유 자원 최종 해제
+void UWorld::CleanupWorld()
+{
+	// 미초기화 월드와 반복 호출을 고려한 씬 내용 정리
+	if (PersistentLevel)
+	{
+		ClearWorld();
+	}
+
+	// 레벨에 포함되지 않는 독립 기본 카메라 해제
+	if (MainCamera)
+	{
+		MainCamera->UnregisterAllComponents();
+		MainCamera->RegisterAllActorTickFunctions(false);
+		delete MainCamera;
+		MainCamera = nullptr;
+	}
+
+	// 소유 목록 기준의 레벨 해제와 별칭 초기화
+	for (ULevel* Level : Levels)
+	{
+		delete Level;
+	}
+	Levels.Reset();
+	PersistentLevel = nullptr;
+	CurrentLevel = nullptr;
+}
+
 // Tick 이후의 Scene 상태를 반영하고 새 캡처 구간의 동적 데이터 준비를 예약한다.
 void UWorld::BeginRenderViews()
 {

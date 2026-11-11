@@ -1,12 +1,16 @@
 {
-    "Version": 4,
+    "Version": 5,
     "World": {
+        "ObjectLabel": "",
         "PersistentLevel": {
+            "ObjectLabel": "",
             "Actors": [
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -38,6 +42,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "USpringArmComponent_0",
                             "Class": "USpringArmComponent",
                             "Name": "USpringArmComponent_0",
                             "Parent": "UStaticMeshComponent",
@@ -83,6 +88,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UCameraComponent_0",
                             "Class": "UCameraComponent",
                             "Name": "UCameraComponent_0",
                             "Parent": "USpringArmComponent_0",
@@ -116,6 +122,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "URotatingMovementComponent_0",
                             "Class": "URotatingMovementComponent",
                             "Name": "URotatingMovementComponent_0",
                             "Parent": "",
@@ -138,9 +145,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [],
@@ -176,9 +185,11 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ASkyLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "USkyLightComponent",
                             "Class": "USkyLightComponent",
                             "Name": "USkyLightComponent",
                             "Parent": "",
@@ -211,10 +222,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -266,9 +279,11 @@
                     "RootComponent": "USkyLightComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "ADirectionalLightActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UDirectionalLightComponent",
                             "Class": "UDirectionalLightComponent",
                             "Name": "UDirectionalLightComponent",
                             "Parent": "",
@@ -307,10 +322,12 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
+                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -358,6 +375,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UArrowComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UArrowComponent",
                             "OverrideMaterials": [
@@ -397,15 +415,18 @@
                     "RootComponent": "UDirectionalLightComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [
                                 {
                                     "Base": "DefaultMaterial",
                                     "Instance": {
+                                        "ObjectLabel": "",
                                         "BaseColor": {
                                             "W": 1.0,
                                             "X": 1.0,
@@ -459,15 +480,18 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [
                                 {
                                     "Base": "DefaultMaterial",
                                     "Instance": {
+                                        "ObjectLabel": "",
                                         "BaseColor": {
                                             "W": 1.0,
                                             "X": 0.0,
@@ -521,15 +545,18 @@
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
+                    "ObjectLabel": "",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
+                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
                             "OverrideMaterials": [
                                 {
                                     "Base": "DefaultMaterial",
                                     "Instance": {
+                                        "ObjectLabel": "",
                                         "BaseColor": {
                                             "W": 1.0,
                                             "X": 0.0,

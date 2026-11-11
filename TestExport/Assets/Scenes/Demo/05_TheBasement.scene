@@ -1,12 +1,16 @@
 {
-    "Version": 4,
+    "Version": 5,
     "World": {
+        "ObjectLabel": "",
         "PersistentLevel": {
+            "ObjectLabel": "",
             "Actors": [
                 {
+                    "ObjectLabel": "",
                     "Class": "AActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -19,6 +23,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "TitleScreenScript",
                             "Class": "UScriptComponent",
                             "Name": "TitleScreenScript",
                             "Parent": "",

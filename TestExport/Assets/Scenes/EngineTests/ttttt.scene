@@ -1,12 +1,17 @@
 {
-    "Version": 4,
+    "Version": 5,
     "World": {
+        "ObjectLabel": "",
         "PersistentLevel": {
+            "ObjectLabel": "",
             "Actors": [
                 {
+                    "ObjectLabel": "",
+                    "RootComponent": "DefaultSceneRoot",
                     "Class": "AActor",
                     "Components": [
                         {
+                            "ObjectLabel": "DefaultSceneRoot",
                             "Class": "USceneComponent",
                             "Name": "DefaultSceneRoot",
                             "Parent": "",
@@ -31,6 +36,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UBoxComponent_0",
                             "Class": "UBoxComponent",
                             "Name": "UBoxComponent_0",
                             "Parent": "DefaultSceneRoot",
@@ -65,6 +71,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "USphereComponent_0",
                             "Class": "USphereComponent",
                             "Name": "USphereComponent_0",
                             "Parent": "DefaultSceneRoot",
@@ -95,6 +102,7 @@
                             }
                         },
                         {
+                            "ObjectLabel": "UCapsuleComponent_0",
                             "Class": "UCapsuleComponent",
                             "Name": "UCapsuleComponent_0",
                             "Parent": "DefaultSceneRoot",

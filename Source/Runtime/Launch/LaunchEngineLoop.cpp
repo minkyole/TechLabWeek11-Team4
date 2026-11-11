@@ -18,7 +18,7 @@
 #include "Core/SplashScreen.h"
 #include "Core/Stats/LightweightStats.h"
 #include "Core/Async/TaskPool.h"
-
+#include "UObject/UObjectIterator.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
@@ -194,6 +194,23 @@ void FEngineLoop::Exit()
 		GEngine->PreExit();
 	}
 	bEngineInitialized = false;
+
+	// 살아있는 월드 순회하면서 정리
+	FSceneTransitionManager* SceneTransitions = GEngine ? GEngine->GetSceneTransitionManager() : nullptr;
+	for (TObjectIterator<UWorld> It; It; ++It)
+	{
+		UWorld* World = *It;
+		World->EndPlay();
+		if (SceneTransitions)
+		{
+			SceneTransitions->CancelForWorld(World);
+		}
+		World->CleanupWorld();
+		if (GEngine)
+		{
+			GEngine->DestroyWorldContext(World);
+		}
+	}
 
 	// UAssetManager도 UObject이므로 일괄 삭제 전에 종료한다.
 	UAssetManager::Shutdown();

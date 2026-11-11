@@ -1,3 +1,10 @@
+local State = { Steps = 0, LastName = "", LastTime = -1, HitWindow = false, ChargeHandle = 0, Clock = 0 }
+
+local LandShake = {
+    Type = "Perlin", Duration = 0.4, BlendInTime = 0.02, BlendOutTime = 0.3,
+    Pitch = { Amplitude = 3.0, Frequency = 20.0 }, Roll = { Amplitude = 2.0, Frequency = 18.0 },
+}
+
 function BeginPlay()
 print("BeginPlay!\n")
 	local camera = self:GetCamera()
@@ -43,6 +50,16 @@ local runSpeed = 10.0
 local jumpSpeed = 10.0
 
 function Tick(dt)
+    State.Clock = State.Clock + dt
+    AddUIText("Steps: " .. State.Steps, 28, FVector2.new(0.0, 0.0), FVector2.new(0.0, 0.0), FVector2.new(30.0, 30.0))
+    if State.Clock - State.LastTime < 0.5 then
+        AddUIText(State.LastName, 48, FVector2.new(0.5, 0.35), FVector2.new(0.5, 0.5))
+    end
+    if State.HitWindow then
+        AddUIText("HIT WINDOW", 40, FVector2.new(0.5, 0.8), FVector2.new(0.5, 0.5))
+    end
+
+
 	-- print("Tick!\n")
 	local movement = self:GetMovementComponent()
 
@@ -119,4 +136,43 @@ end
 
 function OnReload()
 print("Reload!\n")
+end
+
+function OnAnimNotify(Name)
+    State.LastName, State.LastTime = Name, State.Clock
+    if Name == "LeftFoot" then
+        PlaySound("Assets/Sounds/FootstepLeft.wav", false, 0.8)
+        State.Steps = State.Steps + 1
+    elseif Name == "RightFoot" then
+        PlaySound("Assets/Sounds/FootstepRight.wav", false, 0.8)
+        State.Steps = State.Steps + 1
+    elseif Name == "Land" then
+        PlaySound("Assets/Sounds/JumpLand.wav", false, 1.0)
+        local Manager = GetPlayerCameraManager()
+        if Manager then
+            Manager:AddCameraModifier("UCameraModifier_CameraShake", { Pattern = LandShake, Scale = 1.0 })
+        end
+    end
+    print("[Notify] " .. Name)
+end
+
+function OnAnimNotifyBegin(Name)
+    if Name == "SlowMo" then SetGlobalTimeDilation(0.3)
+    elseif Name == "HitWindow" then
+        State.HitWindow = true
+        SetGlobalTimeDilation(0.3)
+        PlaySound("Assets/Sounds/SwordSwing.wav", false, 0.9)
+    elseif Name == "Charge" then State.ChargeHandle = PlaySound("Assets/Sounds/심장소리.mp3", true, 0.7)
+    end
+    print("[Notify Begin] " .. Name)
+end
+
+function OnAnimNotifyEnd(Name)
+    if Name == "SlowMo" then SetGlobalTimeDilation(1.0)
+    elseif Name == "HitWindow" 
+        then State.HitWindow = false
+        SetGlobalTimeDilation(1.0)
+    elseif Name == "Charge" and State.ChargeHandle ~= 0 then StopSound(State.ChargeHandle); State.ChargeHandle = 0
+    end
+    print("[Notify End] " .. Name)
 end

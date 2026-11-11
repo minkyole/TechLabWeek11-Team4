@@ -2187,18 +2187,48 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 		ImGui::TextUnformatted("Clip");
 		ImGui::SameLine();
 		ImGui::SetNextItemWidth(260.0f);
-		if (ImGui::BeginCombo("##PreviewClip", PreviewLabel))
+		if (ImGui::BeginCombo("##PreviewClip", PreviewLabel, ImGuiComboFlags_HeightLargest))
 		{
-			if (ImGui::Selectable("None", !bHasSelection) && bHasSelection)
+			if (ImGui::IsWindowAppearing())
+			{
+				ClipSearchFilter[0] = '\0';
+				ImGui::SetKeyboardFocusHere();
+			}
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			const bool bSearchSubmitted = ImGui::InputTextWithHint("##ClipSearch", "Search clip...", ClipSearchFilter,
+				sizeof(ClipSearchFilter), ImGuiInputTextFlags_EnterReturnsTrue);
+
+			auto ToLower = [](FString Text)
+			{
+				std::transform(Text.begin(), Text.end(), Text.begin(), [](unsigned char C) { return static_cast<char>(std::tolower(C)); });
+				return Text;
+			};
+			const FString Filter = ToLower(ClipSearchFilter);
+
+			TArray<int32> Matches;
+			for (int32 i = 0; i < PreviewClips.Num(); ++i)
+			{
+				if (Filter.empty() || ToLower(PreviewClips[i].Name).find(Filter) != FString::npos)
+				{
+					Matches.Add(i);
+				}
+			}
+			ImGui::TextDisabled("%d / %d clips", Matches.Num(), PreviewClips.Num());
+
+			if (bSearchSubmitted && !Matches.IsEmpty() && IsPlayableClip(PreviewClips[Matches[0]].Sequence))
+			{
+				SelectPreviewClip(Matches[0]);
+				ImGui::CloseCurrentPopup();
+			}
+
+			const float ListHeight = ImGui::GetTextLineHeightWithSpacing() * std::min(Matches.Num() + 1, 14) + ImGui::GetStyle().WindowPadding.y;
+			ImGui::BeginChild("##ClipList", ImVec2(0.0f, ListHeight));
+			if (Filter.empty() && ImGui::Selectable("None", !bHasSelection) && bHasSelection)
 			{
 				SelectPreviewClip(-1);
 			}
-			if (!bHasSelection)
-			{
-				ImGui::SetItemDefaultFocus();
-			}
 
-			for (int32 i = 0; i < PreviewClips.Num(); ++i)
+			for (const int32 i : Matches)
 			{
 				const bool bSelected = (i == SelectedClipIndex);
 				const bool bPlayable = IsPlayableClip(PreviewClips[i].Sequence);
@@ -2213,12 +2243,17 @@ void FSkeletalMeshViewerPanel::DrawAnimationWindow(const ImGuiWindowClass& Windo
 				{
 					ImGui::SetTooltip("Clip has no frames.");
 				}
-				if (bSelected)
+				if (bSelected && ImGui::IsWindowAppearing())
 				{
-					ImGui::SetItemDefaultFocus();
+					ImGui::SetScrollHereY();
 				}
 				ImGui::PopID();
 			}
+			if (Matches.IsEmpty())
+			{
+				ImGui::TextDisabled("No matching clip");
+			}
+			ImGui::EndChild();
 			ImGui::EndCombo();
 		}
 

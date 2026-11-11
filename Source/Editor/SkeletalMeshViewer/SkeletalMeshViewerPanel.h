@@ -214,6 +214,7 @@ private:
 	int32 HoveredBoneIndex = -1;
 	bool bScrollToSelectedBone = false;
 	char BoneSearchFilter[64] = "";
+	char ClipSearchFilter[64] = "";
 
 	// 저장 상태 알림 메시지 및 타이머
 	FString SaveStatusMessage;

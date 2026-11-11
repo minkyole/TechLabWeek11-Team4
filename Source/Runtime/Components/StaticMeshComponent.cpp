@@ -35,9 +35,19 @@ void UStaticMeshComponent::SetStaticMesh(UStaticMesh* InStaticMesh)
 		return;
 
 	StaticMesh = InStaticMesh;
-	ClearOverrideMaterials();
-	MarkRenderStateDirty();
-	OnTransformDirty();
+	PostApplyProperties(StaticClass()->FindPropertyByName(FName("StaticMesh")));
+}
+
+// 메시 교체 이후 재질 덮어쓰기와 공간 캐시의 갱신
+void UStaticMeshComponent::PostApplyProperties(const FProperty* ChangedProperty)
+{
+	Super::PostApplyProperties(ChangedProperty);
+
+	if (ChangedProperty && ChangedProperty->Name == FName("StaticMesh"))
+	{
+		ClearOverrideMaterials();
+		OnTransformDirty();
+	}
 }
 
 int32 UStaticMeshComponent::GetNumMaterials() const

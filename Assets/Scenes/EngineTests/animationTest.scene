@@ -49,6 +49,9 @@
                             "OverrideMaterials": [],
                             "Parent": "CapsuleComponent",
                             "Properties": {
+                                "AnimGraphAssetPath": "Assets/NewAnimGraph.animgraph",
+                                "AnimationMode": 4,
+                                "AnimationScriptPath": "Assets/Scripts/Animation/CharacterAnim.lua",
                                 "DebugSpeed": 0.0,
                                 "SkeletalMesh": "Models/UAL1_Standard_RM.fbx",
                                 "StateMachineAssetPath": "Assets/NewStateMachine.animsm",

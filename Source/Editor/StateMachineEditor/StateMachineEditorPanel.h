@@ -31,6 +31,7 @@ class FStateMachineEditorPanel : public IEditorPanel
 	{
 		return "State Machine Editor";
 	}
+	std::function<void()> OpenHost;
 	void SetOpen(bool Open) override;
 	void OpenAsset(const FString &Path);
 	void NewAsset(const FString &Folder);
@@ -49,11 +50,18 @@ class FStateMachineEditorPanel : public IEditorPanel
 	}
 
   private:
+    friend class FAnimGraphEditorPanel;
+    void ClipboardActions(bool Copy, bool Paste, bool Duplicate);
+    FString RuleSearch;
+    int PendingFocusRule=0, RuleSearchSelection=0;
+    int HoveredRuleTooltip=0;
+    std::vector<int> PendingSelection;
 	struct FGraphSession
 	{
 		ax::NodeEditor::EditorContext *Context = nullptr;
 		std::set<uintptr_t> Placed;
 		bool Fit = true;
+        FString SettingsPath;
 	};
 	void ClearContexts();
 	FGraphSession &GraphSession();

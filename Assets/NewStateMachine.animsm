@@ -263,6 +263,12 @@
       "Float": 0.0,
       "Name": "RollRequested",
       "Type": 2
+    },
+    {
+      "Bool": false,
+      "Float": 0.0,
+      "Name": "AttackReady",
+      "Type": 1
     }
   ],
   "States": [
@@ -274,6 +280,78 @@
       "Name": "Locomotion",
       "Parameter": "Speed",
       "Playing": true,
+      "PoseGraph": {
+        "Links": [
+          {
+            "From": 1,
+            "Id": 1,
+            "Input": 0,
+            "To": 4
+          },
+          {
+            "From": 4,
+            "Id": 3,
+            "Input": 0,
+            "To": 2
+          },
+          {
+            "From": 5,
+            "Id": 4,
+            "Input": 1,
+            "To": 4
+          }
+        ],
+        "Nodes": [
+          {
+            "Asset": "BS_Locomotion.blendspace",
+            "Id": 1,
+            "Loop": true,
+            "Parameter": "Speed",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 1,
+            "Value": 0.0,
+            "X": -179.0,
+            "Y": -41.0
+          },
+          {
+            "Asset": "",
+            "Id": 2,
+            "Loop": true,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 4,
+            "Value": 0.0,
+            "X": 522.0,
+            "Y": 49.0
+          },
+          {
+            "Asset": "",
+            "Id": 4,
+            "Loop": true,
+            "Parameter": "AttackReady",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 2,
+            "Value": 0.0,
+            "X": 174.0,
+            "Y": 59.0
+          },
+          {
+            "Asset": "BS_LocomotionSword.blendspace",
+            "Id": 5,
+            "Loop": true,
+            "Parameter": "Speed",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 1,
+            "Value": 0.0,
+            "X": -179.0,
+            "Y": 119.0
+          }
+        ]
+      },
       "Rate": 1.0,
       "X": 97.0,
       "Y": 219.0
@@ -286,9 +364,45 @@
       "Name": "Attack",
       "Parameter": "",
       "Playing": true,
+      "PoseGraph": {
+        "Links": [
+          {
+            "From": 1,
+            "Id": 1,
+            "Input": 0,
+            "To": 2
+          }
+        ],
+        "Nodes": [
+          {
+            "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Sword_Attack",
+            "Id": 1,
+            "Loop": false,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 0,
+            "Value": 0.0,
+            "X": 0.0,
+            "Y": 0.0
+          },
+          {
+            "Asset": "",
+            "Id": 2,
+            "Loop": true,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 4,
+            "Value": 0.0,
+            "X": 300.0,
+            "Y": 0.0
+          }
+        ]
+      },
       "Rate": 1.0,
       "X": 544.0,
-      "Y": 217.0
+      "Y": 218.0
     },
     {
       "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Hit_Chest",
@@ -298,6 +412,42 @@
       "Name": "Hit",
       "Parameter": "",
       "Playing": true,
+      "PoseGraph": {
+        "Links": [
+          {
+            "From": 1,
+            "Id": 1,
+            "Input": 0,
+            "To": 2
+          }
+        ],
+        "Nodes": [
+          {
+            "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Hit_Chest",
+            "Id": 1,
+            "Loop": false,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 0,
+            "Value": 0.0,
+            "X": 0.0,
+            "Y": 0.0
+          },
+          {
+            "Asset": "",
+            "Id": 2,
+            "Loop": true,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 4,
+            "Value": 0.0,
+            "X": 300.0,
+            "Y": 0.0
+          }
+        ]
+      },
       "Rate": 1.0,
       "X": 96.0,
       "Y": -61.0
@@ -310,6 +460,42 @@
       "Name": "JumpStart",
       "Parameter": "",
       "Playing": true,
+      "PoseGraph": {
+        "Links": [
+          {
+            "From": 1,
+            "Id": 1,
+            "Input": 0,
+            "To": 2
+          }
+        ],
+        "Nodes": [
+          {
+            "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Start",
+            "Id": 1,
+            "Loop": false,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 0,
+            "Value": 0.0,
+            "X": 0.0,
+            "Y": 0.0
+          },
+          {
+            "Asset": "",
+            "Id": 2,
+            "Loop": true,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 4,
+            "Value": 0.0,
+            "X": 300.0,
+            "Y": 0.0
+          }
+        ]
+      },
       "Rate": 1.0,
       "X": -182.0,
       "Y": 688.0
@@ -322,6 +508,42 @@
       "Name": "Death",
       "Parameter": "",
       "Playing": true,
+      "PoseGraph": {
+        "Links": [
+          {
+            "From": 1,
+            "Id": 1,
+            "Input": 0,
+            "To": 2
+          }
+        ],
+        "Nodes": [
+          {
+            "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Death01",
+            "Id": 1,
+            "Loop": false,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 0,
+            "Value": 0.0,
+            "X": 0.0,
+            "Y": 0.0
+          },
+          {
+            "Asset": "",
+            "Id": 2,
+            "Loop": true,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 4,
+            "Value": 0.0,
+            "X": 300.0,
+            "Y": 0.0
+          }
+        ]
+      },
       "Rate": 1.0,
       "X": -47.0,
       "Y": -157.0
@@ -334,6 +556,42 @@
       "Name": "Revival",
       "Parameter": "",
       "Playing": true,
+      "PoseGraph": {
+        "Links": [
+          {
+            "From": 1,
+            "Id": 1,
+            "Input": 0,
+            "To": 2
+          }
+        ],
+        "Nodes": [
+          {
+            "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Sitting_Exit",
+            "Id": 1,
+            "Loop": false,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 0,
+            "Value": 0.0,
+            "X": 0.0,
+            "Y": 0.0
+          },
+          {
+            "Asset": "",
+            "Id": 2,
+            "Loop": true,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 4,
+            "Value": 0.0,
+            "X": 300.0,
+            "Y": 0.0
+          }
+        ]
+      },
       "Rate": 1.0,
       "X": 334.0,
       "Y": -131.0
@@ -346,6 +604,42 @@
       "Name": "JumpLoop",
       "Parameter": "",
       "Playing": true,
+      "PoseGraph": {
+        "Links": [
+          {
+            "From": 1,
+            "Id": 1,
+            "Input": 0,
+            "To": 2
+          }
+        ],
+        "Nodes": [
+          {
+            "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Loop",
+            "Id": 1,
+            "Loop": true,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 0,
+            "Value": 0.0,
+            "X": 0.0,
+            "Y": 0.0
+          },
+          {
+            "Asset": "",
+            "Id": 2,
+            "Loop": true,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 4,
+            "Value": 0.0,
+            "X": 300.0,
+            "Y": 0.0
+          }
+        ]
+      },
       "Rate": 1.0,
       "X": 99.0,
       "Y": 564.0
@@ -358,6 +652,42 @@
       "Name": "JumpLand",
       "Parameter": "",
       "Playing": true,
+      "PoseGraph": {
+        "Links": [
+          {
+            "From": 1,
+            "Id": 1,
+            "Input": 0,
+            "To": 2
+          }
+        ],
+        "Nodes": [
+          {
+            "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Jump_Land",
+            "Id": 1,
+            "Loop": false,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 0,
+            "Value": 0.0,
+            "X": 0.0,
+            "Y": 0.0
+          },
+          {
+            "Asset": "",
+            "Id": 2,
+            "Loop": true,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 4,
+            "Value": 0.0,
+            "X": 300.0,
+            "Y": 0.0
+          }
+        ]
+      },
       "Rate": 1.0,
       "X": 455.0,
       "Y": 693.0
@@ -370,6 +700,42 @@
       "Name": "Roll",
       "Parameter": "",
       "Playing": true,
+      "PoseGraph": {
+        "Links": [
+          {
+            "From": 1,
+            "Id": 1,
+            "Input": 0,
+            "To": 2
+          }
+        ],
+        "Nodes": [
+          {
+            "Asset": "Models/UAL1_Standard_RM.fbx#Anim/Armature|Roll",
+            "Id": 1,
+            "Loop": false,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.399999976158142,
+            "Type": 0,
+            "Value": 0.0,
+            "X": 0.0,
+            "Y": 0.0
+          },
+          {
+            "Asset": "",
+            "Id": 2,
+            "Loop": true,
+            "Parameter": "",
+            "Playing": true,
+            "Rate": 1.0,
+            "Type": 4,
+            "Value": 0.0,
+            "X": 300.0,
+            "Y": 0.0
+          }
+        ]
+      },
       "Rate": 1.399999976158142,
       "X": 96.0,
       "Y": 436.0
@@ -472,8 +838,8 @@
               "Result": true,
               "Tolerance": 0.0010000000474974513,
               "Type": 0,
-              "X": 908.0,
-              "Y": 23.0
+              "X": 907.0,
+              "Y": 25.0
             },
             {
               "Bool": true,
@@ -486,7 +852,7 @@
               "Tolerance": 0.0010000000474974513,
               "Type": 6,
               "X": 534.0,
-              "Y": 0.0
+              "Y": -4.0
             },
             {
               "Bool": true,
@@ -856,8 +1222,8 @@
               "Result": false,
               "Tolerance": 0.0010000000474974513,
               "Type": 4,
-              "X": 215.0,
-              "Y": -105.0
+              "X": 22.0,
+              "Y": -119.0
             }
           ]
         },
@@ -1055,8 +1421,8 @@
               "Result": false,
               "Tolerance": 0.0010000000474974513,
               "Type": 5,
-              "X": -537.0,
-              "Y": 373.0
+              "X": -506.0,
+              "Y": 327.0
             },
             {
               "Bool": true,
@@ -1081,8 +1447,8 @@
               "Result": false,
               "Tolerance": 0.0010000000474974513,
               "Type": 6,
-              "X": -186.0,
-              "Y": 442.0
+              "X": -107.0,
+              "Y": 463.0
             },
             {
               "Bool": true,
@@ -1384,5 +1750,5 @@
   ],
   "Type": "AnimStateMachine",
   "UpdateScript": "",
-  "Version": 1
+  "Version": 2
 }

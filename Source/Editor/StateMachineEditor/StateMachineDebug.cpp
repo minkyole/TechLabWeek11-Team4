@@ -121,7 +121,7 @@ FStateMachineObservation ObserveStateMachine(const UAssetAnimInstance &Instance,
 	result.Compatible = true;
 	result.StateName = name(result.State);
 	int index = Instance.GetActiveTransitionIndex();
-	if (index >= 0 && index < (int)data.Transitions.size())
+	if (Instance.IsTransitioning() && index >= 0 && index < (int)data.Transitions.size())
 	{
 		const auto &t = data.Transitions[index];
 		result.Transition = t.Id;

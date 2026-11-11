@@ -248,6 +248,12 @@ void ax::NodeEditor::Flow(LinkId linkId, FlowDirection direction)
         CurrentEditor()->Flow(link, direction);
 }
 
+void ax::NodeEditor::StopFlow(LinkId linkId)
+{
+    if (auto link = CurrentEditor()->FindLink(linkId))
+        CurrentEditor()->StopFlow(link);
+}
+
 bool ax::NodeEditor::BeginCreate(const ImVec4& color, float thickness)
 {
     auto& context = CurrentEditor()->GetItemCreator();

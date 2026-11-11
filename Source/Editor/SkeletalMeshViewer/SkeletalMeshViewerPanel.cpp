@@ -703,10 +703,10 @@ void FSkeletalMeshViewerPanel::Tick(float DeltaTime)
 		UpdatePreviewPlaybackEnd();
 	}
 
-	HandlePreviewShortcuts();
+	if (!bEmbeddedAnimationPreview) HandlePreviewShortcuts();
 	HandleInput(DeltaTime);
 	UpdateCamera(DeltaTime);
-	UpdateBoneInteraction();
+	if (!bEmbeddedAnimationPreview) UpdateBoneInteraction();
 }
 
 void FSkeletalMeshViewerPanel::HandleInput(float DeltaTime)
@@ -732,7 +732,7 @@ void FSkeletalMeshViewerPanel::HandleInput(float DeltaTime)
 	// 1. 단축키 'F': 포커스 맞추기, W/E/R/Space: 기즈모 모드 전환, Ctrl+S: 저장 (우클릭 카메라 조작 중이 아닐 때)
 	if (!IO.WantTextInput && !bRightMouseDown && !IO.KeyAlt)
 	{
-		if (IO.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
+		if (!bEmbeddedAnimationPreview && IO.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
 		{
 			SaveCurrentMesh();
 		}
@@ -4571,4 +4571,29 @@ bool FSkeletalMeshViewerPanel::PreviewAnimGraph(const FAnimGraphAssetData& Data,
     auto* Instance = Cast<UAnimGraphInstance>(PreviewComponent->GetAnimInstance());
     if (!Instance || !Instance->Configure(Data,false)) { Error = Instance ? Instance->GetLastError() : "Cannot create AnimGraph preview"; return false; }
     PreviewMode = EPreviewMode::AnimGraph; bViewportOpen = true; SetOpen(true); RequestFocus(); PreviewComponent->TickComponent(0); return true;
+}
+
+std::unique_ptr<FSkeletalMeshViewerPanel> FSkeletalMeshViewerPanel::CreateAnimationPreviewBackend() const
+{
+    auto Backend=std::make_unique<FSkeletalMeshViewerPanel>();
+    Backend->SetRenderer(Renderer); Backend->SetGridRenderer(GridRenderer); Backend->SetGizmoRenderer(GizmoRenderer); Backend->SetToneMapRenderer(ToneMapRenderer);
+    Backend->Init(); Backend->bEmbeddedAnimationPreview=true;
+    return Backend;
+}
+void FSkeletalMeshViewerPanel::DrawEmbeddedPreview()
+{
+    bViewportVisible=false;
+    if(ImGui::Button("Reset Camera")) FocusOnMesh();
+    ImGui::SameLine(); ImGui::TextDisabled("Alt+LMB Orbit | Wheel Zoom");
+    const auto Size=ImGui::GetContentRegionAvail();
+    if(Size.x<2 || Size.y<2) { HideEmbeddedPreview(); return; }
+    ResizeViewport((uint32)Size.x,(uint32)Size.y);
+    if(bFrameRequested) { FocusOnMesh(); bFrameRequested=false; }
+    if(ColorTarget && ColorTarget->GetSRV())
+    {
+        CachedViewportOrigin=ImGui::GetCursorScreenPos(); CachedViewportSize=Size;
+        ImGui::Image(ColorTarget->GetSRV(),Size);
+        bViewportVisible=true; bViewportOpen=true; bViewportHovered=ImGui::IsItemHovered();
+        bViewportFocused=ImGui::IsWindowFocused();
+    }
 }

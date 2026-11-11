@@ -24,6 +24,7 @@ void FEditorUI::Tick(float DeltaTime)
 
 void FEditorUI::OnRender()
 {
+	ImGuiID RootWorkspaceDockId = 0;
 	if (bUseDockSpace)
 	{
 		static bool dockspaceOpen = true;
@@ -68,6 +69,7 @@ void FEditorUI::OnRender()
 		if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
 		{
 			ImGuiID rootDockId = ImGui::GetID("HitoriEngineRootDockSpace");
+			RootWorkspaceDockId = rootDockId;
 
 			ImGuiDockNode* RootNode = ImGui::DockBuilderGetNode(rootDockId);
 			if (RootNode == nullptr || (RootNode->CentralNode == nullptr && RootNode->IsLeafNode()))
@@ -82,6 +84,7 @@ void FEditorUI::OnRender()
 				ImGui::DockBuilderDockWindow("Skeletal Mesh Viewer", rootDockId);
 				ImGui::DockBuilderDockWindow("Blend Space Editor", rootDockId);
 				ImGui::DockBuilderDockWindow("State Machine Editor", rootDockId);
+                ImGui::DockBuilderDockWindow("AnimGraph Editor", rootDockId);
 				ImGui::DockBuilderFinish(rootDockId);
 			}
 
@@ -111,18 +114,38 @@ void FEditorUI::OnRender()
 		const char* Name = Panel->GetPanelName();
 		const bool bIsSkelViewer = (strcmp(Name, "Skeletal Mesh Viewer") == 0);
 		const bool bIsMainViewport = (strcmp(Name, "Viewports") == 0);
+		const bool bIsAnimGraphEditor = (strcmp(Name, "AnimGraph Editor") == 0);
 
-		if (strcmp(Name, "State Machine Editor") == 0)
+		if (strcmp(Name, "State Machine Editor") == 0 || bIsAnimGraphEditor)
 		{
-			// Repair only this window when an old layout placed it in the locked viewport group.
-			if (ImGuiWindow* Window = ImGui::FindWindowByName(Name); Window && Window->DockNode)
+			// Asset editors belong to the outer workspace, not the locked Level Editor panels.
+			ImGuiWindow* Window = ImGui::FindWindowByName(Name);
+			ImGuiID SavedDockId = Window ? Window->DockId : 0;
+			if (!Window)
+				if (const ImGuiWindowSettings* Settings = ImGui::FindWindowSettingsByID(ImHashStr(Name)))
+					SavedDockId = Settings->DockId;
+			ImGuiDockNode* Node = ImGui::DockBuilderGetNode(SavedDockId);
+			bool bWrongGroup = false;
+			if (Node)
 			{
-				ImGuiDockNode* Root = ImGui::DockNodeGetRootNode(Window->DockNode);
-				if ((Window->DockNode->MergedFlags & ImGuiDockNodeFlags_NoUndocking) != 0 ||
+				ImGuiDockNode* Root = ImGui::DockNodeGetRootNode(Node);
+				bWrongGroup = (Node->MergedFlags & ImGuiDockNodeFlags_NoUndocking) != 0 ||
 					Root->WindowClass.ClassId == LevelEditorClass.ClassId ||
-					Window->WindowClass.ClassId == LevelEditorClass.ClassId)
+					(Window && Window->WindowClass.ClassId == LevelEditorClass.ClassId);
+			}
+			if (bWrongGroup || (bIsAnimGraphEditor && bAnimGraphInitialDockPending && !Node))
+			{
+				if (bIsAnimGraphEditor && RootWorkspaceDockId)
+				{
+					const ImGuiWindow* LevelWindow = ImGui::FindWindowByName("Level Editor");
+					const ImGuiID Target = LevelWindow && LevelWindow->DockId ? LevelWindow->DockId : RootWorkspaceDockId;
+					ImGui::SetNextWindowDockID(Target, ImGuiCond_Always);
+				}
+				else
 					ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
 			}
+			if (bIsAnimGraphEditor)
+				bAnimGraphInitialDockPending = false;
 			ImGuiWindowClass AssetEditorClass;
 			ImGui::SetNextWindowClass(&AssetEditorClass);
 		}

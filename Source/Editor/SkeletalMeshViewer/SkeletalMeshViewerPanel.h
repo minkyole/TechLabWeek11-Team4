@@ -45,6 +45,10 @@ public:
 	virtual const char* GetPanelName() const override { return "Skeletal Mesh Viewer"; }
 
 	// ImGui BeginRenderPass(메인 스왑체인) 시작 전에 호출되어 독립 렌더 타깃에 프리뷰 씬을 렌더링
+    // Reusable isolated backend for animation document preview sessions.
+    std::unique_ptr<FSkeletalMeshViewerPanel> CreateAnimationPreviewBackend() const;
+    void DrawEmbeddedPreview();
+    void HideEmbeddedPreview() { bViewportVisible=false; bViewportHovered=false; bViewportFocused=false; }
 	void RenderPreview();
  bool PreviewAnimGraph(const FAnimGraphAssetData& Data, FString& Error);
  UAnimGraphInstance* GetAnimGraphPreview() const;
@@ -142,6 +146,7 @@ private:
 	uint32 ViewportWidth = 0;
 	uint32 ViewportHeight = 0;
 	bool bViewportVisible = false;
+    bool bEmbeddedAnimationPreview = false;
 	bool bFrameRequested = false;
 	bool bViewportHovered = false;
 	bool bIsInteracting = false;

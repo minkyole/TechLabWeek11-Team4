@@ -9,6 +9,14 @@
 using json = nlohmann::json;
 
 enum class EAnimGraphNodeType : uint8 { Sequence, BlendSpace, TwoWayBlend, StateMachine, Output };
+enum class EAnimDiagnosticSeverity : uint8 { Warning, Error };
+// Location is optional for legacy string-only diagnostics.
+struct FAnimGraphDiagnostic
+{
+    FString AssetPath, GraphPath, Message;
+    int NodeId=0, LinkId=0, StateId=-1, TransitionId=0;
+    EAnimDiagnosticSeverity Severity=EAnimDiagnosticSeverity::Error;
+};
 struct FAnimGraphNode
 {
     int Id = 1;

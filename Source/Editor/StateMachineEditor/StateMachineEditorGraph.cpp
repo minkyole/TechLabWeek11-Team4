@@ -6,6 +6,8 @@
 #include "Render/Mesh.h"
 #include "Editor/SkeletalMeshViewer/SkeletalMeshViewerPanel.h"
 #include "imgui_node_editor.h"
+#include "Editor/AnimGraphEditor/AnimationEditorStyle.h"
+#include "Core/Misc/FileHelper.h"
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -115,7 +117,9 @@ const char *TypeName(EAnimConditionType Type)
 void PinLabel(ed::PinId Id, ed::PinKind Kind, const char *Text)
 {
 	ed::BeginPin(Id, Kind);
-	ImGui::TextColored(ImVec4(.55f, .85f, 1, 1), "%s %s", Kind == ed::PinKind::Input ? ">" : "o", Text);
+	auto P=ImGui::GetCursorScreenPos(); ImGui::Dummy(ImVec2(12,14));
+    ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(P.x+6,P.y+7),4,IM_COL32(220,65,78,255));
+    ImGui::SameLine(); ImGui::TextUnformatted(Text);
 	ed::EndPin();
 }
 void Place(std::set<uintptr_t> &Placed, ed::NodeId Id, float X, float Y)
@@ -325,7 +329,7 @@ void DrawDirection(ImDrawList *draw, const FStateConnection &path, ImU32 color, 
 } // namespace
 void FStateMachineEditorPanel::ClearContexts()
 {
-    PoseEditors.clear(); ActivePose = -1;
+    PoseEditors.clear(); ActivePose = -1; PendingSelection.clear(); PendingFocusRule=0;
 	for (auto &[id, s] : Sessions)
 	{
 		if (ed::GetCurrentEditor() == s.Context)
@@ -344,7 +348,15 @@ FStateMachineEditorPanel::FGraphSession &FStateMachineEditorPanel::GraphSession(
 	if (!session.Context)
 	{
 		ed::Config config;
-		config.SettingsFile = nullptr;
+		if(!Path.empty())
+        {
+            std::error_code EC; fs::create_directories("Saved/AnimationEditor",EC);
+            session.SettingsPath="Saved/AnimationEditor/"+std::to_string(std::hash<FString>{}(Path+"/Rule/"+std::to_string(ActiveRule)))+".json";
+            session.Fit=!fs::exists(session.SettingsPath,EC);
+        }
+        config.SettingsFile=nullptr; config.UserPointer=&session;
+        config.SaveSettings=[](const char* Data,size_t Size,ed::SaveReasonFlags,void* User) { auto* S=static_cast<FGraphSession*>(User); return !S->SettingsPath.empty() && FFileHelper::SaveStringToFile(FString(Data,Size),S->SettingsPath); };
+        config.LoadSettings=[](char* Data,void* User)->size_t { auto* S=static_cast<FGraphSession*>(User); FString Text; if(S->SettingsPath.empty() || !FFileHelper::LoadFileToString(Text,S->SettingsPath)) return 0; if(Data) memcpy(Data,Text.data(),Text.size()); return Text.size(); };
 		config.NavigateButtonIndex = 2;
 		config.ContextMenuButtonIndex = 1;
 		config.EnableSmoothZoom = true;
@@ -414,6 +426,7 @@ void FStateMachineEditorPanel::DrawGraph()
 	auto &session = GraphSession();
 	auto *previous = ed::GetCurrentEditor();
 	ed::SetCurrentEditor(session.Context);
+    FAnimationGraphStyle GraphStyle;
 	if (ImGui::Button("Frame All"))
 		session.Fit = true;
 	ImGui::SameLine();
@@ -438,19 +451,28 @@ void FStateMachineEditorPanel::DrawGraph()
 	ed::EnableShortcuts(Focused && !ImGui::GetIO().WantTextInput);
 	ed::Begin(ActiveRule ? "Transition Rule" : "State Machine Canvas",
 			  ImVec2(0, std::max(260.0f, ImGui::GetContentRegionAvail().y)));
+    bool CanvasActive=ed::IsActive()&&!ImGui::GetIO().WantTextInput;
+    if(CanvasActive) { if(ImGui::IsKeyPressed(ImGuiKey_F)) ed::NavigateToSelection(); if(ImGui::IsKeyPressed(ImGuiKey_Home)) session.Fit=true; }
 	const bool stateGraph = ActiveRule == 0;
+    HoveredRuleTooltip=0;
 	if (ActiveRule)
 		DrawRuleGraph(session);
 	else
 		DrawStateGraph(session);
+    if(!PendingSelection.empty()) { ed::ClearSelection(); for(int Id:PendingSelection) ed::SelectNode(ActiveRule?Node(RuleNode,Id):StateId(Id),true); PendingSelection.clear(); }
+    if(ed::BeginShortcut()) { bool Copy=ed::AcceptCopy(),Paste=ed::AcceptPaste(),Duplicate=ed::AcceptDuplicate(); ClipboardActions(Copy,Paste,Duplicate); }
+    ed::EndShortcut();
 	if (session.Fit)
 	{
 		ed::NavigateToContent(0);
 		session.Fit = false;
 	}
 	ed::End();
+    // The canvas mouse position is local until End(); tooltip windows need screen space.
+    if(HoveredRuleTooltip) ImGui::SetTooltip("Rule node #%d",HoveredRuleTooltip);
 	if (stateGraph)
 		HandleStateGraphInteraction();
+    GraphStyle.End();
 	ed::SetCurrentEditor(previous);
 }
 void FStateMachineEditorPanel::DrawStateGraph(FGraphSession &session)
@@ -481,7 +503,7 @@ void FStateMachineEditorPanel::DrawStateGraph(FGraphSession &session)
 		if (!special && id == current)
 			background = ImVec4(.13f, .36f, .22f, 1);
 		ed::PushStyleColor(ed::StyleColor_NodeBg, background);
-		if (source || target)
+		if (source || target || (!special && id == current))
 			ed::PushStyleColor(ed::StyleColor_NodeBorder, source ? ImVec4(1, .75f, .2f, 1) : ImVec4(.25f, .8f, .7f, 1));
 		ed::BeginNode(StateId(id));
 		auto origin = ImGui::GetCursorScreenPos(), size = CompactSize(name, special);
@@ -499,9 +521,10 @@ void FStateMachineEditorPanel::DrawStateGraph(FGraphSession &session)
 		draw->AddText(origin, IM_COL32(235, 237, 242, 255), name);
 		if (!special)
 			draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * .82f,
-						  Add(origin, ImVec2(0, ImGui::GetFontSize() + 4)), IM_COL32(145, 155, 170, 255), type);
+						  Add(origin, ImVec2(0, ImGui::GetFontSize() + 4)), IM_COL32(145, 155, 170, 255), (!special && id==current) ? "ACTIVE" : type);
+
 		ed::EndNode();
-		if (source || target)
+		if (source || target || (!special && id == current))
 			ed::PopStyleColor();
 		ed::PopStyleColor();
 	};
@@ -520,6 +543,8 @@ void FStateMachineEditorPanel::DrawStateGraph(FGraphSession &session)
 		ed::Link(path.LinkId(), path.Endpoint(0), path.Endpoint(1), color, active ? 3.f : 2.f);
 		if (active)
 			ed::Flow(path.LinkId());
+		else
+			ed::StopFlow(path.LinkId());
 		if (auto *draw = ed::GetNodeBackgroundDrawList(StateId(path.From)))
 			DrawDirection(draw, path, ImGui::ColorConvertFloat4ToU32(color), !path.Initial);
 	}
@@ -632,8 +657,10 @@ void FStateMachineEditorPanel::DrawStateGraph(FGraphSession &session)
 	}
 	if (ImGui::BeginPopup("Create State"))
 	{
-		if (ImGui::MenuItem("Add State"))
-			AddState(CreationPosition);
+        if(ImGui::IsWindowAppearing()) RuleSearch.clear();
+        AnimGraphTextEdit("Search",RuleSearch);
+		if (ImGuiTextFilter(RuleSearch.c_str()).PassFilter("State") && (ImGui::MenuItem("State") || ImGui::IsKeyPressed(ImGuiKey_Enter)))
+        { AddState(CreationPosition); ImGui::CloseCurrentPopup(); }
 		ImGui::EndPopup();
 	}
 	if (ImGui::BeginPopup("State Actions"))
@@ -645,7 +672,8 @@ void FStateMachineEditorPanel::DrawStateGraph(FGraphSession &session)
 			PendingSource = kind == StateNode ? id : (id == 0 ? EntrySource : AnySource);
 			PendingStartFrame = ImGui::GetFrameCount();
 		}
-		if (transition && ImGui::MenuItem("Edit Transition Rule"))
+		if(kind==StateNode && ImGui::MenuItem("Duplicate","Ctrl+D")) { ed::ClearSelection(); ed::SelectNode(StateId(id)); ClipboardActions(false,false,true); }
+        if (transition && ImGui::MenuItem("Edit Transition Rule"))
 		{
 			if (FindTransition(id))
 			{
@@ -874,12 +902,17 @@ void FStateMachineEditorPanel::DrawRuleGraph(FGraphSession& session)
 		auto id = Node(RuleNode, n.Id);
 		Place(session.Placed, id, n.X, n.Y);
 		bool invalid = n.Id == errorNode;
-		ed::PushStyleColor(ed::StyleColor_NodeBg, n.Result ? ImVec4(.28f, .13f, .14f, 1) : ImVec4(.13f, .21f, .29f, 1));
+		ed::PushStyleColor(ed::StyleColor_NodeBg, ImVec4(.14f,.15f,.16f,1));
 		if (invalid)
 			ed::PushStyleColor(ed::StyleColor_NodeBorder, ImVec4(1, .25f, .2f, 1));
 		ed::BeginNode(id);
 		ImGui::PushID(n.Id);
-		ImGui::TextUnformatted(n.Result ? "Can Enter Transition" : TypeName(n.Condition.Type));
+        auto Header=ImGui::GetCursorScreenPos();
+        auto HeaderColor=n.Condition.Type==EAnimConditionType::FloatCompare?IM_COL32(53,91,54,255):IM_COL32(120,43,47,255);
+        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(Header.x-5,Header.y-4),ImVec2(Header.x+200,Header.y+23),HeaderColor,4);
+        ImGui::TextUnformatted(n.Result ? "Can Enter Transition" : TypeName(n.Condition.Type));
+        if(ImGui::IsItemHovered()) HoveredRuleTooltip=n.Id;
+        ImGui::Dummy(ImVec2(190,5));
 		ImGui::Separator();
 		ImGui::PushItemWidth(180);
 		if (!n.Result)
@@ -902,7 +935,7 @@ void FStateMachineEditorPanel::DrawRuleGraph(FGraphSession& session)
 	}
 	for (auto& link : graph.Links)
 		ed::Link(ed::LinkId(Key(RuleLink, link.Id)), Pin(RulePin, link.From, 0), Pin(RulePin, link.To, link.Input + 1),
-		         ImVec4(.45f, .85f, .55f, 1), 2);
+		         ImVec4(.88f,.27f,.32f,1), 2);
 	if (ed::HasSelectionChanged())
 	{
 		std::vector<ed::NodeId> nodes(ed::GetSelectedObjectCount());
@@ -944,7 +977,7 @@ void FStateMachineEditorPanel::DrawRuleGraph(FGraphSession& session)
 			CreateFromPin = pin.Get();
 			CreationPosition = ed::ScreenToCanvas(ImGui::GetMousePos());
 			ed::Suspend();
-			ImGui::OpenPopup("Create Rule Node");
+			RuleSearch.clear(); RuleSearchSelection=0; ImGui::OpenPopup("Create Rule Node");
 			ed::Resume();
 		}
 	}
@@ -988,6 +1021,9 @@ void FStateMachineEditorPanel::DrawRuleGraph(FGraphSession& session)
 	ed::Suspend();
 	ed::NodeId menuNode;
 	ed::LinkId menuLink;
+    ed::PinId MenuPin;
+    if(ed::ShowPinContextMenu(&MenuPin)) { ContextObject=MenuPin.Get(); ImGui::OpenPopup("Rule Pin Actions"); }
+    if(ImGui::BeginPopup("Rule Pin Actions")) { if(ImGui::MenuItem("Break Connection(s)")) { int Id=Object(ContextObject),Input=Slot(ContextObject); std::erase_if(graph.Links,[&](auto& L){return Input==0?L.From==Id:L.To==Id&&L.Input==Input-1;}); Dirty=true; } ImGui::EndPopup(); }
 	if (ed::ShowNodeContextMenu(&menuNode))
 	{
 		ContextObject = menuNode.Get();
@@ -1002,18 +1038,27 @@ void FStateMachineEditorPanel::DrawRuleGraph(FGraphSession& session)
 	{
 		CreateFromPin = 0;
 		CreationPosition = ed::ScreenToCanvas(ImGui::GetMousePos());
+        RuleSearch.clear(); RuleSearchSelection=0;
 		ImGui::OpenPopup("Create Rule Node");
 	}
 	if (ImGui::BeginPopup("Create Rule Node"))
 	{
+        if(ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
+        if(AnimGraphTextEdit("Search",RuleSearch)) RuleSearchSelection=0;
+        if(ImGui::IsKeyPressed(ImGuiKey_DownArrow)) ++RuleSearchSelection;
+        if(ImGui::IsKeyPressed(ImGuiKey_UpArrow)) RuleSearchSelection=std::max(0,RuleSearchSelection-1);
+        ImGuiTextFilter SearchFilter(RuleSearch.c_str());
+        int MatchIndex=0;
 		for (int value = 0; value <= (int)EAnimConditionType::Not; ++value)
 		{
 			auto type = (EAnimConditionType)value;
+            if(!SearchFilter.PassFilter(TypeName(type))) continue;
 			int inputs = (type == EAnimConditionType::And || type == EAnimConditionType::Or)
 			                 ? 2
 			                 : (type == EAnimConditionType::Not ? 1 : 0);
 			bool allowed = !CreateFromPin || Slot(CreateFromPin) != 0 || inputs > 0;
-			if (ImGui::MenuItem(TypeName(type), nullptr, false, allowed))
+			int ThisIndex=allowed?MatchIndex++:-1;
+            if (ImGui::MenuItem(TypeName(type), nullptr, ThisIndex==RuleSearchSelection, allowed) || (allowed && ThisIndex==RuleSearchSelection && ImGui::IsKeyPressed(ImGuiKey_Enter)))
 			{
 				FAnimRuleNode n;
 				n.Id = graph.NextNodeId();
@@ -1038,6 +1083,7 @@ void FStateMachineEditorPanel::DrawRuleGraph(FGraphSession& session)
 				}
 				graph.Nodes.push_back(n);
 				SelectedRuleNode = n.Id;
+                PendingSelection={n.Id};
 				if (CreateFromPin)
 				{
 					if (Slot(CreateFromPin) == 0)
@@ -1046,13 +1092,20 @@ void FStateMachineEditorPanel::DrawRuleGraph(FGraphSession& session)
 						connect(n.Id, Object(CreateFromPin), Slot(CreateFromPin) - 1);
 				}
 				CreateFromPin = 0;
+                ImGui::CloseCurrentPopup();
 				Dirty = true;
 			}
 		}
+        if(MatchIndex>0) RuleSearchSelection=std::min(RuleSearchSelection,MatchIndex-1);
 		ImGui::EndPopup();
 	}
 	if (ImGui::BeginPopup("Rule Actions"))
 	{
+        if(Kind(ContextObject)==RuleNode)
+        {
+            auto* Source=graph.Find(Object(ContextObject));
+            if(Source && !Source->Result && ImGui::MenuItem("Duplicate","Ctrl+D")) { ed::ClearSelection(); ed::SelectNode(Node(RuleNode,Source->Id)); ClipboardActions(false,false,true); }
+        }
 		bool canDelete = Kind(ContextObject) == RuleLink;
 		auto* n = graph.Find(Object(ContextObject));
 		if (n && !n->Result)
@@ -1067,6 +1120,7 @@ void FStateMachineEditorPanel::DrawRuleGraph(FGraphSession& session)
 		ImGui::EndPopup();
 	}
 	ed::Resume();
+    if(PendingFocusRule>0 && graph.Find(PendingFocusRule)) { ed::ClearSelection(); ed::SelectNode(Node(RuleNode,PendingFocusRule)); ed::NavigateToSelection(); PendingFocusRule=0; }
 	for (auto& n : graph.Nodes)
 		if (session.Placed.contains(Key(RuleNode, n.Id)))
 			Dirty |= Capture(Node(RuleNode, n.Id), n.X, n.Y);
@@ -1317,4 +1371,52 @@ void FStateMachineEditorPanel::DrawRuleErrors()
 			ImGui::PopID();
 		}
 	}
+}
+void FStateMachineEditorPanel::ClipboardActions(bool Copy,bool Paste,bool Duplicate)
+{
+    if(!Copy&&!Paste&&!Duplicate) return;
+    static std::vector<FAnimAssetState> StateClipboard;
+    static std::vector<FAnimAssetTransition> TransitionClipboard;
+    static FAnimRuleGraph RuleClipboard;
+    auto* Transition=FindTransition(ActiveRule);
+    if(Transition)
+    {
+        auto& Graph=Transition->Rule;
+        if(Copy||Duplicate)
+        {
+            RuleClipboard={}; std::set<int> Ids;
+            std::vector<ed::NodeId> Nodes(ed::GetSelectedObjectCount()); int Count=ed::GetSelectedNodes(Nodes.data(),(int)Nodes.size());
+            for(int I=0;I<Count;++I) if(Kind(Nodes[I].Get())==RuleNode) if(auto* N=Graph.Find(Object(Nodes[I].Get()));N&&!N->Result) { RuleClipboard.Nodes.push_back(*N); Ids.insert(N->Id); }
+            for(auto& L:Graph.Links) if(Ids.count(L.From)&&Ids.count(L.To)) RuleClipboard.Links.push_back(L);
+        }
+        if((Paste||Duplicate)&&!RuleClipboard.Nodes.empty())
+        {
+            std::map<int,int> Remap; int Id=Graph.NextNodeId(); ed::ClearSelection();
+            for(auto N:RuleClipboard.Nodes) { int Old=N.Id; N.Id=Id++; N.X+=40; N.Y+=40; Remap[Old]=N.Id; Graph.Nodes.push_back(N); PendingSelection.push_back(N.Id); SelectedRuleNode=N.Id; }
+            for(auto L:RuleClipboard.Links) { L.Id=Graph.NextLinkId(); L.From=Remap[L.From]; L.To=Remap[L.To]; Graph.Links.push_back(L); }
+            Dirty=true;
+        }
+        return;
+    }
+    if(Copy||Duplicate)
+    {
+        StateClipboard.clear(); TransitionClipboard.clear(); std::set<int> Ids;
+        std::vector<ed::NodeId> Nodes(ed::GetSelectedObjectCount()); int Count=ed::GetSelectedNodes(Nodes.data(),(int)Nodes.size());
+        for(int I=0;I<Count;++I) if(Kind(Nodes[I].Get())==StateNode) if(auto* S=FindState(Object(Nodes[I].Get()))) { StateClipboard.push_back(*S); Ids.insert(S->Id); }
+        for(auto& T:Working.Transitions) if(Ids.count(T.From)&&Ids.count(T.To)) TransitionClipboard.push_back(T);
+    }
+    if((Paste||Duplicate)&&!StateClipboard.empty())
+    {
+        std::map<int,int> Remap; ed::ClearSelection();
+        for(auto S:StateClipboard)
+        {
+            int Old=S.Id; S.Id=NextId++; S.X+=40; S.Y+=40;
+            auto Base=S.Name+"_Copy"; S.Name=Base; int Suffix=2;
+            while(std::any_of(Working.States.begin(),Working.States.end(),[&](auto& V){return V.Name==S.Name;})) S.Name=Base+std::to_string(Suffix++);
+            Remap[Old]=S.Id; Working.States.push_back(S); PendingSelection.push_back(S.Id); Selected=S.Id;
+        }
+        int Next=1; for(auto& T:Working.Transitions) Next=std::max(Next,T.Id+1);
+        for(auto T:TransitionClipboard) { T.Id=Next++; T.From=Remap[T.From]; T.To=Remap[T.To]; T.X+=40; T.Y+=40; Working.Transitions.push_back(T); }
+        Dirty=true;
+    }
 }

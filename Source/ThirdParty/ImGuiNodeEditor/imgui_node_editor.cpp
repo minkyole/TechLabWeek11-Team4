@@ -2567,6 +2567,11 @@ void ed::EditorContext::Flow(Link* link, FlowDirection direction)
     m_FlowAnimationController.Flow(link, direction);
 }
 
+void ed::EditorContext::StopFlow(Link* link)
+{
+    m_FlowAnimationController.Remove(link);
+}
+
 void ed::EditorContext::SetUserContext(bool globalSpace)
 {
     const auto mousePos = ImGui::GetMousePos();

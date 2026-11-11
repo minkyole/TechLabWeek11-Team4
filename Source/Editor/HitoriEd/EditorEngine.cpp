@@ -233,12 +233,14 @@ bool UEditorEngine::Init()
 	 });
 	 return Frame;
  });
- ContentDrawerPanel->SetOpenStateMachineCallback([this](const FString &P) { StateMachineEditorPanel->OpenAsset(P); });
- ContentDrawerPanel->SetCreateStateMachineCallback([this](const FString& P){StateMachineEditorPanel->NewAsset(P);});
+ ContentDrawerPanel->SetOpenStateMachineCallback([this](const FString &P) { AnimGraphEditorPanel->OpenAsset(P); });
+ ContentDrawerPanel->SetCreateStateMachineCallback([this](const FString& P){AnimGraphEditorPanel->NewStateMachine(P);});
 	ContentDrawerPanel->SetOpenBlendSpaceCallback([this](const FString& Path) { BlendSpaceEditorPanel->OpenAsset(Path); });
 	SkeletalMeshViewerPanel = EditorUI->AddEditorPanel<FSkeletalMeshViewerPanel>();
  StateMachineEditorPanel->SetViewer(SkeletalMeshViewerPanel);
  AnimGraphEditorPanel->SetViewer(SkeletalMeshViewerPanel);
+ AnimGraphEditorPanel->SetStateMachineTemplate(StateMachineEditorPanel);
+ StateMachineEditorPanel->OpenHost=[this](){AnimGraphEditorPanel->SetOpen(true);};
  ContentDrawerPanel->SetOpenAnimGraphCallback([this](const FString& P){ AnimGraphEditorPanel->OpenAsset(P); });
  ContentDrawerPanel->SetCreateAnimGraphCallback([this](const FString& P){ AnimGraphEditorPanel->NewAsset(P); });
 	SkeletalMeshViewerPanel->SetOpenBlendSpaceEditorCallback([this](const FString& Path) { BlendSpaceEditorPanel->OpenAsset(Path); });
@@ -483,6 +485,7 @@ void UEditorEngine::Tick(const float DeltaTime)
 	}
 	RenderMultipleViewports();
 	SkeletalMeshViewerPanel->RenderPreview();
+    AnimGraphEditorPanel->RenderPreview();
 	EndFrame();
 }
 

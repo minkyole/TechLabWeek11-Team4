@@ -1493,6 +1493,7 @@ struct EditorContext
     void UnregisterAnimation(Animation* animation);
 
     void Flow(Link* link, FlowDirection direction);
+    void StopFlow(Link* link);
 
     void SetUserContext(bool globalSpace = false);
 

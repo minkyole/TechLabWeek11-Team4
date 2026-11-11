@@ -75,6 +75,7 @@ bool FStateMachineEditorPanel::StateCombo(const char *Label, int &Id, bool Any)
 }
 void FStateMachineEditorPanel::SetOpen(bool Open)
 {
+    if(Open && OpenHost) { OpenHost(); return; }
 	if (!Open && Dirty)
 	{
 		PendingClose = true;
@@ -177,6 +178,7 @@ void FStateMachineEditorPanel::AddState(ImVec2 Position)
 		if (assets.Num())
 			s.AssetKey = assets[0]->GetPath();
 	}
+	s.PoseGraph=FAnimPoseGraph::SinglePlayer(s.AssetKey,s.BlendSpace,s.BlendParameter,s.Options.bLoop,s.Options.bPlaying,s.Options.PlayRate);
 	Working.States.push_back(s);
 	Selected = s.Id;
 	SelectedTransition = -1;
@@ -188,6 +190,7 @@ FAnimPoseGraphEditor& FStateMachineEditorPanel::PoseEditor()
 {
     auto& Editor = PoseEditors[ActivePose];
     if (!Editor) Editor = std::make_unique<FAnimPoseGraphEditor>();
+    if(!Path.empty()) Editor->SetSettingsKey(Path+"/State/"+std::to_string(ActivePose));
     return *Editor;
 }
 void FStateMachineEditorPanel::DrawDetails()

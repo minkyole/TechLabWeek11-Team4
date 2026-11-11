@@ -35,6 +35,7 @@ private:
 
 private:
 	bool bUseDockSpace = true;
+	bool bAnimGraphInitialDockPending = true;
 	bool bPassthruCentralNode = false;
 
 	bool bResetLevelLayout = false;

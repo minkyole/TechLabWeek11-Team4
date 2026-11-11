@@ -45,9 +45,16 @@ function OnHit(OtherActor, Hit)
 print("OnHit!", Hit.ImpactPoint.X, Hit.ImpactPoint.Y, Hit.ImpactPoint.Z)
 end
 
+local function Clamp01(value)
+    return math.max(0, math.min(value, 1))
+end
+
 local walkSpeed = 5.0
 local runSpeed = 10.0
 local jumpSpeed = 10.0
+local attackReadySpeed = 2.0
+
+local attackReady = 0
 
 function Tick(dt)
     State.Clock = State.Clock + dt
@@ -124,6 +131,14 @@ function Tick(dt)
 		movement:SetVerticalVelocity(jumpSpeed)
 	end
 
+    if IsMouseDown(MouseButton.Right) then
+        attackReady = attackReady + attackReadySpeed * dt
+    else
+        attackReady = attackReady - attackReadySpeed * dt
+    end
+    attackReady = Clamp01(attackReady)
+
+
 	-- 메시 교체 등으로 AnimInstance가 재생성될 수 있으므로
 	-- 장기간 저장하지 않고 사용할 때 조회한다.
 	local anim = self:GetAnimInstance()
@@ -133,7 +148,7 @@ function Tick(dt)
 	end
 
 	-- 누른 순간 한 번만 공격 요청
-	if IsKeyPressed(Key.J) then
+	if IsMousePressed(MouseButton.Left) then
 		assert(
 			anim:SetTrigger("AttackRequested"),
 			anim:GetLastError()
@@ -165,6 +180,7 @@ function Tick(dt)
 	-- 애니메이션 파라미터 업데이트
 	anim:SetFloat("Speed", movement:GetGroundSpeed())
     anim:SetBool("IsGrounded", movement:IsGrounded())
+    anim:SetFloat("AttackReady", attackReady)
 end
 
 function OnReload()

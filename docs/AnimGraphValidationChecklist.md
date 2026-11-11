@@ -76,3 +76,59 @@
 | Lua | 미실행 | | |
 | Notify/RootMotion | 미실행 | | |
 | 오류/호환성 | 미실행 | | |
+
+## 통합 애니메이션 편집기 UI/UX 개편
+
+아래 항목도 모두 **미실행**이다. Runtime·Editor 빌드만 확인하고 편집기/게임은 실행하지 않는다.
+
+UI 개편 빌드 확인: 2026-11-11, Debug x64 Runtime·Editor 빌드 성공(오류 0). 빌드 프로세스에만 `_CL_=/Z7` 적용. 로그: `Build/AnimationEditorUXFinalBuild.log`. `git diff --check` 통과. 실제 화면·입력·렌더링 동작은 아래 항목으로 확인한다.
+
+### 레이아웃과 디자인
+
+- [ ] `.animgraph`와 `.animsm`을 열면 같은 AnimGraph Editor 호스트의 문서 탭에 표시된다. 기존 Window 메뉴의 State Machine Editor 진입도 공통 호스트를 연다.
+- [ ] 기본 배치가 왼쪽 Preview/My Animation, 중앙 Graph, 오른쪽 Details, 하단 Compiler Results/Asset Browser다. 가로 비율이 약 23:55:22다.
+- [ ] 패널 크기 조절·도킹·분리·닫기 및 Window 메뉴 재표시가 동작한다. 편집기 재시작 후 배치와 표시 설정이 복원된다.
+- [ ] Window → Reset Layout으로 모든 패널과 기본 배치가 복원된다. Level Editor·Mesh Viewer의 배치는 바뀌지 않는다.
+- [ ] AnimGraph Editor가 Viewports 옆에 잠긴 기존 레이아웃에서 다시 열면 Level Editor와 같은 최상위 탭 그룹으로 이동한다. 이후 탭을 분리·다시 도킹할 수 있고 전체 레이아웃 초기화가 필요하지 않다.
+- [ ] Player/Blend/StateMachine/Output 헤더 색상, 주황색 선택 테두리, 흰색 Pose 연결, 붉은색 Bool 연결이 식별된다.
+- [ ] Float/Bool/Trigger 변수의 색상·문자 기호가 구별된다. 긴 에셋 경로는 노드를 과도하게 늘리지 않고 툴팁·Details에서 확인된다.
+- [ ] State Machine/Player 에셋 이름 및 Rule 노드 제목에 마우스를 올리면 툴팁이 커서 근처에 표시된다. 그래프 패닝·줌·창 이동 후에도 화면 왼쪽 위로 튀지 않는다.
+- [ ] State Machine의 활성 상태·전환 표시가 실제 관찰 값과 일치하고, 관찰할 수 없는 Pose 흐름을 활성으로 표시하지 않는다.
+- [ ] 연결선 흐름 효과는 실제 트랜지션 중에만 재생되고, 종료·인터럽트·관찰 대상 해제 시 즉시 사라진다. 짧은/긴 전환과 Blend duration 0을 각각 확인한다.
+
+### 생성·편집·이력
+
+- [ ] 빈 Pose 캔버스 우클릭 검색에서 부분 검색, 위/아래 선택, Enter·Esc가 동작한다. Rule 검색에서도 동일하게 동작한다.
+- [ ] 핀을 빈 공간에 드래그하면 연결 가능한 노드만 표시하고, 생성 후 올바른 입력에 자동 연결한다.
+- [ ] Asset Browser의 메시 필터·검색이 동작하고, Sequence/BlendSpace/StateMachine 드롭 시 에셋이 지정된 노드를 만든다.
+- [ ] Alpha/Axis를 노드 안에서 편집할 수 있고 Details의 값과 일치한다. 입력 핀과 출력 핀의 위치·연결 방향이 명확하다.
+- [ ] 핀 우클릭 연결 해제, 노드 복제·삭제·참조 에셋 열기가 동작한다.
+- [ ] 휠·MMB·F·Home·Delete 및 Ctrl+C/V/D가 Pose/State/Rule에서 동작한다. 필수 노드는 복제·삭제되지 않는다.
+- [ ] 그래프 종류가 다른 클립보드는 섞이지 않고, 붙여넣은 노드·상태·전이는 새 ID를 가지며 선택 상태가 된다.
+- [ ] Ctrl+Z/Y 및 Edit 메뉴 Undo/Redo가 에셋별로 동작한다. 다른 에셋의 이력을 변경하지 않는다.
+- [ ] 노드 드래그와 연속 값 입력은 한 번의 Undo로 취소된다. Undo 후 새 편집 시 Redo 이력이 사라진다. 최근 100개 편집으로 제한된다.
+- [ ] 변수·노드 이름 입력 중에는 캔버스 Delete/F/Home/Ctrl+Z가 잘못 실행되지 않는다. Preview Parameters 변경은 에셋 Dirty/Undo에 포함되지 않는다.
+
+### 문서·탐색·변수
+
+- [ ] 참조 State Machine 더블클릭 시 원래 `.animsm` 문서가 열리고 파일 이름·수정 표시·저장 대상이 구별된다.
+- [ ] 상태 Pose와 전이 Rule을 탭·My Animation·경로·뒤로/앞으로로 오갈 수 있다. 그래프별 줌·위치·선택을 유지한다.
+- [ ] 그래프 탐색만으로 프리뷰 재생이 초기화되지 않는다. 문서별 카메라·재생·수동 파라미터가 서로 독립적이다.
+- [ ] 저장된 문서를 다시 열거나 편집기를 재시작했을 때 그래프 뷰 설정이 복원된다. 새 문서를 처음 저장한 경우도 확인한다.
+- [ ] 수정된 문서 탭 또는 호스트를 닫을 때 Save/Discard/Cancel이 동작한다. Cancel 후 문서와 프리뷰가 유지된다.
+- [ ] 변수 선택 시 Details에 이름·타입·기본값이 표시되고, 선택이 없으면 메시·UpdateScript 에셋 설정이 보인다.
+- [ ] 변수 이름 변경 시 현재 에셋의 Pose·Rule·소비 Trigger 참조가 함께 바뀐다. 외부 참조 파일·Lua 스크립트는 자동 변경하지 않는다.
+- [ ] 사용 중 변수의 삭제·타입 변경은 사용 위치와 확인 창을 표시한다. 취소하면 값이 유지되고, 계속하면 남은 오류를 Compile로 확인할 수 있다.
+
+### Compile·프리뷰·호환성
+
+- [ ] Compile은 저장되지 않은 수정본을 검증하고 프리뷰에 적용한다. 파일·씬 컴포넌트는 변경하지 않는다.
+- [ ] Needs Compile/Up to date/Compile Error 상태가 편집과 컴파일 결과에 맞게 바뀐다.
+- [ ] 정상 Compile 후 오류를 만들고 Compile하면 이전 정상 프리뷰가 유지되며 현재 수정본과 다르다는 안내가 나타난다.
+- [ ] Compiler Results에서 오류·경고를 선택하면 해당 State/Pose/Rule과 식별 가능한 노드를 찾아 강조한다. 위치 없는 기존 오류는 해당 그래프를 연다.
+- [ ] Preview의 Play/Pause/Stop/Reset과 Reset Camera가 동작한다. 기본 Lua 업데이트는 비활성이고 Preview Parameters로 직접 조작할 수 있다.
+- [ ] Mesh Viewer에서 다른 메시·애니메이션을 열거나 카메라를 움직여도 애니메이션 편집기 프리뷰가 변하지 않는다. 반대 방향도 확인한다.
+- [ ] 프리뷰에 포커스를 두고 Ctrl+S를 눌렀을 때 메시 파일을 저장하지 않고 현재 애니메이션 문서만 저장한다.
+- [ ] StateMachine Observe 탭의 PIE 대상 선택·읽기 전용 관찰·상태/전환 강조가 유지된다. AnimGraph에 가짜 PIE 관찰 값을 표시하지 않는다.
+- [ ] 기존 `.animgraph`/`.animsm` 저장·로드, 컴포넌트 Animation Mode, 저장 시 의존 컴포넌트 재빌드가 유지된다.
+- [ ] 편집기 종료 시 프리뷰 컴포넌트와 렌더 타깃이 해제되고, 여러 문서 Compile/닫기를 반복해도 수명 오류가 없다.

@@ -181,6 +181,15 @@
       "Parameter": "IsGrounded",
       "Tolerance": 0.0010000000474974513,
       "Type": 1
+    },
+    {
+      "Bool": false,
+      "Children": [],
+      "Float": 0.0,
+      "Op": 2,
+      "Parameter": "IsGrounded",
+      "Tolerance": 0.0010000000474974513,
+      "Type": 1
     }
   ],
   "Editor": {
@@ -383,7 +392,7 @@
       "Consume": [
         "AttackRequested"
       ],
-      "Curve": 0,
+      "Curve": 1,
       "Duration": 0.20000000298023224,
       "Editor": {
         "Rule": {
@@ -1108,6 +1117,60 @@
       "Priority": 0,
       "Restart": false,
       "To": 8
+    },
+    {
+      "Condition": 19,
+      "Consume": [],
+      "Curve": 0,
+      "Duration": 0.20000000298023224,
+      "Editor": {
+        "Rule": {
+          "Links": [
+            {
+              "From": 3,
+              "Id": 2,
+              "Input": 0,
+              "To": 1
+            }
+          ],
+          "Nodes": [
+            {
+              "Bool": true,
+              "Float": 0.0,
+              "Id": 1,
+              "Inputs": 1,
+              "Op": 2,
+              "Parameter": "None",
+              "Result": true,
+              "Tolerance": 0.0010000000474974513,
+              "Type": 0,
+              "X": 320.0,
+              "Y": 0.0
+            },
+            {
+              "Bool": false,
+              "Float": 0.0,
+              "Id": 3,
+              "Inputs": 0,
+              "Op": 2,
+              "Parameter": "IsGrounded",
+              "Result": false,
+              "Tolerance": 0.0010000000474974513,
+              "Type": 1,
+              "X": 119.0,
+              "Y": 133.0
+            }
+          ]
+        },
+        "X": 165.5,
+        "Y": 404.0
+      },
+      "From": 8,
+      "Id": 15,
+      "Interrupt": 2,
+      "Priority": 0,
+      "Restart": false,
+      "To": 4
     }
   ],
   "Type": "AnimStateMachine",

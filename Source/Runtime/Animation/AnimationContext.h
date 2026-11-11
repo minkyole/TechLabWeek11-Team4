@@ -15,6 +15,9 @@ struct FAnimationUpdateContext
 	// 이 가지가 최종 포즈에 섞이는 비율. 블렌드 노드를 지날 때마다 곱해져 내려간다
 	float BlendWeight = 1.0f;
 
+	// 이전에 적용한 BlendSpace 입력으로 계속 재생한다.
+	bool bFreezeBlendSpaceInput = false;
+
 	// Context는 const로 받으니, 자식마다 비율만 바꾼 복사본을 만들어 넘긴다
 	FAnimationUpdateContext FractionalWeight(float Weight) const
 	{

@@ -412,7 +412,12 @@ void FAnimNode_StateMachine::Update(const FAnimationUpdateContext& Context)
 
 	if (bTransitioning && !bUseSnapshot && PreviousNode)
 	{
-		PreviousNode->Update(Context.FractionalWeight(1.0f - Alpha));
+		FAnimationUpdateContext PreviousContext =
+		    Context.FractionalWeight(1.0f - Alpha);
+
+		PreviousContext.bFreezeBlendSpaceInput = true;
+
+		PreviousNode->Update(PreviousContext);
 	}
 
 	// 스냅샷 전환은 이전 포즈가 멈춰 있어 이동이 없으니, 현재 상태도 섞이는 비율만큼만 이동한다

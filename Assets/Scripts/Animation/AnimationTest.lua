@@ -70,10 +70,31 @@ function Tick(dt)
     local x = 0.0
     local y = 0.0
 
-    if IsKeyDown(Key.W) then x = x + 1.0 end
-    if IsKeyDown(Key.S) then x = x - 1.0 end
-    if IsKeyDown(Key.D) then y = y + 1.0 end
-    if IsKeyDown(Key.A) then y = y - 1.0 end
+    local mesh = self:FindSceneComponentByName("SkeletalMeshComponent")
+    if mesh == nil then
+        print("mesh not found")
+        return
+    end
+
+    local rotation = mesh:GetRelativeRotation()
+
+    if IsKeyDown(Key.W) then 
+        x = x + 1.0 
+        rotation.Yaw = 180
+    end
+    if IsKeyDown(Key.S) then 
+        x = x - 1.0 
+        rotation.Yaw = 0
+    end
+    if IsKeyDown(Key.D) then 
+        y = y + 1.0 
+        rotation.Yaw = -90
+    end
+    if IsKeyDown(Key.A) then 
+        y = y - 1.0 
+        rotation.Yaw = 90
+    end
+    mesh:SetRelativeRotation(rotation)
 
     local yaw = math.rad(self:GetActorRotation().Yaw)
     local cosYaw = math.cos(yaw)

@@ -3,16 +3,14 @@
     "World": {
         "ObjectLabel": "",
         "PersistentLevel": {
-            "ObjectLabel": "",
             "Actors": [
                 {
-                    "ObjectLabel": "ACharacter_0",
                     "Class": "ACharacter",
                     "Components": [
                         {
-                            "ObjectLabel": "CapsuleComponent",
                             "Class": "UCapsuleComponent",
                             "Name": "CapsuleComponent",
+                            "ObjectLabel": "CapsuleComponent",
                             "Parent": "",
                             "Properties": {
                                 "CapsuleHalfHeight": 1.0,
@@ -45,9 +43,9 @@
                             }
                         },
                         {
-                            "ObjectLabel": "SkeletalMeshComponent",
                             "Class": "USkeletalMeshComponent",
                             "Name": "SkeletalMeshComponent",
+                            "ObjectLabel": "Mesh",
                             "OverrideMaterials": [],
                             "Parent": "CapsuleComponent",
                             "Properties": {
@@ -86,25 +84,25 @@
                             }
                         },
                         {
-                            "ObjectLabel": "CharacterMovementComponent",
                             "Class": "UCharacterMovementComponent",
                             "Name": "CharacterMovementComponent",
+                            "ObjectLabel": "CharacterMovementComponent",
                             "Parent": "",
                             "Properties": {}
                         },
                         {
-                            "ObjectLabel": "ScriptComponent",
                             "Class": "UScriptComponent",
                             "Name": "ScriptComponent",
+                            "ObjectLabel": "ScriptComponent",
                             "Parent": "",
                             "Properties": {
                                 "ScriptPath": "Assets/Scripts/Animation/AnimationTest.lua"
                             }
                         },
                         {
-                            "ObjectLabel": "CameraComponent",
                             "Class": "UCameraComponent",
                             "Name": "CameraComponent",
+                            "ObjectLabel": "CameraComponent",
                             "Parent": "CapsuleComponent",
                             "Properties": {
                                 "Transform": {
@@ -137,22 +135,21 @@
                         }
                     ],
                     "Name": "ACharacter_0",
+                    "ObjectLabel": "ACharacter_0",
                     "Properties": {},
                     "RootComponent": "CapsuleComponent"
                 },
                 {
-                    "ObjectLabel": "AStaticMeshActor_0",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
-                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
+                            "ObjectLabel": "UStaticMeshComponent",
                             "OverrideMaterials": [
                                 {
                                     "Base": "DefaultMaterial",
                                     "Instance": {
-                                        "ObjectLabel": "",
                                         "BaseColor": {
                                             "W": 1.0,
                                             "X": 1.0,
@@ -160,6 +157,7 @@
                                             "Z": 1.0
                                         },
                                         "BlendState": "Opaque",
+                                        "ObjectLabel": "",
                                         "Properties": {},
                                         "SamplerState": "LinearClamp",
                                         "Shininess": 32.0,
@@ -203,9 +201,9 @@
                             }
                         },
                         {
-                            "ObjectLabel": "UBoxComponent_0",
                             "Class": "UBoxComponent",
                             "Name": "UBoxComponent_0",
+                            "ObjectLabel": "UBoxComponent_0",
                             "Parent": "UStaticMeshComponent",
                             "Properties": {
                                 "BoxExtent": {
@@ -242,22 +240,21 @@
                         }
                     ],
                     "Name": "AStaticMeshActor_0",
+                    "ObjectLabel": "AStaticMeshActor_0",
                     "Properties": {},
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
-                    "ObjectLabel": "AStaticMeshActor_1",
                     "Class": "AStaticMeshActor",
                     "Components": [
                         {
-                            "ObjectLabel": "UStaticMeshComponent",
                             "Class": "UStaticMeshComponent",
                             "Name": "UStaticMeshComponent",
+                            "ObjectLabel": "UStaticMeshComponent",
                             "OverrideMaterials": [
                                 {
                                     "Base": "DefaultMaterial",
                                     "Instance": {
-                                        "ObjectLabel": "",
                                         "BaseColor": {
                                             "W": 1.0,
                                             "X": 1.0,
@@ -265,6 +262,7 @@
                                             "Z": 0.0
                                         },
                                         "BlendState": "Opaque",
+                                        "ObjectLabel": "",
                                         "Properties": {},
                                         "SamplerState": "LinearClamp",
                                         "Shininess": 32.0,
@@ -308,9 +306,9 @@
                             }
                         },
                         {
-                            "ObjectLabel": "UBoxComponent_0",
                             "Class": "UBoxComponent",
                             "Name": "UBoxComponent_0",
+                            "ObjectLabel": "UBoxComponent_0",
                             "Parent": "UStaticMeshComponent",
                             "Properties": {
                                 "BoxExtent": {
@@ -347,17 +345,17 @@
                         }
                     ],
                     "Name": "AStaticMeshActor_1",
+                    "ObjectLabel": "AStaticMeshActor_1",
                     "Properties": {},
                     "RootComponent": "UStaticMeshComponent"
                 },
                 {
-                    "ObjectLabel": "ASkyLightActor_0",
                     "Class": "ASkyLightActor",
                     "Components": [
                         {
-                            "ObjectLabel": "USkyLightComponent",
                             "Class": "USkyLightComponent",
                             "Name": "USkyLightComponent",
+                            "ObjectLabel": "USkyLightComponent",
                             "Parent": "",
                             "Properties": {
                                 "Intensity": 1.0,
@@ -388,12 +386,10 @@
                             }
                         },
                         {
-                            "ObjectLabel": "UBillboardComponent",
                             "Class": "UBillboardComponent",
                             "Material": {
                                 "Base": "SubUVMaterial",
                                 "Instance": {
-                                    "ObjectLabel": "",
                                     "BaseColor": {
                                         "W": 1.0,
                                         "X": 1.0,
@@ -401,6 +397,7 @@
                                         "Z": 1.0
                                     },
                                     "BlendState": "AlphaBlend",
+                                    "ObjectLabel": "",
                                     "Properties": {},
                                     "SamplerState": "LinearClamp",
                                     "Shininess": 32.0,
@@ -414,6 +411,7 @@
                                 }
                             },
                             "Name": "UBillboardComponent",
+                            "ObjectLabel": "UBillboardComponent",
                             "Parent": "USkyLightComponent",
                             "Properties": {
                                 "Transform": {
@@ -443,10 +441,12 @@
                         }
                     ],
                     "Name": "ASkyLightActor_0",
+                    "ObjectLabel": "ASkyLightActor_0",
                     "Properties": {},
                     "RootComponent": "USkyLightComponent"
                 }
             ],
+            "ObjectLabel": "",
             "Properties": {}
         },
         "Properties": {}

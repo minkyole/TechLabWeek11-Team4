@@ -467,21 +467,8 @@ void FViewportsPanel::DrawStatOverlay(ImDrawList* DrawList, const ImVec2& ViewMi
 		Lines.Add({ TimeLine("Anim Evaluate", SkinningStats::STAT_AnimEvaluate), ValueColor });
 		Lines.Add({ TimeLine("Skinning", SkinningStats::STAT_Skin), ValueColor });
 		Lines.Add({ TimeLine("Upload", SkinningStats::STAT_Upload), ValueColor });
-		Lines.Add({ TimeLine("CPU On-Demand", SkinningStats::STAT_OnDemand), ValueColor });
 		Lines.Add({ std::format("  {:<14} {:7.3f} ms  ({:.1f} fps)", "Frame",
 			FStatOverlay::GetFrameTimeMs(), FStatOverlay::GetFPS()), ValueColor });
-		Lines.Add({ std::format("  Components: {}  GPU: {}  CPU: {}  Fallback: {}",
-			FStatRegistry::GetCounter(SkinningStats::STAT_Components),
-			FStatRegistry::GetCounter(SkinningStats::STAT_GPUComponents),
-			FStatRegistry::GetCounter(SkinningStats::STAT_CPUComponents),
-			FStatRegistry::GetCounter(SkinningStats::STAT_Fallbacks)), ValueColor });
-		Lines.Add({ std::format("  Vertices: {}  Bones: {}  CPU-skinned vertices: {}",
-			FStatRegistry::GetCounter(SkinningStats::STAT_Vertices),
-			FStatRegistry::GetCounter(SkinningStats::STAT_Bones),
-			FStatRegistry::GetCounter(SkinningStats::STAT_CPUVertices)), ValueColor });
-		Lines.Add({ std::format("  Upload: {:.1f} KB  On-Demand: {}",
-			static_cast<double>(FStatRegistry::GetCounter(SkinningStats::STAT_UploadBytes)) / 1024.0,
-			FStatRegistry::GetCounter(SkinningStats::STAT_OnDemandCount)), ValueColor });
 	}
 
 	// 현재 프레임 전체 World의 그림자 통계를 기존 줄 목록에 추가한다.

@@ -39,6 +39,7 @@ public:
 	~USkeletalMeshComponent() override;
 
 	void BeginPlay() override;
+	void Serialize(FStructuredArchive::FRecord Record) override;
 	void NormalizeProperties(const FProperty* ChangedProperty = nullptr) override;
 	void PostApplyProperties(const FProperty* ChangedProperty = nullptr) override;
 	void TickComponent(float DeltaTime) override;

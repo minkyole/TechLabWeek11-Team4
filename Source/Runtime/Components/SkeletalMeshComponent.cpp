@@ -464,3 +464,14 @@ void USkeletalMeshComponent::PostApplyProperties(const FProperty* ChangedPropert
 		InitializeAnimInstance();
 	}
 }
+
+// 역직렬화 이전의 실행체 수명 정리
+void USkeletalMeshComponent::Serialize(FStructuredArchive::FRecord Record)
+{
+	if (Record.GetUnderlyingArchive().IsLoading())
+	{
+		ClearAnimInstance();
+	}
+
+	Super::Serialize(Record);
+}

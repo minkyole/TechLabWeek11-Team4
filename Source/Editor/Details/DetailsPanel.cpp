@@ -6,6 +6,7 @@
 #include "Editor/HitoriEd/EditorResourcePaths.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Components/ParticleSubUVComponent.h"
@@ -305,11 +306,14 @@ namespace
 
 		auto SelectMesh = [Owner, SkeletalMeshPtr](USkeletalMesh* Mesh)
 		{
-			// 버퍼 참조와 Bounds가 갱신되도록 컴포넌트의 설정 함수를 거친다.
-			if (USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(Owner))
+			if (USkinnedMeshComponent* Component = Cast<USkinnedMeshComponent>(Owner))
+			{
 				Component->SetSkeletalMesh(Mesh);
+			}
 			else
+			{
 				*SkeletalMeshPtr = Mesh;
+			}
 		};
 		if (ImGui::Selectable("None", Current == nullptr)) SelectMesh(nullptr);
 
